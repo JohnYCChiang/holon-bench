@@ -1,0 +1,12 @@
+[package]
+name = "tokio_cancellation"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1", features = ["macros", "rt", "sync", "time"] }
+
+[lib]
+path = "src/lib.rs"
+
+[workspace]

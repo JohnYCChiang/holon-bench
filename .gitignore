@@ -1,5 +1,7 @@
 __pycache__/
 *.py[cod]
+.holon/
+**/.holon/
 
 # Benchmark run artifacts are regenerated and noisy. Keep only the stable
 # summary reports tracked.
