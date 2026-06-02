@@ -137,6 +137,19 @@ A model with low `first_pass` but high `repaired_pass` is expensive but recovera
 
 See [`reports/baseline_summary.md`](reports/baseline_summary.md) for current model comparison results.
 
+### External Agent Baselines
+
+Holon-Bench is not tied to Holon or any single model backend. Current baselines include local OpenAI-compatible model servers and external CLI agents:
+
+| Agent | Type | Tracks evaluated |
+|---|---|---|
+| `antigravity-cli` | External CLI agent (Google) | `python_tool_engineering` (3/5 cases) |
+| `qwen36-27b-mtp-q4` | Local OpenAI-compatible endpoint | `python_tool_engineering`, `rust_porting`, `repair_needed` |
+| `gemma3-27b-q4` | Local OpenAI-compatible endpoint | `python_tool_engineering`, `rust_porting`, `repair_needed` |
+| `codex` | API (OpenAI) | pending |
+
+Antigravity CLI is tracked as a non-Codex external-agent baseline to validate that Holon-Bench can evaluate CLI-based coding agents, not only local model endpoints. Codex API baselines will be expanded when credits are available.
+
 ---
 
 ## Adding Your Own Cases
