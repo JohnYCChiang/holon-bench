@@ -1,9 +1,8 @@
-diff --git a/src/tool_errors/runner.py b/src/tool_errors/runner.py
-index 830d689..fa97a82 100644
---- a/src/tool_errors/runner.py
-+++ b/src/tool_errors/runner.py
-@@ -2,8 +2,8 @@ from __future__ import annotations
- 
+diff --git a/fixtures/python/tool_error_enum/src/tool_errors/runner.py b/fixtures/python/tool_error_enum/src/tool_errors/runner.py
+index 0be2b88..ca38271 100644
+--- a/fixtures/python/tool_error_enum/src/tool_errors/runner.py
++++ b/fixtures/python/tool_error_enum/src/tool_errors/runner.py
+@@ -3,7 +3,7 @@ from __future__ import annotations
  
  def run_tool(payload: dict) -> dict:
      if "path" not in payload:

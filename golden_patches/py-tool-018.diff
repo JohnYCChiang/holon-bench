@@ -1,9 +1,8 @@
-diff --git a/src/shell_runner/runner.py b/src/shell_runner/runner.py
-index eaa069f..b342ffd 100644
---- a/src/shell_runner/runner.py
-+++ b/src/shell_runner/runner.py
-@@ -5,12 +5,24 @@ import time
- 
+diff --git a/fixtures/python/shell_runner_timeout/src/shell_runner/runner.py b/fixtures/python/shell_runner_timeout/src/shell_runner/runner.py
+index b7a55d1..b5fe2d9 100644
+--- a/fixtures/python/shell_runner_timeout/src/shell_runner/runner.py
++++ b/fixtures/python/shell_runner_timeout/src/shell_runner/runner.py
+@@ -6,11 +6,31 @@ import time
  
  def run_command(argv: list[str], timeout_seconds: float | None = None) -> dict:
      started = time.monotonic()
@@ -15,23 +14,31 @@ index eaa069f..b342ffd 100644
 -        "timed_out": False,
 -        "duration_ms": int((time.monotonic() - started) * 1000),
 -    }
-+    process = subprocess.Popen(argv, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-+    timed_out = False
 +    try:
-+        stdout, stderr = process.communicate(timeout=timeout_seconds)
-+        exit_code = process.returncode
-+    except subprocess.TimeoutExpired:
-+        timed_out = True
-+        process.kill()
-+        stdout, stderr = process.communicate()
-+        exit_code = process.returncode
-+        if exit_code == 0:
-+            exit_code = -9
-+
-+    return {
-+        "stdout": stdout,
-+        "stderr": stderr,
-+        "exit_code": exit_code,
-+        "timed_out": timed_out,
-+        "duration_ms": int((time.monotonic() - started) * 1000),
-+    }
++        completed = subprocess.run(
++            argv,
++            text=True,
++            capture_output=True,
++            timeout=timeout_seconds,
++        )
++        return {
++            "stdout": completed.stdout,
++            "stderr": completed.stderr,
++            "exit_code": completed.returncode,
++            "timed_out": False,
++            "duration_ms": int((time.monotonic() - started) * 1000),
++        }
++    except subprocess.TimeoutExpired as exc:
++        stdout = exc.stdout if exc.stdout is not None else b""
++        stderr = exc.stderr if exc.stderr is not None else b""
++        if isinstance(stdout, bytes):
++            stdout = stdout.decode("utf-8", errors="replace")
++        if isinstance(stderr, bytes):
++            stderr = stderr.decode("utf-8", errors="replace")
++        return {
++            "stdout": stdout,
++            "stderr": stderr,
++            "exit_code": -1,
++            "timed_out": True,
++            "duration_ms": int((time.monotonic() - started) * 1000),
++        }
