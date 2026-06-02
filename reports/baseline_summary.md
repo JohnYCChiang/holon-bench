@@ -11,7 +11,7 @@ Results are from Phase 1 (35 cases, 5 per track).
 
 | Model | `py-tool` | `rs-core` | `rs-bevy` | `rs-port` | `go-core` | `go-game` | `flutter` | `graph` | `repair` | **Avg first_pass** |
 |---|---|---|---|---|---|---|---|---|---|---|
-| **antigravity-cli** (agent) | **3/5** | — | — | — | — | — | — | — | — | **0.60** |
+| **antigravity-cli** (external agent) | **3/3 eval.** (2 pending) | — | — | — | — | — | — | — | — | **1.00 eval.** |
 | qwen36-27b-mtp-q4 (local) | 3/5 | — | — | 2/5 | — | — | — | — | 1/5 | **0.50** |
 | gemma3-27b-q4 (local) | 2/5 | — | — | 1/5 | — | — | — | — | 0/5 | **0.33** |
 | codex (API) | — | — | — | — | — | — | — | — | — | pending |
@@ -24,7 +24,7 @@ _Scores shown as `first_pass / total cases`._
 
 ## Detailed: antigravity-cli — python_tool_engineering
 
-_Antigravity CLI is Google's agentic development platform (successor to Gemini CLI). It is evaluated here as an external agent baseline to demonstrate Holon-Bench's agent-agnostic evaluation capability._
+_Antigravity CLI is evaluated here as an external CLI-based coding agent baseline to demonstrate Holon-Bench's agent-agnostic evaluation capability._
 
 | Case | first_pass | repaired_pass | repair_attempts | result | notes |
 |---|---|---|---|---|---|
