@@ -109,7 +109,7 @@
       "first_failure_count": 0,
       "first_pass_rate": 1.0,
       "hard_pass_rate": 1.0,
-      "hidden_case_count": 2,
+      "hidden_case_count": 3,
       "hidden_failure_count": 0,
       "mutation_case_count": 0,
       "mutation_failure_count": 0,

@@ -57,15 +57,16 @@ cases:
       - Add a deterministic schedule test.
     allowed_paths: [src/plugins/combat.rs, src/systems/combat.rs, tests/combat_schedule.rs]
     forbidden_paths: [Cargo.toml]
-    protected_paths: [tests/combat_schedule.rs]
+    protected_paths: [tests/combat_schedule.rs, hidden/**]
     solution_paths: [src/plugins/combat.rs]
     verifier:
       commands: [cargo test combat_schedule]
+      hidden_commands: [sh -c 'cp hidden/combat_schedule_hidden.rs tests/combat_schedule_hidden.rs; trap "rm -f tests/combat_schedule_hidden.rs" EXIT; cargo test --test combat_schedule_hidden']
       timeout_seconds: 90
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
       soft_metrics: [functional_correctness, test_quality, maintainability]
-    failure_tags: [wrong_edge_case, missing_requirement]
+    failure_tags: [wrong_edge_case, missing_requirement, hidden_verifier_failed]
   - id: bevy-031
     track: rust_bevy
     language: rust
