@@ -111,15 +111,16 @@ cases:
       - Preserve path safety checks.
     allowed_paths: [src/delete_tool/**, tests/test_delete_tool_dry_run.py]
     forbidden_paths: [pyproject.toml, src/shared/schema.py]
-    protected_paths: [tests/test_delete_tool_dry_run.py, tests/test_delete_tool_existing.py]
+    protected_paths: [tests/test_delete_tool_dry_run.py, tests/test_delete_tool_existing.py, hidden/**]
     solution_paths: [src/delete_tool/delete.py]
     verifier:
       commands: [python3 -m unittest tests.test_delete_tool_dry_run, python3 -m unittest tests.test_delete_tool_existing]
+      hidden_commands: [python3 -m unittest hidden.test_delete_tool_hidden]
       timeout_seconds: 45
     scoring:
       hard_gates: [patch_applies, tests_pass, schema_valid, scope_pass, safety_pass]
       soft_metrics: [functional_correctness, scope_disciplined, observability]
-    failure_tags: [missing_dry_run, unsafe_path, writes_during_dry_run]
+    failure_tags: [missing_dry_run, unsafe_path, writes_during_dry_run, hidden_verifier_failed]
   - id: py-tool-010
     track: python_tool_engineering
     language: python
