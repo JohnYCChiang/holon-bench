@@ -1,13 +1,13 @@
 # Holon-Bench Roadmap
 
-This roadmap keeps Holon-Bench focused on Holon's real operating target:
-local models that can become reliable organs inside a self-improving agent
-workflow. It is not a generic leaderboard plan.
+Holon-Bench is a benchmark harness for evaluating AI coding agents on real maintainer-style workflows.
+This roadmap keeps it focused on what makes agent evaluation actually useful: **workflow convergence**, not single-shot leaderboard scores.
+
+It is not a generic leaderboard plan. The goal is to answer: _can this agent do the job of a real maintainer — including reading failures, repairing its work, staying in scope, and not breaking things it was not asked to touch?_
 
 ## Evaluation Priorities
 
-Holon-Bench should optimize for final task recovery through workflow, not
-single-shot randomness. The key score distinction is:
+Holon-Bench optimizes for final task recovery through workflow, not single-shot randomness. The key score distinction is:
 
 - `first_pass`: the first submission passes all hard gates.
 - `repaired_pass`: the submission passes after verifier-feedback repair.
@@ -15,23 +15,17 @@ single-shot randomness. The key score distinction is:
 - `final_fail`: the case still fails after exhausting the repair budget.
 - `max_repair_exhausted`: the model failed within the configured repair limit.
 
-Do not prioritize repeated stochastic trials for now. A model that can read
-failures, repair its work, and converge is more useful to Holon than a model
-with a slightly better one-shot sample rate.
+Do not prioritize repeated stochastic trials. A model that can read failures, repair its work, and converge is more useful than a model with a slightly better one-shot sample rate.
 
 ## Test Hardening
 
-Add hidden and mutation verifiers after the current public verifier path is
-stable.
+Add hidden and mutation verifiers after the current public verifier path is stable.
 
-- Public verifier: visible to the agent for self-test and repair.
-- Hidden verifier: final scoring gate for edge cases and regression coverage.
-- Mutation verifier: robustness checks for scope traps, config variants,
-  long-context noise, legacy debt, and safety constraints.
+- **Public verifier**: visible to the agent for self-test and repair.
+- **Hidden verifier**: final scoring gate for edge cases and regression coverage.
+- **Mutation verifier**: robustness checks for scope traps, config variants, long-context noise, legacy debt, and safety constraints.
 
-The goal is not leaderboard contamination resistance. The goal is to prevent
-models from passing only the narrow visible test while violating the durable
-workflow contract.
+The goal is not leaderboard contamination resistance. The goal is to prevent models from passing only the narrow visible test while violating the durable workflow contract.
 
 Verifier manifest contract:
 
@@ -45,9 +39,7 @@ verifier:
     - robustness gate for generated variants or trap checks
 ```
 
-`hidden_commands` and `mutation_commands` are final scoring gates. They should
-not be included in the prompt context. If they fail, the case must not count as
-final-pass even when public verifier commands pass.
+`hidden_commands` and `mutation_commands` are final scoring gates. They must not be included in the prompt context. If they fail, the case must not count as final-pass even when public verifier commands pass.
 
 ## Repair Cost Reporting
 
@@ -64,16 +56,13 @@ Required repair-cost metrics:
 
 Interpretation:
 
-- Low first-pass with high final-pass means the workflow is effective but
-  operating cost is higher.
-- High repair tax on one track means routing should reserve more wall-clock and
-  token budget for that role.
+- Low first-pass with high final-pass means the workflow is effective but operating cost is higher.
+- High repair tax on one track means routing should reserve more wall-clock and token budget for that role.
 - Repair success must still pass the same hard gates as first-pass success.
 
 ## Environment Isolation
 
-Avoid making Docker mandatory. It is useful for reproducibility but too heavy
-for the local iteration loop.
+Avoid making Docker mandatory. It is useful for reproducibility but too heavy for the local iteration loop.
 
 Use lightweight local isolation first:
 
@@ -95,9 +84,7 @@ environment:
 
 ## DDD-First Workflow Track
 
-Large system tasks should not jump straight into implementation. The workflow
-must start from domain understanding and keep every later artifact traceable to
-that domain model.
+Large system tasks should not jump straight into implementation. The workflow must start from domain understanding and keep every later artifact traceable to that domain model.
 
 Canonical path:
 
@@ -128,20 +115,17 @@ Scoring dimensions:
 - BDD scenario coverage
 - workflow artifact quality
 
-This track is the basis for validating Holon's long-form self-iteration loop.
-
 ## Self-Bootstrap Track
 
-Prefer self-bootstrap tasks over real-world issue porting. Real issue history
-has realism, but it is less important than proving Holon can improve Holon.
+Prefer self-bootstrap tasks that validate the agent's ability to improve its own tooling.
 
 Target case families:
 
-- Holon modifies Holon workflow definitions.
-- Holon extends Holon-Bench cases and verifiers.
-- Holon diagnoses failed benchmark runs and patches runner logic.
-- Holon creates a new tool contract and implements the tool.
-- Holon updates routing recommendations from model score reports.
+- Agent modifies its own workflow definitions.
+- Agent extends benchmark cases and verifiers.
+- Agent diagnoses failed benchmark runs and patches runner logic.
+- Agent creates a new tool contract and implements the tool.
+- Agent updates routing recommendations from model score reports.
 
 Required artifacts:
 
@@ -153,12 +137,9 @@ regression test
 verification.md
 ```
 
-## Zhenren Upsampler Maintenance Track
+## OSS Maintenance Track
 
-`/home/taichi/zhenren-upsampler` should be evaluated as a maintenance and
-architecture-refinement workload, not as a greenfield feature project.
-
-Primary capability areas:
+Evaluate agents on real open-source maintainer workflows against an existing codebase. Primary capability areas:
 
 - log-driven root-cause diagnosis
 - bug repair from user symptoms and runtime logs
@@ -193,9 +174,7 @@ symptom.md + log.txt + config excerpt
 
 ## Martial RPG Simulation Track
 
-The long-term game target is a Bevy plus authoritative game-server open-world
-martial-arts RPG. The benchmark should test whether models can build combat
-systems, simulation rules, and controller-driven martial input models.
+Tests whether agents can build combat systems, simulation rules, and controller-driven input models for a Bevy ECS + authoritative game server architecture.
 
 Core domains:
 
@@ -206,7 +185,6 @@ Core domains:
 - animation state machines
 - stamina, rooting, balance, centerline, and momentum
 - hitbox, hurtbox, guard, parry, and throw resolution
-- external styles, internal styles, taiji, sanshou, and push-hands modeling
 - PvE sparring AI and behavior selection
 - data-driven moveset authoring
 
@@ -232,4 +210,4 @@ cargo test deterministic_replay
 go test ./server/combat
 ```
 
-This track should measure domain modeling quality as much as code generation.
+This track measures domain modeling quality as much as code generation.

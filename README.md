@@ -1,91 +1,152 @@
-# Holon Benchmark v0.1
+# Holon-Bench
 
-Holon Benchmark measures model suitability inside Holon workflows, not generic
-leaderboard coding strength.
+[![CI](https://github.com/JohnYCChiang/holon-bench/actions/workflows/ci.yml/badge.svg)](https://github.com/JohnYCChiang/holon-bench/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/JohnYCChiang/holon-bench?include_prereleases)](https://github.com/JohnYCChiang/holon-bench/releases)
 
-The benchmark answers which local model should own which role:
+**Holon-Bench is an open-source benchmark harness for evaluating AI coding agents on maintainer-style workflows: patch generation, repair loops, regression safety, scope control, verifier feedback, and multi-language repository maintenance.**
 
-- contract worker
-- patch worker
-- reviewer
-- planner
-- tool maker
-- porting worker
-- game system worker
-- cross-platform app worker
-- graph-aware workflow worker
+It measures whether an agent can do what a real maintainer cares about — not single-shot LeetCode-style answers, but the full cycle of:
+
+- generating a correct patch on the first attempt (`first_pass`)
+- reading verifier feedback and repairing its own work (`repaired_pass`)
+- staying within the allowed file scope (`scope_control`)
+- passing hidden regression checks it cannot see (`hidden_verifier`)
+- converging without exhausting the repair budget (`repair_tax_rate`)
+
+Holon is one private agent implementation that uses this benchmark. The benchmark harness itself is **agent-agnostic** — it works with any OpenAI-compatible endpoint, local model server, or API.
+
+---
+
+## Why OSS Maintainers Should Care
+
+Before trusting an AI coding agent to touch your production repository, you should know:
+
+- Will it modify files it was not supposed to touch?
+- Can it recover from a failing test without human intervention?
+- Does it respect your protected interfaces and parity contracts?
+- How many repair attempts does it typically need, and at what token cost?
+
+Holon-Bench answers these questions with **reproducible, structured, scored results** across Python, Rust, Go, and Flutter/Dart codebases.
+
+See [`docs/oss-maintainer-use-cases.md`](docs/oss-maintainer-use-cases.md) for concrete scenarios.
+
+---
+
+## Tracks
+
+| Track | Language | Focus |
+|---|---|---|
+| `python_tool_engineering` | Python | CLI tools, library APIs, test coverage |
+| `rust_core` | Rust | Core library logic, trait implementations |
+| `rust_bevy` | Rust | ECS game architecture, component systems |
+| `rust_porting` | Rust / Python | Semantic parity porting with protected reference |
+| `go_core` | Go | Standard library patterns, interfaces |
+| `go_game_server` | Go | Authoritative server logic, simulation correctness |
+| `flutter_cross_platform` | Dart / Flutter | Cross-platform widget and state correctness |
+| `graph_memory_workflow` | Multi | Graph-aware agent decisions, knowledge routing |
+| `repair_needed` | Multi | Pre-broken fixtures requiring diagnosis + repair |
+
+---
 
 ## Layout
 
 ```text
-manifest/   Benchmark, track, scoring, and failure taxonomy metadata.
-cases/      Case manifests grouped by track.
-fixtures/   Per-case fixture workspaces and protected parity oracles.
-runners/    Deterministic runner, scorer, scope checker, and report tools.
-schemas/    JSON schemas for cases, results, scores, and failures.
-reports/    Generated benchmark output.
+manifest/        Benchmark, track, scoring, and failure taxonomy metadata.
+cases/           Case manifests grouped by track (YAML).
+fixtures/        Per-case fixture workspaces and protected parity oracles.
+runners/         Deterministic runner, scorer, scope checker, and report tools.
+schemas/         JSON schemas for cases, results, scores, and failures.
+reports/         Generated benchmark output and baseline comparisons.
+docs/            Guides for OSS maintainers and contributors.
+examples/        Minimal runnable sample cases to onboard new contributors.
 ```
+
+---
+
+## Quick Start
+
+### Schema and syntax check (no API key required)
+
+```bash
+python3 runners/schema_check.py .
+python3 -m py_compile runners/*.py
+```
+
+### Run a single case against any OpenAI-compatible endpoint
+
+```bash
+python3 runners/run_model_case.py py-tool-001 \
+  --model <your-model-name> \
+  --endpoint http://127.0.0.1:8086/v1 \
+  --bench-root .
+
+python3 runners/run_case.py py-tool-001 \
+  --model <your-model-name> \
+  --patch-file reports/<model>_py-tool-001_patch.diff \
+  --bench-root .
+```
+
+### Run a full track
+
+```bash
+python3 runners/run_track.py python_tool_engineering \
+  --model <your-model-name> \
+  --endpoint http://127.0.0.1:8086/v1 \
+  --bench-root .
+```
+
+### Use artifact protocol instead of strict unified diff
+
+```bash
+python3 runners/run_track.py python_tool_engineering \
+  --model <your-model-name> \
+  --protocol artifact \
+  --endpoint http://127.0.0.1:8086/v1 \
+  --bench-root .
+```
+
+---
+
+## Scoring Model
+
+Each case produces five key metrics:
+
+| Metric | Meaning |
+|---|---|
+| `first_pass` | Passes all hard gates on the initial submission |
+| `repaired_pass` | Passes after verifier-feedback repair loop |
+| `repair_attempts_used` | Number of repair turns consumed |
+| `final_fail` | Still fails after exhausting the repair budget |
+| `repair_tax_rate` | Repair attempts per benchmark case (cost signal) |
+
+A model with low `first_pass` but high `repaired_pass` is expensive but recoverable. A model with high `repair_tax_rate` on one track signals that routing should allocate more token budget for that role.
+
+---
 
 ## Phase Plan
 
-- Phase 1: 35 cases, 5 per track, to validate runner/scorer/report plumbing.
-- Phase 2: 108 cases, 15 per original track plus 3 graph-memory workflow probes.
-- Phase 3: 365 cases, full v0.1.
-- Phase 4: mutation packs for scope traps, long-context noise, repair loops,
-  security traps, and legacy debt traps.
+- **Phase 1** — 35 cases, 5 per track: validates runner/scorer/report plumbing.
+- **Phase 2** — 108 cases, 15 per original track plus 3 graph-memory workflow probes.
+- **Phase 3** — 365 cases, full v0.1.
+- **Phase 4** — Mutation packs: scope traps, long-context noise, repair loops, security traps, legacy debt traps.
 
-The `graph_memory_workflow` track checks whether Holon can actually use project
-knowledge during an agent run. Its fixtures seed `.holon/knowledge_seed.json`,
-hide policy verifiers from model context, and require graph-only decisions to
-pass.
+---
 
-See [ROADMAP.md](ROADMAP.md) for the next benchmark direction: repair-aware
-scoring, hidden/mutation verifiers, DDD-first workflows, Holon self-bootstrap,
-Zhenren Upsampler maintenance, and martial RPG simulation tracks.
+## Baseline Results
 
-## Quick Checks
+See [`reports/baseline_summary.md`](reports/baseline_summary.md) for current model comparison results.
 
-```bash
-python3 holon-bench/runners/schema_check.py holon-bench
-python3 -m py_compile holon-bench/runners/*.py
-```
+---
 
-## Direct Patch Benchmark
+## Adding Your Own Cases
 
-Generate a patch from an OpenAI-compatible local endpoint, then execute and
-score it:
+See [`examples/`](examples/) for a minimal runnable case you can clone and adapt for your own OSS repository.
 
-```bash
-python3 holon-bench/runners/run_model_case.py py-tool-001 \
-  --model qwen36-27b-mtp-q4 \
-  --endpoint http://127.0.0.1:8086/v1 \
-  --bench-root holon-bench
+The `rust_porting` fixtures demonstrate the most advanced pattern: a protected Python reference implementation whose semantics are a hard gate for the Rust output via `cargo test`.
 
-python3 holon-bench/runners/run_case.py py-tool-001 \
-  --model qwen36-27b-mtp-q4 \
-  --patch-file holon-bench/reports/qwen36-27b-mtp-q4_py-tool-001_patch.diff \
-  --bench-root holon-bench
-```
+---
 
-Run one complete track against a model endpoint:
+## Contributing
 
-```bash
-python3 holon-bench/runners/run_track.py python_tool_engineering \
-  --model qwen36-27b-mtp-q4 \
-  --endpoint http://127.0.0.1:8086/v1 \
-  --bench-root holon-bench
-```
-
-Use the Holon-style complete artifact protocol instead of strict unified diff:
-
-```bash
-python3 holon-bench/runners/run_track.py python_tool_engineering \
-  --model qwen36-27b-mtp-q4 \
-  --protocol artifact \
-  --endpoint http://127.0.0.1:8086/v1 \
-  --bench-root holon-bench
-```
-
-`rust_porting` fixtures keep a protected Python reference implementation and
-verify Rust output against it during `cargo test`; semantic parity is therefore
-a hard gate rather than a reviewer judgment.
+Issues and PRs welcome. See [`docs/oss-maintainer-use-cases.md`](docs/oss-maintainer-use-cases.md) for the design rationale.
