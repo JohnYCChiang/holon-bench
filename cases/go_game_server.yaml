@@ -35,15 +35,16 @@ cases:
       - Expired sessions must still be rejected.
     allowed_paths: [server/session/**, server/session/*_test.go]
     forbidden_paths: [go.mod]
-    protected_paths: [server/session/*_test.go]
+    protected_paths: [server/session/*_test.go, hidden/**]
     solution_paths: [server/session/session.go]
     verifier:
       commands: [go test ./server/session]
+      hidden_commands: [sh -c 'cp hidden/reconnect_hidden_test.go server/session/reconnect_hidden_test.go; trap "rm -f server/session/reconnect_hidden_test.go" EXIT; go test ./server/session']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
       soft_metrics: [functional_correctness, maintainability, observability]
-    failure_tags: [domain_rule_violation, wrong_edge_case]
+    failure_tags: [domain_rule_violation, wrong_edge_case, hidden_verifier_failed]
   - id: go-game-014
     track: go_game_server
     language: go
