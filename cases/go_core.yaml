@@ -80,15 +80,16 @@ cases:
       - Race detector must pass.
     allowed_paths: [internal/queue/**, internal/queue/*_test.go]
     forbidden_paths: [go.mod]
-    protected_paths: [internal/queue/*_test.go]
+    protected_paths: [internal/queue/*_test.go, hidden/**]
     solution_paths: [internal/queue/queue.go]
     verifier:
       commands: [go test -race ./internal/queue]
+      hidden_commands: [sh -c 'cp hidden/queue_backpressure_hidden_test.go internal/queue/queue_backpressure_hidden_test.go; trap "rm -f internal/queue/queue_backpressure_hidden_test.go" EXIT; go test -race ./internal/queue']
       timeout_seconds: 90
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
       soft_metrics: [functional_correctness, maintainability, test_quality]
-    failure_tags: [deadlock, race_condition, resource_leak]
+    failure_tags: [deadlock, race_condition, resource_leak, hidden_verifier_failed]
   - id: go-core-031
     track: go_core
     language: go
