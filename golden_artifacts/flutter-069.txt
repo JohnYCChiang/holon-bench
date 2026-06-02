@@ -1,0 +1,19 @@
+--- FILE: lib/platform/save_store.dart ---
+abstract interface class Storage {
+  Future<void> write(String key, String value);
+  Future<String> read(String key);
+}
+
+class SaveStore {
+  SaveStore(this._storage);
+
+  final Storage _storage;
+
+  Future<void> save(String slot, String value) {
+    return _storage.write(slot, value);
+  }
+
+  Future<String> load(String slot) {
+    return _storage.read(slot);
+  }
+}

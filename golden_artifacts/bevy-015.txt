@@ -1,0 +1,7 @@
+--- FILE: src/plugins/combat.rs ---
+use crate::systems::combat::{apply_damage_events, collect_deaths, World};
+
+pub fn run_combat_frame(world: &mut World) {
+    apply_damage_events(world);
+    collect_deaths(world);
+}

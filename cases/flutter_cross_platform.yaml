@@ -1,0 +1,336 @@
+track: flutter_cross_platform
+cases:
+  - id: flutter-004
+    track: flutter_cross_platform
+    language: dart
+    difficulty: easy
+    task_type: domain_validation
+    fixture: fixtures/flutter/domain_validation
+    user_request: Move domain validation out of the widget and into the domain service.
+    constraints:
+      - Widgets must not duplicate validation rules.
+      - Add pure Dart tests for validation.
+      - Preserve displayed error messages.
+    allowed_paths: [lib/domain/**, lib/widgets/form_view.dart, test/domain/**, test/widget/**]
+    forbidden_paths: [pubspec.yaml]
+    protected_paths: [test/domain/**, test/widget/**]
+    solution_paths: [lib/domain/registration_validator.dart, lib/widgets/form_view.dart]
+    verifier:
+      commands: [flutter test test/domain test/widget/form_view_test.dart]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [maintainability, test_quality, functional_correctness]
+    failure_tags: [domain_rule_violation, over_refactor]
+  - id: flutter-011
+    track: flutter_cross_platform
+    language: dart
+    difficulty: medium
+    task_type: responsive_layout
+    fixture: fixtures/flutter/responsive_narrow_width
+    user_request: Fix the responsive layout so it works on narrow mobile widths.
+    constraints:
+      - No horizontal overflow at 320px width.
+      - Preserve desktop layout density.
+      - Add widget tests for narrow and wide constraints.
+    allowed_paths: [lib/widgets/responsive_panel.dart, test/widget/responsive_panel_test.dart]
+    forbidden_paths: [pubspec.yaml]
+    protected_paths: [test/widget/responsive_panel_test.dart]
+    solution_paths: [lib/widgets/responsive_panel.dart]
+    verifier:
+      commands: [flutter test test/widget/responsive_panel_test.dart]
+      semantic_checks: [golden_layout_bounds]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, semantic_pass]
+      soft_metrics: [functional_correctness, test_quality, maintainability]
+    failure_tags: [mobile_layout_break, over_refactor]
+  - id: flutter-018
+    track: flutter_cross_platform
+    language: dart
+    difficulty: hard
+    task_type: state_management
+    fixture: fixtures/flutter/riverpod_duplicate_network
+    user_request: Prevent duplicate network calls when Riverpod state refreshes.
+    constraints:
+      - Preserve manual refresh behavior.
+      - Avoid global mutable singleton state.
+      - Add tests proving one request per logical refresh.
+    allowed_paths: [lib/state/**, lib/services/**, test/state/**]
+    forbidden_paths: [pubspec.yaml]
+    protected_paths: [test/state/**]
+    solution_paths: [lib/state/user_controller.dart]
+    verifier:
+      commands: [flutter test test/state]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, test_quality]
+    failure_tags: [wrong_edge_case, over_refactor]
+  - id: flutter-027
+    track: flutter_cross_platform
+    language: dart
+    difficulty: medium
+    task_type: async_lifecycle
+    fixture: fixtures/flutter/mounted_after_async
+    user_request: Guard async callbacks so disposed widgets do not call setState.
+    constraints:
+      - Check mounted after awaits.
+      - Preserve loading, error, and success states.
+      - Add widget regression test.
+    allowed_paths: [lib/screens/detail_screen.dart, test/widget/detail_screen_test.dart]
+    forbidden_paths: [pubspec.yaml]
+    protected_paths: [test/widget/detail_screen_test.dart]
+    solution_paths: [lib/screens/detail_screen.dart]
+    verifier:
+      commands: [flutter test test/widget/detail_screen_test.dart]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass, semantic_pass]
+      soft_metrics: [functional_correctness, test_quality, maintainability]
+    failure_tags: [async_after_dispose, flaky_test]
+  - id: flutter-049
+    track: flutter_cross_platform
+    language: dart
+    difficulty: hard
+    task_type: platform_abstraction
+    fixture: fixtures/flutter/dart_io_web_trap
+    user_request: Remove dart:io usage from web-targeted code by introducing a platform abstraction.
+    constraints:
+      - Web build must not import dart:io.
+      - Preserve native behavior.
+      - Do not add a new dependency unless explicitly needed.
+    allowed_paths: [lib/platform/**, lib/services/file_picker.dart, test/platform/**]
+    forbidden_paths: [pubspec.yaml]
+    protected_paths: [test/platform/**, hidden/**]
+    solution_paths: [lib/platform/file_selector.dart, lib/services/file_picker.dart]
+    verifier:
+      commands: [flutter test test/platform, flutter build web --no-pub]
+      hidden_commands: [python3 hidden/verify_web_platform_abstraction.py]
+      semantic_checks: [no_dart_io_in_web_path]
+      timeout_seconds: 180
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass, semantic_pass]
+      soft_metrics: [platform_compatibility, maintainability, scope_disciplined]
+    failure_tags: [dart_io_on_web, dependency_added_without_permission, hidden_verifier_failed]
+  - id: flutter-054
+    track: flutter_cross_platform
+    language: dart
+    difficulty: medium
+    task_type: pure_domain_service
+    fixture: fixtures/flutter/form_domain_service
+    user_request: Move password validation into a pure domain validator and preserve error text.
+    constraints:
+      - Widgets must not own password rules.
+      - Validation must be testable without rendering widgets.
+      - Preserve existing user-facing error strings.
+    allowed_paths: [lib/domain/**, test/domain/**]
+    forbidden_paths: [pubspec.yaml]
+    protected_paths: [test/domain/**]
+    solution_paths: [lib/domain/password_validator.dart]
+    verifier:
+      commands: [flutter test test/domain]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, test_quality]
+    failure_tags: [domain_rule_violation, missing_requirement]
+  - id: flutter-059
+    track: flutter_cross_platform
+    language: dart
+    difficulty: hard
+    task_type: async_deduplication
+    fixture: fixtures/flutter/async_search_dedupe
+    user_request: Deduplicate concurrent searches for the same query without suppressing later refreshes.
+    constraints:
+      - Concurrent identical queries share one request.
+      - A later call after completion may fetch again.
+      - Do not use global mutable singleton state.
+    allowed_paths: [lib/state/**, test/state/**]
+    forbidden_paths: [pubspec.yaml]
+    protected_paths: [test/state/**]
+    solution_paths: [lib/state/search_controller.dart]
+    verifier:
+      commands: [flutter test test/state]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [wrong_edge_case, over_refactor]
+  - id: flutter-064
+    track: flutter_cross_platform
+    language: dart
+    difficulty: medium
+    task_type: navigation_route
+    fixture: fixtures/flutter/route_parser_refresh
+    user_request: Parse route parameters after web refresh while rejecting incomplete item routes.
+    constraints:
+      - Keep parsing pure Dart.
+      - Preserve home route behavior.
+      - Missing ids must not produce a detail route.
+    allowed_paths: [lib/navigation/**, test/navigation/**]
+    forbidden_paths: [pubspec.yaml]
+    protected_paths: [test/navigation/**]
+    solution_paths: [lib/navigation/route_parser.dart]
+    verifier:
+      commands: [flutter test test/navigation]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass]
+      soft_metrics: [functional_correctness, contract_compliance]
+    failure_tags: [wrong_edge_case, backward_incompatibility]
+  - id: flutter-069
+    track: flutter_cross_platform
+    language: dart
+    difficulty: hard
+    task_type: platform_abstraction
+    fixture: fixtures/flutter/platform_storage_service
+    user_request: Replace direct platform storage calls with an injected storage abstraction.
+    constraints:
+      - Service code must not import dart:io.
+      - Tests must use memory storage.
+      - Preserve save/load semantics.
+    allowed_paths: [lib/platform/**, test/platform/**]
+    forbidden_paths: [pubspec.yaml]
+    protected_paths: [test/platform/**]
+    solution_paths: [lib/platform/save_store.dart]
+    verifier:
+      commands: [flutter test test/platform]
+      semantic_checks: [no_dart_io_in_web_path]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass, semantic_pass]
+      soft_metrics: [platform_compatibility, maintainability]
+    failure_tags: [dart_io_on_web, desktop_assumption]
+  - id: flutter-074
+    track: flutter_cross_platform
+    language: dart
+    difficulty: medium
+    task_type: widget_layout
+    fixture: fixtures/flutter/layout_overflow_card
+    user_request: Make the profile card avoid horizontal overflow on narrow screens.
+    constraints:
+      - Keep desktop layout horizontal.
+      - Narrow width must stack content.
+      - Do not hide text to pass the test.
+    allowed_paths: [lib/widgets/profile_card.dart, test/widget/profile_card_test.dart]
+    forbidden_paths: [pubspec.yaml]
+    protected_paths: [test/widget/profile_card_test.dart]
+    solution_paths: [lib/widgets/profile_card.dart]
+    verifier:
+      commands: [flutter test test/widget/profile_card_test.dart]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass]
+      soft_metrics: [functional_correctness, platform_compatibility]
+    failure_tags: [mobile_layout_break, over_refactor]
+  - id: flutter-079
+    track: flutter_cross_platform
+    language: dart
+    difficulty: medium
+    task_type: async_lifecycle
+    fixture: fixtures/flutter/timer_lifecycle
+    user_request: Dispose timers so periodic callbacks stop after the controller is closed.
+    constraints:
+      - No callbacks after dispose.
+      - Dispose must be idempotent.
+      - Keep the controller pure Dart.
+    allowed_paths: [lib/state/**, test/state/**]
+    forbidden_paths: [pubspec.yaml]
+    protected_paths: [test/state/**]
+    solution_paths: [lib/state/ticker_controller.dart]
+    verifier:
+      commands: [flutter test test/state]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [resource_leak, async_after_dispose]
+  - id: flutter-084
+    track: flutter_cross_platform
+    language: dart
+    difficulty: medium
+    task_type: cache_idempotency
+    fixture: fixtures/flutter/service_cache_ttl
+    user_request: Respect cache TTL when reading profile data and avoid stale responses.
+    constraints:
+      - Cached values inside TTL must be reused.
+      - Expired values must refetch.
+      - Clock must be injectable for deterministic tests.
+    allowed_paths: [lib/services/**, test/services/**]
+    forbidden_paths: [pubspec.yaml]
+    protected_paths: [test/services/**]
+    solution_paths: [lib/services/profile_cache.dart]
+    verifier:
+      commands: [flutter test test/services]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [wrong_edge_case, fake_success]
+  - id: flutter-089
+    track: flutter_cross_platform
+    language: dart
+    difficulty: medium
+    task_type: form_state
+    fixture: fixtures/flutter/form_submit_guard
+    user_request: Prevent duplicate submit calls while an async submit is already in progress.
+    constraints:
+      - Preserve retry after failure.
+      - Button state must reflect in-flight submit.
+      - Do not use global state.
+    allowed_paths: [lib/widgets/submit_form.dart, test/widget/submit_form_test.dart]
+    forbidden_paths: [pubspec.yaml]
+    protected_paths: [test/widget/submit_form_test.dart]
+    solution_paths: [lib/widgets/submit_form.dart]
+    verifier:
+      commands: [flutter test test/widget/submit_form_test.dart]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass]
+      soft_metrics: [functional_correctness, test_quality]
+    failure_tags: [wrong_edge_case, flaky_test]
+  - id: flutter-094
+    track: flutter_cross_platform
+    language: dart
+    difficulty: medium
+    task_type: web_route_normalization
+    fixture: fixtures/flutter/platform_url_strategy
+    user_request: Normalize web hash and path URLs to the same logical route.
+    constraints:
+      - Preserve query parameters.
+      - Do not import dart:html.
+      - Keep native paths unchanged.
+    allowed_paths: [lib/navigation/**, test/navigation/**]
+    forbidden_paths: [pubspec.yaml]
+    protected_paths: [test/navigation/**]
+    solution_paths: [lib/navigation/url_normalizer.dart]
+    verifier:
+      commands: [flutter test test/navigation]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [platform_compatibility, functional_correctness]
+    failure_tags: [desktop_assumption, backward_incompatibility]
+  - id: flutter-099
+    track: flutter_cross_platform
+    language: dart
+    difficulty: medium
+    task_type: offline_queue
+    fixture: fixtures/flutter/offline_queue
+    user_request: Keep failed sends queued and remove only successfully delivered messages.
+    constraints:
+      - Preserve send order.
+      - Do not drop failed messages.
+      - Retry must be deterministic in tests.
+    allowed_paths: [lib/services/**, test/services/**]
+    forbidden_paths: [pubspec.yaml]
+    protected_paths: [test/services/**]
+    solution_paths: [lib/services/offline_queue.dart]
+    verifier:
+      commands: [flutter test test/services]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement]

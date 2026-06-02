@@ -1,0 +1,14 @@
+--- FILE: rust/src/path_norm.rs ---
+pub fn normalize_path(input: &str) -> Result<String, String> {
+    let mut parts = Vec::new();
+    for part in input.replace('\\', "/").split('/') {
+        if part.is_empty() || part == "." {
+            continue;
+        }
+        if part == ".." {
+            return Err("unsafe_path".to_string());
+        }
+        parts.push(part.to_string());
+    }
+    Ok(parts.join("/"))
+}

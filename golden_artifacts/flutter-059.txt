@@ -1,0 +1,24 @@
+--- FILE: lib/state/search_controller.dart ---
+typedef SearchClient = Future<List<String>> Function(String query);
+
+class SearchController {
+  SearchController(this._client);
+
+  final SearchClient _client;
+  final Map<String, Future<List<String>>> _inFlight = {};
+
+  Future<List<String>> search(String query) {
+    final existing = _inFlight[query];
+    if (existing != null) {
+      return existing;
+    }
+    final request = _client(query);
+    _inFlight[query] = request;
+    request.whenComplete(() {
+      if (identical(_inFlight[query], request)) {
+        _inFlight.remove(query);
+      }
+    });
+    return request;
+  }
+}

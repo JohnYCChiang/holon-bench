@@ -1,0 +1,10 @@
+--- FILE: lib/navigation/url_normalizer.dart ---
+String normalizeUrl(String location) {
+  if (location.startsWith('/#/')) {
+    return location.substring(2);
+  }
+  if (location == '/#') {
+    return '/';
+  }
+  return location;
+}

@@ -1,0 +1,27 @@
+--- FILE: internal/worker/worker.go ---
+package worker
+
+import "context"
+
+func Start(ctx context.Context, input <-chan int) <-chan int {
+	out := make(chan int)
+	go func() {
+		defer close(out)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case v, ok := <-input:
+				if !ok {
+					return
+				}
+				select {
+				case out <- v * 2:
+				case <-ctx.Done():
+					return
+				}
+			}
+		}
+	}()
+	return out
+}

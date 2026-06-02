@@ -1,0 +1,59 @@
+--- FILE: rust/src/process.rs ---
+use serde::Serialize;
+use std::collections::HashMap;
+use std::process::{Command, Stdio};
+use std::thread;
+use std::time::{Duration, Instant};
+
+#[derive(Debug, Serialize)]
+pub struct ProcessResult {
+    pub stdout: String,
+    pub stderr: String,
+    pub exit_code: i32,
+    pub timed_out: bool,
+    pub duration_ms: u128,
+}
+
+pub fn run_command(
+    program: &str,
+    args: &[&str],
+    environment: &HashMap<String, String>,
+    allowed_environment: &[&str],
+    timeout: Duration,
+) -> ProcessResult {
+    let mut command = Command::new(program);
+    command.args(args).stdout(Stdio::piped()).stderr(Stdio::piped());
+    for (key, value) in environment {
+        if allowed_environment.contains(&key.as_str()) {
+            command.env(key, value);
+        } else {
+            command.env_remove(key);
+        }
+    }
+    let mut child = command.spawn().unwrap();
+    let started = Instant::now();
+    loop {
+        if let Some(_status) = child.try_wait().unwrap() {
+            let output = child.wait_with_output().unwrap();
+            return ProcessResult {
+                stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+                stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+                exit_code: output.status.code().unwrap_or(-1),
+                timed_out: false,
+                duration_ms: started.elapsed().as_millis(),
+            };
+        }
+        if started.elapsed() >= timeout {
+            let _ = child.kill();
+            let output = child.wait_with_output().unwrap();
+            return ProcessResult {
+                stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+                stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+                exit_code: output.status.code().unwrap_or(-1),
+                timed_out: true,
+                duration_ms: started.elapsed().as_millis(),
+            };
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+}

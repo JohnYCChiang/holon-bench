@@ -1,0 +1,50 @@
+--- FILE: rust/src/retry.rs ---
+use serde::Serialize;
+use std::future::Future;
+use std::time::Duration;
+
+#[derive(Debug, PartialEq, Eq, Serialize)]
+#[serde(untagged)]
+pub enum RetryResult {
+    Success { ok: bool, value: String },
+    Error { ok: bool, error: RetryError },
+}
+
+#[derive(Debug, PartialEq, Eq, Serialize)]
+pub struct RetryError {
+    pub code: String,
+    pub attempts: usize,
+}
+
+pub async fn retry_with_timeout<F, Fut>(
+    max_attempts: usize,
+    timeout: Duration,
+    mut operation: F,
+) -> RetryResult
+where
+    F: FnMut() -> Fut,
+    Fut: Future<Output = String>,
+{
+    for attempt in 1..=max_attempts {
+        match tokio::time::timeout(timeout, operation()).await {
+            Ok(value) => return RetryResult::Success { ok: true, value },
+            Err(_) if attempt == max_attempts => {
+                return RetryResult::Error {
+                    ok: false,
+                    error: RetryError {
+                        code: "timeout".to_string(),
+                        attempts: attempt,
+                    },
+                };
+            }
+            Err(_) => {}
+        }
+    }
+    RetryResult::Error {
+        ok: false,
+        error: RetryError {
+            code: "timeout".to_string(),
+            attempts: 0,
+        },
+    }
+}

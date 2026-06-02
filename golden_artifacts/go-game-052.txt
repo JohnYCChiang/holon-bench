@@ -1,0 +1,31 @@
+--- FILE: server/sync/delta.go ---
+package sync
+
+import "sort"
+
+type Entity struct {
+	X int
+	Y int
+}
+
+type Delta struct {
+	Changed map[string]Entity
+	Removed []string
+}
+
+func BuildDelta(prev, next map[string]Entity) Delta {
+	changed := map[string]Entity{}
+	for id, entity := range next {
+		if before, ok := prev[id]; !ok || before != entity {
+			changed[id] = entity
+		}
+	}
+	removed := []string{}
+	for id := range prev {
+		if _, ok := next[id]; !ok {
+			removed = append(removed, id)
+		}
+	}
+	sort.Strings(removed)
+	return Delta{Changed: changed, Removed: removed}
+}

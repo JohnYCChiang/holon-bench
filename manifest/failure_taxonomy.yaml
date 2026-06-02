@@ -1,0 +1,63 @@
+failure_types:
+  format:
+    - extra_text
+    - invalid_json
+    - invalid_patch_dsl
+    - invalid_artifact_output
+    - patch_apply_failed
+  scope:
+    - forbidden_file_touched
+    - public_api_break
+    - dependency_added_without_permission
+    - over_refactor
+    - test_tampering
+    - ignores_exclude_globs
+  semantic:
+    - missing_requirement
+    - missing_test
+    - wrong_edge_case
+    - backward_incompatibility
+    - domain_rule_violation
+    - fake_success
+    - response_schema_break
+    - state_sync_corruption
+  runtime:
+    - compile_fail
+    - test_fail
+    - repair_failed
+    - hidden_verifier_failed
+    - mutation_verifier_failed
+    - flaky_test
+    - timeout
+    - generation_failed
+    - generation_timeout
+    - resource_leak
+  concurrency:
+    - race_condition
+    - goroutine_leak
+    - deadlock
+    - cancellation_ignored
+  platform:
+    - dart_io_on_web
+    - wasm_incompatible
+    - desktop_assumption
+    - mobile_layout_break
+    - async_after_dispose
+  porting:
+    - python_rust_schema_mismatch
+    - error_taxonomy_mismatch
+    - golden_output_mismatch
+    - behavior_not_equivalent
+  agent_tool:
+    - unstructured_error
+    - non_idempotent_tool
+    - unsafe_path
+    - missing_dry_run
+    - writes_during_dry_run
+    - fake_provenance
+  knowledge_graph:
+    - graph_context_not_used
+    - graph_tool_not_called
+    - wrong_project_memory
+    - stale_memory_used
+    - graph_relation_ignored

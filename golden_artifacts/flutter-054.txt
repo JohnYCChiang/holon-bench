@@ -1,0 +1,10 @@
+--- FILE: lib/domain/password_validator.dart ---
+String? validatePassword(String password) {
+  if (password.isEmpty) {
+    return 'Enter a password';
+  }
+  if (password.length < 8) {
+    return 'Use at least 8 characters';
+  }
+  return null;
+}

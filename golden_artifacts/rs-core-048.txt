@@ -1,0 +1,23 @@
+--- FILE: src/aggregate.rs ---
+#[derive(Debug, PartialEq, Eq)]
+pub struct Summary {
+    pub ok: bool,
+    pub values: Vec<i32>,
+    pub errors: Vec<String>,
+}
+
+pub fn aggregate(results: Vec<Result<i32, String>>) -> Summary {
+    let mut values = Vec::new();
+    let mut errors = Vec::new();
+    for result in results {
+        match result {
+            Ok(value) => values.push(value),
+            Err(error) => errors.push(error),
+        }
+    }
+    Summary {
+        ok: errors.is_empty(),
+        values,
+        errors,
+    }
+}

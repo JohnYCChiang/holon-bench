@@ -1,0 +1,20 @@
+{
+  "failure_distribution": {
+    "extra_text": 1,
+    "hidden_verifier_failed": 1,
+    "mutation_verifier_failed": 1
+  },
+  "minimum_cases_for_routing": 5,
+  "minimum_hard_pass_rate_for_routing": 0.6,
+  "note": "golden/oracle runs validate the benchmark pipeline and are not model routing candidates",
+  "routing": {
+    "flutter_review": "needs flutter-specific benchmark scores",
+    "json_contract_generation": "needs contract-specific benchmark scores",
+    "patch_generation": "needs model benchmark run",
+    "python_tool_artifact_worker": "qwen36-35b-a3b-mtp-q8 [artifact/holon-cli]",
+    "rust_core_artifact_worker": "qwen36-35b-a3b-mtp-q8 [artifact/holon-cli]",
+    "rust_porting": "qwen36-35b-a3b-mtp-q8 [artifact/holon-cli]",
+    "scope_guard": "needs scope-guard-specific benchmark scores",
+    "semantic_review": "needs reviewer-specific benchmark scores"
+  }
+}

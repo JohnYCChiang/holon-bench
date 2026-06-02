@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Holon Benchmark Case File",
+  "type": "object",
+  "required": ["track", "cases"],
+  "properties": {
+    "track": { "type": "string" },
+    "cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "track",
+          "language",
+          "difficulty",
+          "task_type",
+          "fixture",
+          "user_request",
+          "constraints",
+          "allowed_paths",
+          "forbidden_paths",
+          "verifier",
+          "scoring",
+          "failure_tags"
+        ],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z]+(-[a-z]+)*-[0-9]{3}$" },
+          "track": { "type": "string" },
+          "language": { "type": "string" },
+          "difficulty": { "enum": ["easy", "medium", "hard", "expert"] },
+          "task_type": { "type": "string" },
+          "fixture": { "type": "string" },
+          "user_request": { "type": "string" },
+          "constraints": { "type": "array", "items": { "type": "string" } },
+          "allowed_paths": { "type": "array", "items": { "type": "string" } },
+          "forbidden_paths": { "type": "array", "items": { "type": "string" } },
+          "protected_paths": { "type": "array", "items": { "type": "string" } },
+          "solution_paths": { "type": "array", "items": { "type": "string" } },
+          "verifier": {
+            "type": "object",
+            "required": ["commands"],
+            "properties": {
+              "commands": { "type": "array", "items": { "type": "string" } },
+              "hidden_commands": { "type": "array", "items": { "type": "string" } },
+              "mutation_commands": { "type": "array", "items": { "type": "string" } },
+              "timeout_seconds": { "type": "integer", "minimum": 1 },
+              "semantic_checks": { "type": "array", "items": { "type": "string" } }
+            }
+          },
+          "scoring": {
+            "type": "object",
+            "required": ["hard_gates", "soft_metrics"],
+            "properties": {
+              "hard_gates": { "type": "array", "items": { "type": "string" } },
+              "soft_metrics": { "type": "array", "items": { "type": "string" } }
+            }
+          },
+          "failure_tags": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    }
+  }
+}

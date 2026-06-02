@@ -1,0 +1,17 @@
+#[derive(Default, Debug, PartialEq, Eq)]
+pub struct AppSchedule {
+    pub startup: Vec<&'static str>,
+}
+
+impl AppSchedule {
+    pub fn add_startup(&mut self, name: &'static str) {
+        self.startup.push(name);
+    }
+}
+
+pub fn register_game_plugin(app: &mut AppSchedule) {
+    app.add_startup("spawn_gameplay");
+    app.add_startup("init_assets");
+    app.add_startup("spawn_gameplay");
+    app.add_startup("setup_ui");
+}

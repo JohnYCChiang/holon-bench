@@ -1,0 +1,36 @@
+diff --git a/src/delete_tool/delete.py b/src/delete_tool/delete.py
+index 0cc94f2..19d17c8 100644
+--- a/src/delete_tool/delete.py
++++ b/src/delete_tool/delete.py
+@@ -5,15 +5,30 @@ from pathlib import Path
+ 
+ 
+ def delete_paths(root: str, paths: list[str], dry_run: bool = False) -> dict:
+     base = Path(root).resolve()
+     deleted: list[str] = []
++    would_delete: list[str] = []
++    missing: list[str] = []
+     for item in paths:
+         target = (base / item).resolve()
+         if not str(target).startswith(str(base)):
+             return {"ok": False, "error": {"code": "unsafe_path", "message": item}}
+         if target.exists():
++            if dry_run:
++                would_delete.append(item)
++                continue
+             target.unlink()
+             deleted.append(item)
++        elif dry_run:
++            missing.append(item)
++
++    if dry_run:
++        return {
++            "ok": True,
++            "deleted": [],
++            "dry_run_report": {"would_delete": would_delete, "missing": missing},
++        }
++
+     cache = base / ".holon" / "cache" / "delete.log"
+     cache.parent.mkdir(parents=True, exist_ok=True)
+     cache.write_text("\n".join(deleted))
+     return {"ok": True, "deleted": deleted}

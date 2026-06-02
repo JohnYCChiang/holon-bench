@@ -1,0 +1,17 @@
+diff --git a/src/output_compactor/compactor.py b/src/output_compactor/compactor.py
+index 7346cc6..7fe9318 100644
+--- a/src/output_compactor/compactor.py
++++ b/src/output_compactor/compactor.py
+@@ -6,5 +6,11 @@ def compact_output(result: dict, max_chars: int) -> dict:
+     if len(output) <= max_chars:
+         return dict(result)
+     truncated = dict(result)
+-    truncated["output"] = output[:max_chars]
++    head = output[:max_chars]
++    tail = output[-max_chars:]
++    truncated["output"] = head
++    truncated["summary"] = f"{head}...{tail}"
++    truncated["output_tail"] = tail
++    truncated["original_length"] = len(output)
++    truncated["omitted_chars"] = len(output) - max_chars
+     return truncated

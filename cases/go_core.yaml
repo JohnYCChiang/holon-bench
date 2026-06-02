@@ -1,0 +1,333 @@
+track: go_core
+cases:
+  - id: go-core-004
+    track: go_core
+    language: go
+    difficulty: easy
+    task_type: error_wrapping
+    fixture: fixtures/go/error_wrapping
+    user_request: Preserve error wrapping context instead of swallowing the underlying error.
+    constraints:
+      - errors.Is must still match sentinel errors.
+      - Add table-driven tests.
+      - Do not change exported function names.
+    allowed_paths: [internal/loader/**, internal/loader/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/loader/*_test.go]
+    solution_paths: [internal/loader/loader.go]
+    verifier:
+      commands: [go test ./internal/loader]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [maintainability, test_quality, functional_correctness]
+    failure_tags: [missing_requirement, public_api_break]
+  - id: go-core-009
+    track: go_core
+    language: go
+    difficulty: medium
+    task_type: interface_boundary
+    fixture: fixtures/go/interface_extension
+    user_request: Add optional capability discovery without breaking existing implementations.
+    constraints:
+      - Do not add required methods to the existing interface.
+      - Use a narrow optional interface.
+      - Existing mock implementations must compile.
+    allowed_paths: [pkg/tool/**, pkg/tool/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [pkg/tool/*_test.go, hidden/**]
+    solution_paths: [pkg/tool/capabilities.go]
+    verifier:
+      commands: [go test ./pkg/tool]
+      hidden_commands: [sh -c 'cp hidden/capabilities_hidden_test.go pkg/tool/capabilities_hidden_test.go; trap "rm -f pkg/tool/capabilities_hidden_test.go" EXIT; go test ./pkg/tool']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [contract_compliance, maintainability, minimality]
+    failure_tags: [public_api_break, over_refactor, hidden_verifier_failed]
+  - id: go-core-015
+    track: go_core
+    language: go
+    difficulty: hard
+    task_type: context_cancellation
+    fixture: fixtures/go/context_cancel_worker
+    user_request: Ensure workers exit promptly when context is cancelled.
+    constraints:
+      - No goroutine leaks.
+      - Do not use sleeps in tests except bounded polling helpers.
+      - Preserve output channel close behavior.
+    allowed_paths: [internal/worker/**, internal/worker/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/worker/*_test.go]
+    solution_paths: [internal/worker/worker.go]
+    verifier:
+      commands: [go test ./internal/worker -run Cancel -count=1]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, test_quality, maintainability]
+    failure_tags: [goroutine_leak, cancellation_ignored, flaky_test]
+  - id: go-core-022
+    track: go_core
+    language: go
+    difficulty: hard
+    task_type: channel_safety
+    fixture: fixtures/go/channel_deadlock
+    user_request: Fix the channel send deadlock while preserving backpressure semantics.
+    constraints:
+      - Do not drop messages silently.
+      - Do not spawn unbounded goroutines.
+      - Race detector must pass.
+    allowed_paths: [internal/queue/**, internal/queue/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/queue/*_test.go]
+    solution_paths: [internal/queue/queue.go]
+    verifier:
+      commands: [go test -race ./internal/queue]
+      timeout_seconds: 90
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, maintainability, test_quality]
+    failure_tags: [deadlock, race_condition, resource_leak]
+  - id: go-core-031
+    track: go_core
+    language: go
+    difficulty: medium
+    task_type: table_driven_tests
+    fixture: fixtures/go/json_schema_compat
+    user_request: Add table-driven tests for JSON schema compatibility and fix any failing cases.
+    constraints:
+      - Do not rename exported JSON fields.
+      - Unknown fields must follow existing behavior.
+      - Include zero-value and missing-field cases.
+    allowed_paths: [pkg/schema/**, pkg/schema/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [pkg/schema/*_test.go]
+    solution_paths: [pkg/schema/schema.go]
+    verifier:
+      commands: [go test ./pkg/schema]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
+      soft_metrics: [contract_compliance, test_quality, functional_correctness]
+    failure_tags: [backward_incompatibility, missing_test]
+  - id: go-core-036
+    track: go_core
+    language: go
+    difficulty: medium
+    task_type: error_wrapping
+    fixture: fixtures/go/error_join_validation
+    user_request: Return all validation failures while preserving errors.Is matching for each sentinel error.
+    constraints:
+      - Do not collapse multiple failures into a string-only error.
+      - errors.Is must match missing name and invalid limit.
+      - Keep the exported Validate function name.
+    allowed_paths: [internal/validate/**, internal/validate/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/validate/*_test.go]
+    solution_paths: [internal/validate/validate.go]
+    verifier:
+      commands: [go test ./internal/validate]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [missing_requirement, backward_incompatibility]
+  - id: go-core-041
+    track: go_core
+    language: go
+    difficulty: medium
+    task_type: context_cancellation
+    fixture: fixtures/go/context_reader
+    user_request: Make the polling reader stop promptly when context is cancelled.
+    constraints:
+      - Do not busy spin.
+      - Preserve channel close behavior.
+      - Return context cancellation errors unchanged.
+    allowed_paths: [internal/reader/**, internal/reader/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/reader/*_test.go]
+    solution_paths: [internal/reader/reader.go]
+    verifier:
+      commands: [go test ./internal/reader -run Cancel -count=1]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [cancellation_ignored, goroutine_leak]
+  - id: go-core-046
+    track: go_core
+    language: go
+    difficulty: hard
+    task_type: goroutine_safety
+    fixture: fixtures/go/fanout_leak
+    user_request: Ensure fanout workers exit and the output channel closes after input is drained.
+    constraints:
+      - Do not leak worker goroutines.
+      - Do not close the output channel before workers finish.
+      - Preserve all input values.
+    allowed_paths: [internal/fanout/**, internal/fanout/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/fanout/*_test.go]
+    solution_paths: [internal/fanout/fanout.go]
+    verifier:
+      commands: [go test ./internal/fanout -count=1]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [goroutine_leak, deadlock]
+  - id: go-core-051
+    track: go_core
+    language: go
+    difficulty: hard
+    task_type: channel_safety
+    fixture: fixtures/go/channel_close_once
+    user_request: Make broadcaster Close idempotent and safe under concurrent callers.
+    constraints:
+      - Do not panic on repeated Close calls.
+      - Closing must unblock subscribers.
+      - Race detector must pass.
+    allowed_paths: [internal/bus/**, internal/bus/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/bus/*_test.go]
+    solution_paths: [internal/bus/bus.go]
+    verifier:
+      commands: [go test -race ./internal/bus]
+      timeout_seconds: 90
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [race_condition, deadlock]
+  - id: go-core-056
+    track: go_core
+    language: go
+    difficulty: medium
+    task_type: interface_boundary
+    fixture: fixtures/go/optional_flush
+    user_request: Add optional flush support without requiring all stores to implement Flush.
+    constraints:
+      - Do not add Flush to the Store interface.
+      - Use a narrow optional interface.
+      - Existing memory store must keep compiling.
+    allowed_paths: [pkg/store/**, pkg/store/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [pkg/store/*_test.go]
+    solution_paths: [pkg/store/store.go]
+    verifier:
+      commands: [go test ./pkg/store]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [contract_compliance, minimality]
+    failure_tags: [public_api_break, over_refactor]
+  - id: go-core-061
+    track: go_core
+    language: go
+    difficulty: medium
+    task_type: package_boundary
+    fixture: fixtures/go/package_boundary
+    user_request: Validate config through the constructor while keeping fields immutable to callers.
+    constraints:
+      - Do not export mutable fields.
+      - Preserve Host and Port accessor methods.
+      - Return typed validation errors.
+    allowed_paths: [pkg/config/**, pkg/config/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [pkg/config/*_test.go]
+    solution_paths: [pkg/config/config.go]
+    verifier:
+      commands: [go test ./pkg/config]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [maintainability, contract_compliance]
+    failure_tags: [public_api_break, missing_requirement]
+  - id: go-core-066
+    track: go_core
+    language: go
+    difficulty: medium
+    task_type: json_schema_compat
+    fixture: fixtures/go/json_omitempty
+    user_request: Preserve explicit false in JSON while omitting only unknown optional flags.
+    constraints:
+      - Do not rename JSON fields.
+      - Explicit false must round trip.
+      - Missing enabled must remain distinguishable.
+    allowed_paths: [pkg/schema/**, pkg/schema/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [pkg/schema/*_test.go]
+    solution_paths: [pkg/schema/schema.go]
+    verifier:
+      commands: [go test ./pkg/schema]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
+      soft_metrics: [contract_compliance, functional_correctness]
+    failure_tags: [backward_incompatibility, missing_requirement]
+  - id: go-core-071
+    track: go_core
+    language: go
+    difficulty: easy
+    task_type: table_driven_tests
+    fixture: fixtures/go/parser_table
+    user_request: Fix duration parsing edge cases covered by table-driven tests.
+    constraints:
+      - Reject negative durations.
+      - Preserve seconds and milliseconds suffix behavior.
+      - Return structured parse errors.
+    allowed_paths: [pkg/parse/**, pkg/parse/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [pkg/parse/*_test.go]
+    solution_paths: [pkg/parse/duration.go]
+    verifier:
+      commands: [go test ./pkg/parse]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass]
+      soft_metrics: [functional_correctness, test_quality]
+    failure_tags: [wrong_edge_case, unstructured_error]
+  - id: go-core-076
+    track: go_core
+    language: go
+    difficulty: hard
+    task_type: concurrency_ordering
+    fixture: fixtures/go/worker_pool_order
+    user_request: Preserve input order in worker pool results while still processing concurrently.
+    constraints:
+      - Do not serialize all work through one worker.
+      - Return exactly one result per job.
+      - Race detector must pass.
+    allowed_paths: [internal/pool/**, internal/pool/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/pool/*_test.go]
+    solution_paths: [internal/pool/pool.go]
+    verifier:
+      commands: [go test -race ./internal/pool]
+      timeout_seconds: 90
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [race_condition, wrong_edge_case]
+  - id: go-core-081
+    track: go_core
+    language: go
+    difficulty: hard
+    task_type: context_cancellation
+    fixture: fixtures/go/context_send
+    user_request: Make enqueue respect context cancellation when the output channel is full.
+    constraints:
+      - Do not drop accepted messages.
+      - Return ctx.Err when cancellation wins.
+      - Preserve backpressure semantics.
+    allowed_paths: [internal/outbox/**, internal/outbox/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/outbox/*_test.go]
+    solution_paths: [internal/outbox/outbox.go]
+    verifier:
+      commands: [go test ./internal/outbox -count=1]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [deadlock, cancellation_ignored]

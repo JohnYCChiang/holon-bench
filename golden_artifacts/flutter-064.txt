@@ -1,0 +1,22 @@
+--- FILE: lib/navigation/route_parser.dart ---
+sealed class AppRoute {
+  const AppRoute();
+}
+
+class HomeRoute extends AppRoute {
+  const HomeRoute();
+}
+
+class ItemRoute extends AppRoute {
+  const ItemRoute(this.id);
+  final String id;
+}
+
+AppRoute parseRoute(String location) {
+  final uri = Uri.parse(location);
+  final segments = uri.pathSegments;
+  if (segments.length == 2 && segments.first == 'item' && segments.last.isNotEmpty) {
+    return ItemRoute(segments.last);
+  }
+  return const HomeRoute();
+}

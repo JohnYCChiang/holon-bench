@@ -1,0 +1,60 @@
+--- FILE: server/runtime/server.go ---
+package runtime
+
+import "sync"
+
+type Server struct {
+	mu      sync.Mutex
+	once    sync.Once
+	closed  bool
+	events  chan string
+	handled []string
+	done    chan struct{}
+}
+
+func NewServer() *Server {
+	return &Server{events: make(chan string), handled: []string{}, done: make(chan struct{})}
+}
+
+func (s *Server) Start() {
+	go func() {
+		defer close(s.done)
+		for event := range s.events {
+			s.mu.Lock()
+			s.handled = append(s.handled, event)
+			s.mu.Unlock()
+		}
+	}()
+}
+
+func (s *Server) Submit(event string) bool {
+	s.mu.Lock()
+	if s.closed {
+		s.mu.Unlock()
+		return false
+	}
+	s.mu.Unlock()
+
+	select {
+	case s.events <- event:
+		return true
+	case <-s.done:
+		return false
+	}
+}
+
+func (s *Server) Shutdown() {
+	s.once.Do(func() {
+		s.mu.Lock()
+		s.closed = true
+		s.mu.Unlock()
+		close(s.events)
+		<-s.done
+	})
+}
+
+func (s *Server) Handled() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]string(nil), s.handled...)
+}

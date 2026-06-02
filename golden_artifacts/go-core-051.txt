@@ -1,0 +1,23 @@
+--- FILE: internal/bus/bus.go ---
+package bus
+
+import "sync"
+
+type Bus struct {
+	done chan struct{}
+	once sync.Once
+}
+
+func New() *Bus {
+	return &Bus{done: make(chan struct{})}
+}
+
+func (b *Bus) Done() <-chan struct{} {
+	return b.done
+}
+
+func (b *Bus) Close() {
+	b.once.Do(func() {
+		close(b.done)
+	})
+}

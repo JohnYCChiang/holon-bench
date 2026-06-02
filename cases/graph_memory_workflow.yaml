@@ -1,0 +1,117 @@
+track: graph_memory_workflow
+cases:
+  - id: kg-use-001
+    track: graph_memory_workflow
+    language: python
+    difficulty: medium
+    task_type: active_graph_policy_recall
+    fixture: fixtures/python/graph_memory_policy
+    user_request: >
+      Update route_key so it follows the stored project routing policy for
+      production events. The repository intentionally does not duplicate that
+      policy in source files; use the project memory if needed.
+    constraints:
+      - Preserve route_key(event) as the public API.
+      - Missing fields should fall back to the old tenant:type behavior.
+      - Do not hard-code unrelated examples from visible tests.
+    knowledge_seed:
+      - name: Routing Policy v2
+        kind: decision
+        description: >
+          Production event route keys must be formatted as
+          kg-v2:{region}:{tenant}:{ulid}. Use the legacy tenant:type format only
+          when region or ulid is absent.
+    allowed_paths: [src/router.py, tests/**]
+    forbidden_paths: [README.md]
+    protected_paths: [hidden/**]
+    solution_paths: [src/router.py]
+    verifier:
+      commands:
+        - python3 -m unittest discover -s tests
+        - python3 hidden/verify_policy.py
+      timeout_seconds: 30
+      semantic_checks: [graph_context_used]
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass, semantic_pass]
+      soft_metrics: [functional_correctness, contract_compliance, observability]
+    failure_tags: [graph_context_not_used, graph_tool_not_called, wrong_edge_case]
+
+  - id: kg-use-002
+    track: graph_memory_workflow
+    language: python
+    difficulty: hard
+    task_type: graph_relation_following
+    fixture: fixtures/python/graph_relation_review
+    user_request: >
+      Extend review_change with the stored account-safety policy. The policy was
+      discussed earlier and should be recovered from project memory before
+      implementing behavior.
+    constraints:
+      - Preserve existing negative amount warning behavior.
+      - Return warnings as strings.
+      - The account-safety rule is not present in source files.
+    knowledge_seed:
+      - name: ADR-42 Account Mutation Boundary
+        kind: decision
+        description: >
+          External API requests must not mutate settled accounts. Review code
+          must emit the exact warning "ADR-42 forbids external mutation of
+          settled accounts" for settled account mutations from external_api.
+        relates_to: [Settled Account Safety Requirement]
+      - name: Settled Account Safety Requirement
+        kind: requirement
+        description: >
+          Settled accounts are immutable from external integrations; only
+          internal_reconciliation may request a mutation.
+    allowed_paths: [src/review.py, tests/**]
+    forbidden_paths: [README.md]
+    protected_paths: [hidden/**]
+    solution_paths: [src/review.py]
+    verifier:
+      commands:
+        - python3 -m unittest discover -s tests
+        - python3 hidden/verify_review.py
+      timeout_seconds: 30
+      semantic_checks: [graph_relation_used]
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass, semantic_pass]
+      soft_metrics: [functional_correctness, maintainability, observability]
+    failure_tags: [graph_context_not_used, graph_relation_ignored, missing_requirement]
+
+  - id: kg-use-003
+    track: graph_memory_workflow
+    language: python
+    difficulty: medium
+    task_type: project_scoped_memory
+    fixture: fixtures/python/graph_project_scope
+    user_request: >
+      Update support_banner to use the support target recorded for this project.
+      Do not use generic global support defaults when project memory has a more
+      specific deployment decision.
+    constraints:
+      - Preserve support_banner() as a zero-argument function.
+      - The current project decision must override generic/global memory.
+      - Return a plain string.
+    cognitive_recall: true
+    knowledge_seed:
+      - name: Generic Support Target
+        kind: decision
+        scope: global
+        description: 'Generic fallback support banner is "support: cloud-default".'
+      - name: Local UMA Support Target
+        kind: decision
+        description: 'Current project support banner is "support: holon-local-uma".'
+    allowed_paths: [src/banner.py, tests/**]
+    forbidden_paths: [README.md]
+    protected_paths: [hidden/**]
+    solution_paths: [src/banner.py]
+    verifier:
+      commands:
+        - python3 -m unittest discover -s tests
+        - python3 hidden/verify_scope.py
+      timeout_seconds: 30
+      semantic_checks: [project_scoped_graph_context]
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass, semantic_pass]
+      soft_metrics: [functional_correctness, contract_compliance, observability]
+    failure_tags: [wrong_project_memory, stale_memory_used, graph_context_not_used]

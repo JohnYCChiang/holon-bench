@@ -1,0 +1,26 @@
+--- FILE: src/score.rs ---
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ScoreInput {
+    pub base: i32,
+    pub combo: i32,
+    pub perfect_clear: bool,
+}
+
+pub fn calculate_score(input: &ScoreInput) -> i32 {
+    let mut score = input.base + input.combo * 10;
+    if input.perfect_clear {
+        score += 100;
+    }
+    score
+}
+--- FILE: src/systems/score.rs ---
+use crate::score::{calculate_score, ScoreInput};
+
+#[derive(Default, Debug)]
+pub struct ScoreEvents {
+    pub emitted: Vec<i32>,
+}
+
+pub fn emit_score(events: &mut ScoreEvents, input: ScoreInput) {
+    events.emitted.push(calculate_score(&input));
+}

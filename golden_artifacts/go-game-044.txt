@@ -1,0 +1,28 @@
+--- FILE: server/movement/movement.go ---
+package movement
+
+type Position struct {
+	X int
+	Y int
+}
+
+type Stats struct {
+	Accepted int
+	Rejected int
+}
+
+func abs(value int) int {
+	if value < 0 {
+		return -value
+	}
+	return value
+}
+
+func Apply(pos Position, next Position, maxStep int, stats *Stats) Position {
+	if abs(next.X-pos.X)+abs(next.Y-pos.Y) > maxStep {
+		stats.Rejected++
+		return pos
+	}
+	stats.Accepted++
+	return next
+}

@@ -1,0 +1,29 @@
+id: holon-bench-v0.1
+name: Holon Benchmark v0.1
+phase: phase_2_compact_core
+case_count_target:
+  phase_1: 35
+  phase_2: 118
+  phase_3: 365
+  phase_4: 500
+purpose: >
+  Evaluate whether a model can act as a reliable organ inside Holon workflows:
+  contract worker, patcher, reviewer, planner, tool maker, porting worker,
+  game system worker, or cross-platform app worker.
+reporting:
+  minimum_cases_for_routing: 5
+  minimum_hard_pass_rate_for_routing: 0.6
+reports:
+  human: reports/model_matrix.md
+  machine: reports/per_track.json
+  routing: reports/routing_recommendation.json
+case_files:
+  - cases/python_tool_engineering.yaml
+  - cases/rust_core.yaml
+  - cases/rust_porting.yaml
+  - cases/rust_bevy.yaml
+  - cases/go_core.yaml
+  - cases/go_game_server.yaml
+  - cases/flutter_cross_platform.yaml
+  - cases/graph_memory_workflow.yaml
+  - cases/repair_needed.yaml

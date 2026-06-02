@@ -1,0 +1,23 @@
+--- FILE: internal/fanout/fanout.go ---
+package fanout
+
+import "sync"
+
+func Fanout(in <-chan int, workers int) <-chan int {
+	out := make(chan int)
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for value := range in {
+				out <- value * 2
+			}
+		}()
+	}
+	go func() {
+		wg.Wait()
+		close(out)
+	}()
+	return out
+}

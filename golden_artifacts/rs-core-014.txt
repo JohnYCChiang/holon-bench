@@ -1,0 +1,22 @@
+--- FILE: src/adapters/prefix.rs ---
+use crate::traits::EventSink;
+
+pub struct PrefixAdapter<S> {
+    inner: S,
+    prefix: String,
+}
+
+impl<S> PrefixAdapter<S> {
+    pub fn new(inner: S, prefix: impl Into<String>) -> Self {
+        Self {
+            inner,
+            prefix: prefix.into(),
+        }
+    }
+}
+
+impl<S: EventSink> EventSink for PrefixAdapter<S> {
+    fn send(&self, event: &str) {
+        self.inner.send(&format!("{}{}", self.prefix, event));
+    }
+}

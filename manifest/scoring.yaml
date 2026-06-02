@@ -1,0 +1,66 @@
+hard_gates:
+  patch_applies:
+    required: true
+  compiles:
+    required: true
+  tests_pass:
+    required: true
+  schema_valid:
+    required: true
+  scope_pass:
+    required: true
+  safety_pass:
+    required: true
+  semantic_pass:
+    required: true
+soft_score:
+  functional_correctness: 30
+  contract_compliance: 20
+  scope_disciplined: 15
+  minimality: 10
+  maintainability: 10
+  test_quality: 10
+  observability: 5
+role_scores:
+  contract_worker:
+    metrics:
+      - schema_valid_rate
+      - no_extra_text_rate
+      - scope_check_accuracy
+      - patch_dsl_validity
+      - error_taxonomy_accuracy
+  patch_worker:
+    metrics:
+      - patch_apply_rate
+      - test_pass_rate
+      - minimality
+      - compile_success
+      - low_over_refactor_rate
+  reviewer:
+    metrics:
+      - scope_violation_detection
+      - semantic_bug_detection
+      - maintainability_critique_quality
+      - risk_identification
+      - false_positive_rate
+  porting_worker:
+    metrics:
+      - schema_parity
+      - golden_behavior_parity
+      - typed_error_quality
+      - async_timeout_equivalence
+      - test_parity
+  game_system_worker:
+    metrics:
+      - tick_correctness
+      - race_safety
+      - state_sync_correctness
+      - reconnect_correctness
+      - deterministic_simulation_pass
+  cross_platform_app_worker:
+    metrics:
+      - mobile_web_consistency
+      - widget_test_pass
+      - async_lifecycle_correctness
+      - platform_abstraction_correctness
+      - dependency_safety

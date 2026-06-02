@@ -1,0 +1,32 @@
+--- FILE: pkg/parse/duration.go ---
+package parse
+
+import (
+	"errors"
+	"fmt"
+	"strconv"
+	"strings"
+	"time"
+)
+
+var ErrInvalidDuration = errors.New("invalid duration")
+
+func Duration(input string) (time.Duration, error) {
+	var multiplier time.Duration
+	var raw string
+	switch {
+	case strings.HasSuffix(input, "ms"):
+		multiplier = time.Millisecond
+		raw = strings.TrimSuffix(input, "ms")
+	case strings.HasSuffix(input, "s"):
+		multiplier = time.Second
+		raw = strings.TrimSuffix(input, "s")
+	default:
+		return 0, fmt.Errorf("%w: missing suffix", ErrInvalidDuration)
+	}
+	value, err := strconv.Atoi(raw)
+	if err != nil || value < 0 {
+		return 0, fmt.Errorf("%w: %s", ErrInvalidDuration, input)
+	}
+	return time.Duration(value) * multiplier, nil
+}

@@ -1,0 +1,333 @@
+track: go_game_server
+cases:
+  - id: go-game-003
+    track: go_game_server
+    language: go
+    difficulty: easy
+    task_type: room_host_transfer
+    fixture: fixtures/go_game/host_transfer
+    user_request: Transfer host ownership correctly when the current host leaves a room.
+    constraints:
+      - Pick the oldest connected player as new host.
+      - Empty rooms must close.
+      - Do not mutate unrelated rooms.
+    allowed_paths: [server/room/**, server/room/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/room/*_test.go]
+    solution_paths: [server/room/room.go]
+    verifier:
+      commands: [go test ./server/room]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, test_quality, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement]
+  - id: go-game-009
+    track: go_game_server
+    language: go
+    difficulty: medium
+    task_type: reconnect_session
+    fixture: fixtures/go_game/reconnect_duplicate_session
+    user_request: Reconnect must reuse the existing session instead of creating a duplicate.
+    constraints:
+      - Preserve player id.
+      - Do not duplicate lobby membership.
+      - Expired sessions must still be rejected.
+    allowed_paths: [server/session/**, server/session/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/session/*_test.go]
+    solution_paths: [server/session/session.go]
+    verifier:
+      commands: [go test ./server/session]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, maintainability, observability]
+    failure_tags: [domain_rule_violation, wrong_edge_case]
+  - id: go-game-014
+    track: go_game_server
+    language: go
+    difficulty: hard
+    task_type: tick_loop_fake_clock
+    fixture: fixtures/go_game/tick_loop_fake_clock
+    user_request: Make the tick loop testable with a fake clock without changing production tick semantics.
+    constraints:
+      - No flaky sleep-based tests.
+      - Preserve tick rate in production.
+      - Shutdown must stop the loop.
+    allowed_paths: [server/tick/**, server/tick/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/tick/*_test.go]
+    solution_paths: [server/tick/loop.go]
+    verifier:
+      commands: [go test ./server/tick -count=1]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, test_quality, maintainability]
+    failure_tags: [flaky_test, cancellation_ignored, goroutine_leak]
+  - id: go-game-021
+    track: go_game_server
+    language: go
+    difficulty: hard
+    task_type: input_ordering
+    fixture: fixtures/go_game/out_of_order_input
+    user_request: Reject out-of-order player inputs so they cannot corrupt authoritative state.
+    constraints:
+      - Preserve last accepted sequence per player.
+      - Duplicate old inputs are ignored.
+      - Invalid inputs must be observable in result stats.
+    allowed_paths: [server/sim/**, server/sim/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/sim/*_test.go, hidden/**]
+    solution_paths: [server/sim/sim.go]
+    verifier:
+      commands: [go test ./server/sim]
+      hidden_commands: [sh -c 'cp hidden/sim_hidden_test.go server/sim/sim_hidden_test.go; trap "rm -f server/sim/sim_hidden_test.go" EXIT; go test ./server/sim']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, observability, test_quality]
+    failure_tags: [state_sync_corruption, fake_success, wrong_edge_case, hidden_verifier_failed]
+  - id: go-game-035
+    track: go_game_server
+    language: go
+    difficulty: hard
+    task_type: race_and_leak
+    fixture: fixtures/go_game/race_shutdown
+    user_request: Fix shutdown races and goroutine leaks in the game server.
+    constraints:
+      - go test -race must pass.
+      - Shutdown is idempotent.
+      - Do not serialize the entire server behind one global lock.
+    allowed_paths: [server/runtime/**, server/runtime/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/runtime/*_test.go]
+    solution_paths: [server/runtime/server.go]
+    verifier:
+      commands: [go test -race ./server/runtime]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, maintainability, minimality]
+    failure_tags: [race_condition, goroutine_leak, over_refactor]
+  - id: go-game-028
+    track: go_game_server
+    language: go
+    difficulty: easy
+    task_type: matchmaking_cancel
+    fixture: fixtures/go_game/matchmaking_cancel
+    user_request: Remove cancelled players from the matchmaking queue.
+    constraints:
+      - Cancellation must not leave stale queue entries.
+      - Matching order remains FIFO.
+      - Cancelled players cannot be matched later.
+    allowed_paths: [server/match/**, server/match/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/match/*_test.go]
+    solution_paths: [server/match/queue.go]
+    verifier:
+      commands: [go test ./server/match]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, observability]
+    failure_tags: [wrong_edge_case, cancellation_ignored]
+  - id: go-game-044
+    track: go_game_server
+    language: go
+    difficulty: hard
+    task_type: authoritative_movement
+    fixture: fixtures/go_game/authoritative_movement
+    user_request: Validate client movement on the server before applying it.
+    constraints:
+      - Reject movement over max speed.
+      - Preserve old position on rejected input.
+      - Report accepted and rejected counts.
+    allowed_paths: [server/movement/**, server/movement/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/movement/*_test.go]
+    solution_paths: [server/movement/movement.go]
+    verifier:
+      commands: [go test ./server/movement]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, observability, test_quality]
+    failure_tags: [domain_rule_violation, fake_success]
+  - id: go-game-047
+    track: go_game_server
+    language: go
+    difficulty: easy
+    task_type: deterministic_replay
+    fixture: fixtures/go_game/replay_determinism
+    user_request: Make replay output deterministic regardless of input map iteration order.
+    constraints:
+      - Sort player ids before emitting replay frames.
+      - Preserve event order per player.
+      - Do not mutate the input replay data.
+    allowed_paths: [server/replay/**, server/replay/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/replay/*_test.go]
+    solution_paths: [server/replay/replay.go]
+    verifier:
+      commands: [go test ./server/replay]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [wrong_edge_case, flaky_test]
+  - id: go-game-052
+    track: go_game_server
+    language: go
+    difficulty: medium
+    task_type: state_delta_sync
+    fixture: fixtures/go_game/state_delta
+    user_request: Send only changed entity state in snapshot deltas.
+    constraints:
+      - New entities are included.
+      - Removed entities are reported separately.
+      - Unchanged entities are omitted.
+    allowed_paths: [server/sync/**, server/sync/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/sync/*_test.go]
+    solution_paths: [server/sync/delta.go]
+    verifier:
+      commands: [go test ./server/sync]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, observability, maintainability]
+    failure_tags: [state_sync_corruption, missing_requirement]
+  - id: go-game-058
+    track: go_game_server
+    language: go
+    difficulty: medium
+    task_type: lobby_capacity
+    fixture: fixtures/go_game/lobby_capacity
+    user_request: Enforce lobby capacity and make join idempotent per player.
+    constraints:
+      - Existing players can rejoin without consuming capacity.
+      - New players are rejected when full.
+      - Preserve join order.
+    allowed_paths: [server/lobby/**, server/lobby/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/lobby/*_test.go]
+    solution_paths: [server/lobby/lobby.go]
+    verifier:
+      commands: [go test ./server/lobby]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, observability]
+    failure_tags: [domain_rule_violation, wrong_edge_case]
+  - id: go-game-063
+    track: go_game_server
+    language: go
+    difficulty: medium
+    task_type: session_heartbeat_expiry
+    fixture: fixtures/go_game/session_heartbeat
+    user_request: Expire sessions that miss heartbeat deadlines without expiring active sessions.
+    constraints:
+      - Heartbeat extends the session deadline.
+      - Expired sessions are removed.
+      - Boundary time equal to deadline is still active.
+    allowed_paths: [server/session/**, server/session/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/session/*_test.go]
+    solution_paths: [server/session/heartbeat.go]
+    verifier:
+      commands: [go test ./server/session]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, observability, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement]
+  - id: go-game-068
+    track: go_game_server
+    language: go
+    difficulty: medium
+    task_type: snapshot_ordering
+    fixture: fixtures/go_game/snapshot_ordering
+    user_request: Make room snapshots deterministic by sorting players and entities.
+    constraints:
+      - Sort players by join order.
+      - Sort entities by id.
+      - Do not mutate room state while snapshotting.
+    allowed_paths: [server/snapshot/**, server/snapshot/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/snapshot/*_test.go]
+    solution_paths: [server/snapshot/snapshot.go]
+    verifier:
+      commands: [go test ./server/snapshot]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [flaky_test, wrong_edge_case]
+  - id: go-game-073
+    track: go_game_server
+    language: go
+    difficulty: hard
+    task_type: cooldown_validation
+    fixture: fixtures/go_game/cooldown_validation
+    user_request: Enforce server-side action cooldowns before accepting combat actions.
+    constraints:
+      - Reject actions before cooldown expires.
+      - Accepted actions update next allowed tick.
+      - Keep per-player cooldown state.
+    allowed_paths: [server/combat/**, server/combat/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/combat/*_test.go]
+    solution_paths: [server/combat/cooldown.go]
+    verifier:
+      commands: [go test ./server/combat]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, observability, test_quality]
+    failure_tags: [domain_rule_violation, fake_success]
+  - id: go-game-079
+    track: go_game_server
+    language: go
+    difficulty: medium
+    task_type: replay_checksum
+    fixture: fixtures/go_game/replay_checksum
+    user_request: Compute deterministic replay checksums from ordered events.
+    constraints:
+      - Include tick, player id, and action.
+      - Sort events deterministically.
+      - Same semantic replay must produce same checksum.
+    allowed_paths: [server/replay/**, server/replay/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/replay/*_test.go]
+    solution_paths: [server/replay/checksum.go]
+    verifier:
+      commands: [go test ./server/replay]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, maintainability, observability]
+    failure_tags: [golden_output_mismatch, flaky_test]
+  - id: go-game-084
+    track: go_game_server
+    language: go
+    difficulty: hard
+    task_type: graceful_room_close
+    fixture: fixtures/go_game/graceful_room_close
+    user_request: Make room close idempotent and notify connected players exactly once.
+    constraints:
+      - Close can be called repeatedly.
+      - Each connected player receives one notification.
+      - Disconnected players are skipped.
+    allowed_paths: [server/room/**, server/room/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/room/*_test.go]
+    solution_paths: [server/room/close.go]
+    verifier:
+      commands: [go test ./server/room]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, maintainability, observability]
+    failure_tags: [wrong_edge_case, fake_success]

@@ -1,0 +1,20 @@
+--- FILE: lib/state/user_controller.dart ---
+import '../services/user_api.dart';
+
+class UserController {
+  UserController(this.api);
+
+  final UserApi api;
+  Future<String>? _inFlightLoad;
+
+  Future<String> load() {
+    return _inFlightLoad ??= api.fetchUser().whenComplete(() {
+      _inFlightLoad = null;
+    });
+  }
+
+  Future<String> refresh() {
+    _inFlightLoad = null;
+    return api.fetchUser();
+  }
+}

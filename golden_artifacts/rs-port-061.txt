@@ -1,0 +1,10 @@
+--- FILE: rust/src/compactor.rs ---
+pub fn compact(text: &str, limit: usize) -> (usize, String) {
+    let lines: Vec<&str> = text.lines().collect();
+    if lines.len() <= limit {
+        return (0, lines.join("|"));
+    }
+    let omitted = lines.len() - limit;
+    let kept = &lines[omitted..];
+    (omitted, kept.join("|"))
+}

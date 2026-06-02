@@ -1,0 +1,24 @@
+--- FILE: server/replay/replay.go ---
+package replay
+
+import "sort"
+
+type Event struct {
+	Tick int
+	Kind string
+}
+
+func Flatten(events map[string][]Event) []string {
+	players := make([]string, 0, len(events))
+	for player := range events {
+		players = append(players, player)
+	}
+	sort.Strings(players)
+	out := []string{}
+	for _, player := range players {
+		for _, event := range events[player] {
+			out = append(out, player+":"+event.Kind)
+		}
+	}
+	return out
+}

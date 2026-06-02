@@ -1,0 +1,35 @@
+--- FILE: src/delete_tool/delete.py ---
+from __future__ import annotations
+
+from pathlib import Path
+
+
+def delete_paths(root: str, paths: list[str], dry_run: bool = False) -> dict:
+    base = Path(root).resolve()
+    deleted: list[str] = []
+    would_delete: list[str] = []
+    missing: list[str] = []
+    for item in paths:
+        target = (base / item).resolve()
+        if not target.is_relative_to(base):
+            return {"ok": False, "error": {"code": "unsafe_path", "message": item}}
+        if target.exists():
+            if dry_run:
+                would_delete.append(item)
+            else:
+                target.unlink()
+                deleted.append(item)
+        elif dry_run:
+            missing.append(item)
+
+    if dry_run:
+        return {
+            "ok": True,
+            "deleted": [],
+            "dry_run_report": {"would_delete": would_delete, "missing": missing},
+        }
+
+    cache = base / ".holon" / "cache" / "delete.log"
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    cache.write_text("\n".join(deleted))
+    return {"ok": True, "deleted": deleted}

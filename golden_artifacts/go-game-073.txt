@@ -1,0 +1,23 @@
+--- FILE: server/combat/cooldown.go ---
+package combat
+
+type Validator struct {
+	Cooldown int
+	NextTick map[string]int
+}
+
+type Result struct {
+	Accepted bool
+	Rejected bool
+}
+
+func (v *Validator) Apply(player string, tick int) Result {
+	if v.NextTick == nil {
+		v.NextTick = map[string]int{}
+	}
+	if next, ok := v.NextTick[player]; ok && tick < next {
+		return Result{Rejected: true}
+	}
+	v.NextTick[player] = tick + v.Cooldown
+	return Result{Accepted: true}
+}

@@ -1,0 +1,13 @@
+--- FILE: src/ui.rs ---
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct GridConfig {
+    pub min_cell_width: u32,
+    pub max_columns: u32,
+}
+
+pub fn inventory_columns(width: u32, config: GridConfig) -> u32 {
+    let min_cell_width = config.min_cell_width.max(1);
+    let max_columns = config.max_columns.max(1);
+    let columns = (width / min_cell_width).max(1);
+    columns.min(max_columns)
+}

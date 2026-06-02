@@ -1,0 +1,20 @@
+--- FILE: server/lobby/lobby.go ---
+package lobby
+
+type Lobby struct {
+	Capacity int
+	Players []string
+}
+
+func (l *Lobby) Join(player string) bool {
+	for _, existing := range l.Players {
+		if existing == player {
+			return true
+		}
+	}
+	if len(l.Players) >= l.Capacity {
+		return false
+	}
+	l.Players = append(l.Players, player)
+	return true
+}

@@ -1,0 +1,32 @@
+--- FILE: src/retry_tool/retry.py ---
+from __future__ import annotations
+
+
+class ToolFailure(Exception):
+    def __init__(self, code: str):
+        super().__init__(code)
+        self.code = code
+
+
+TRANSIENT_CODES = {"transient", "timeout", "rate_limited"}
+
+
+def run_with_retry(fn, max_attempts: int = 3) -> dict:
+    attempts = 0
+    while True:
+        attempts += 1
+        try:
+            return {
+                "ok": True,
+                "value": fn(),
+                "attempts": attempts,
+                "retried": attempts > 1,
+            }
+        except ToolFailure as exc:
+            if exc.code not in TRANSIENT_CODES or attempts >= max_attempts:
+                return {
+                    "ok": False,
+                    "error": {"code": exc.code},
+                    "attempts": attempts,
+                    "retried": attempts > 1,
+                }

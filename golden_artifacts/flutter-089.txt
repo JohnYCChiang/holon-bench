@@ -1,0 +1,41 @@
+--- FILE: lib/widgets/submit_form.dart ---
+import 'package:flutter/material.dart';
+
+class SubmitForm extends StatefulWidget {
+  const SubmitForm({required this.onSubmit, super.key});
+
+  final Future<void> Function() onSubmit;
+
+  @override
+  State<SubmitForm> createState() => _SubmitFormState();
+}
+
+class _SubmitFormState extends State<SubmitForm> {
+  bool submitting = false;
+
+  Future<void> submit() async {
+    if (submitting) {
+      return;
+    }
+    setState(() => submitting = true);
+    try {
+      await widget.onSubmit();
+    } finally {
+      if (mounted) {
+        setState(() => submitting = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        body: ElevatedButton(
+          onPressed: submitting ? null : submit,
+          child: Text(submitting ? 'Saving' : 'Save'),
+        ),
+      ),
+    );
+  }
+}

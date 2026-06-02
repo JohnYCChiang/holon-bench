@@ -1,0 +1,22 @@
+--- FILE: src/schema_tool/normalize.py ---
+from __future__ import annotations
+
+
+ALLOWED_KEYS = {"path", "dry_run", "limit"}
+
+
+def normalize_request(payload: dict) -> dict:
+    unknown = sorted(set(payload) - ALLOWED_KEYS)
+    if unknown:
+        return {
+            "ok": False,
+            "error": {
+                "code": "unknown_key",
+                "field": unknown[0],
+                "message": f"unknown key: {unknown[0]}",
+            },
+        }
+    request = dict(payload)
+    request.setdefault("dry_run", False)
+    request.setdefault("limit", 100)
+    return {"ok": True, "request": request}
