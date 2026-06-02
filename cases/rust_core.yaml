@@ -102,15 +102,16 @@ cases:
       - Do not rename existing fields.
     allowed_paths: [src/schema.rs, tests/serde_compat.rs, tests/fixtures/**]
     forbidden_paths: [Cargo.toml]
-    protected_paths: [tests/serde_compat.rs, tests/fixtures/**]
+    protected_paths: [tests/serde_compat.rs, tests/fixtures/**, hidden/**]
     solution_paths: [src/schema.rs]
     verifier:
       commands: [cargo test --test serde_compat]
+      hidden_commands: [sh -c 'cp hidden/serde_compat_hidden.rs tests/serde_compat_hidden.rs; trap "rm -f tests/serde_compat_hidden.rs" EXIT; cargo test --test serde_compat_hidden']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
       soft_metrics: [contract_compliance, functional_correctness, test_quality]
-    failure_tags: [backward_incompatibility, response_schema_break]
+    failure_tags: [backward_incompatibility, response_schema_break, hidden_verifier_failed]
   - id: rs-core-034
     track: rust_core
     language: rust
