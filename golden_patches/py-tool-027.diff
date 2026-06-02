@@ -1,0 +1,17 @@
+diff --git a/fixtures/python/incremental_cache/src/cache_tool/cache.py b/fixtures/python/incremental_cache/src/cache_tool/cache.py
+index 0df29b8..dd2f8eb 100644
+--- a/fixtures/python/incremental_cache/src/cache_tool/cache.py
++++ b/fixtures/python/incremental_cache/src/cache_tool/cache.py
+@@ -11,5 +11,11 @@ def cache_key(name: str) -> str:
+ def write_cache(cache_dir: str | Path, name: str, data: dict) -> dict:
+     path = Path(cache_dir) / f"{cache_key(name)}.json"
+     path.parent.mkdir(parents=True, exist_ok=True)
+-    path.write_text(json.dumps(data), encoding="utf-8")
++
++    serialized = json.dumps(data, sort_keys=True)
++
++    if path.exists() and path.read_text(encoding="utf-8") == serialized:
++        return {"ok": True, "path": str(path), "written": False}
++
++    path.write_text(serialized, encoding="utf-8")
+     return {"ok": True, "path": str(path), "written": True}

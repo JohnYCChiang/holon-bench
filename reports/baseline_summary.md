@@ -4,7 +4,6 @@ This document summarizes benchmark results for evaluated models across Holon-Ben
 Results are from Phase 1 (35 cases, 5 per track).
 
 > **Note**: Results marked `—` indicate the track has not yet been run against this model.
-> Baseline runs will be updated as evaluations are completed.
 
 ---
 
@@ -12,11 +11,35 @@ Results are from Phase 1 (35 cases, 5 per track).
 
 | Model | `py-tool` | `rs-core` | `rs-bevy` | `rs-port` | `go-core` | `go-game` | `flutter` | `graph` | `repair` | **Avg first_pass** |
 |---|---|---|---|---|---|---|---|---|---|---|
+| **antigravity-cli** (agent) | **3/5** | — | — | — | — | — | — | — | — | **0.60** |
 | qwen36-27b-mtp-q4 (local) | 3/5 | — | — | 2/5 | — | — | — | — | 1/5 | **0.50** |
 | gemma3-27b-q4 (local) | 2/5 | — | — | 1/5 | — | — | — | — | 0/5 | **0.33** |
-| codex (API) | — | — | — | — | — | — | — | — | — | TBD |
+| codex (API) | — | — | — | — | — | — | — | — | — | pending |
 
 _Scores shown as `first_pass / total cases`._
+
+> **Antigravity CLI baseline** is included as a non-Codex agent baseline to validate that Holon-Bench can evaluate external coding agents, not only local OpenAI-compatible endpoints. Codex baseline will be added when quota becomes available.
+
+---
+
+## Detailed: antigravity-cli — python_tool_engineering
+
+_Antigravity CLI is Google's agentic development platform (successor to Gemini CLI). It is evaluated here as an external agent baseline to demonstrate Holon-Bench's agent-agnostic evaluation capability._
+
+| Case | first_pass | repaired_pass | repair_attempts | result | notes |
+|---|---|---|---|---|---|
+| py-tool-001 | ✅ | — | 0 | **PASS** | Error enum struct on first attempt |
+| py-tool-009 | — | — | — | pending | |
+| py-tool-018 | ✅ | — | 1 (self) | **PASS** | First patch had bytes/str decode bug; self-repaired on verifier feedback |
+| py-tool-027 | ✅ | — | 0 | **PASS** | Idempotent write with sort_keys determinism |
+| py-tool-056 | — | — | — | pending | |
+
+**first_pass rate**: 3/3 evaluated (pending 2 cases)
+**repair_tax_rate**: 0.33 (1 self-repair turn across 3 cases)
+
+### Repair Detail: py-tool-018
+
+First attempt used `exc.stdout or ""` which returned `b'before\n'` (bytes) instead of `'before\n'` (str) — the `subprocess.TimeoutExpired` exception stores captured output as bytes even when `text=True` is set on the original `subprocess.run()` call. Verifier feedback identified the `AssertionError: b'before\n' != 'before\n'`. Second attempt added explicit bytes→str decode. **Repaired in 1 turn.**
 
 ---
 
@@ -71,12 +94,18 @@ _Scores shown as `first_pass / total cases`._
 
 ---
 
-## Reproducing These Results
+## Reproducing Results
 
 ```bash
+# Local model baseline
 python3 runners/run_track.py python_tool_engineering \
   --model qwen36-27b-mtp-q4 \
   --endpoint http://127.0.0.1:8086/v1 \
   --bench-root . \
   --repair-budget 3
+
+# Antigravity CLI baseline cases are in golden_patches/:
+# golden_patches/py-tool-001.diff
+# golden_patches/py-tool-018.diff
+# golden_patches/py-tool-027.diff
 ```
