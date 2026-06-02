@@ -80,15 +80,16 @@ cases:
       - Add widget regression test.
     allowed_paths: [lib/screens/detail_screen.dart, test/widget/detail_screen_test.dart]
     forbidden_paths: [pubspec.yaml]
-    protected_paths: [test/widget/detail_screen_test.dart]
+    protected_paths: [test/widget/detail_screen_test.dart, hidden/**]
     solution_paths: [lib/screens/detail_screen.dart]
     verifier:
       commands: [flutter test test/widget/detail_screen_test.dart]
+      hidden_commands: [sh -c 'cp hidden/detail_screen_hidden_test.dart test/widget/detail_screen_hidden_test.dart; trap "rm -f test/widget/detail_screen_hidden_test.dart" EXIT; flutter test test/widget/detail_screen_hidden_test.dart']
       timeout_seconds: 120
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, safety_pass, semantic_pass]
       soft_metrics: [functional_correctness, test_quality, maintainability]
-    failure_tags: [async_after_dispose, flaky_test]
+    failure_tags: [async_after_dispose, flaky_test, hidden_verifier_failed]
   - id: flutter-049
     track: flutter_cross_platform
     language: dart
