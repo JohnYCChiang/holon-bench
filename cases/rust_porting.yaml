@@ -152,16 +152,17 @@ cases:
       - Preserve deterministic report ordering.
     allowed_paths: [rust/src/delete.rs]
     forbidden_paths: [python/**, Cargo.toml]
-    protected_paths: [python/**, rust/tests/**, rust/Cargo.toml, rust/Cargo.lock]
+    protected_paths: [python/**, rust/tests/**, rust/Cargo.toml, rust/Cargo.lock, hidden/**]
     solution_paths: [rust/src/delete.rs]
     verifier:
       commands: [cargo test --manifest-path rust/Cargo.toml --test delete_parity]
+      hidden_commands: [sh -c 'cp hidden/delete_hidden.rs rust/tests/delete_hidden.rs; trap "rm -f rust/tests/delete_hidden.rs" EXIT; cargo test --manifest-path rust/Cargo.toml --test delete_hidden']
       semantic_checks: [python_rust_dry_run_equivalence]
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, safety_pass, scope_pass, semantic_pass]
       soft_metrics: [functional_correctness, observability, contract_compliance]
-    failure_tags: [missing_dry_run, behavior_not_equivalent]
+    failure_tags: [missing_dry_run, behavior_not_equivalent, hidden_verifier_failed]
   - id: rs-port-061
     track: rust_porting
     language: rust
