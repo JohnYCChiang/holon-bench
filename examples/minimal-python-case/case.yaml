@@ -1,0 +1,29 @@
+id: example-python-001
+track: python_tool_engineering
+language: python
+difficulty: easy
+task_type: patch
+fixture: examples/minimal-python-case/fixture
+user_request: |
+  The function `add_numbers` in `mylib/math_utils.py` currently raises a
+  TypeError when called with float inputs. Fix it so that it accepts both
+  int and float arguments and returns their sum as a float.
+constraints:
+  - Do not change the function signature.
+  - Do not modify any file outside mylib/.
+allowed_paths:
+  - mylib/math_utils.py
+forbidden_paths:
+  - tests/
+  - setup.cfg
+  - README.md
+verifier:
+  commands:
+    - python3 -m pytest tests/test_math_utils.py -v
+scoring:
+  hard_gates:
+    - python3 -m pytest tests/test_math_utils.py -v
+  soft_rubric: []
+failure_tags:
+  - type_error
+  - regression

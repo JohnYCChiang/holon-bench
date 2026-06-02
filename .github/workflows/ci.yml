@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  schema-check:
+    name: Schema Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install pyyaml jsonschema
+
+      - name: Run schema check
+        working-directory: ${{ github.workspace }}
+        run: python3 runners/schema_check.py .
+
+  py-compile:
+    name: Python Compile Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Compile all runner modules
+        run: python3 -m py_compile runners/*.py
+
+  smoke-test:
+    name: Smoke Test (py-tool-001)
+    runs-on: ubuntu-latest
+    needs: [schema-check, py-compile]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install pyyaml jsonschema
+
+      - name: Validate fixture for py-tool-001
+        run: |
+          python3 - <<'EOF'
+          import sys
+          sys.path.insert(0, "runners")
+          from common import bench_root, load_cases
+          root = bench_root(".")
+          cases = load_cases(root)
+          target = [c for c in cases if c.get("id") == "py-tool-001"]
+          if not target:
+              print("ERROR: py-tool-001 not found", file=sys.stderr)
+              sys.exit(1)
+          case = target[0]
+          assert case.get("track"), "missing track"
+          assert case.get("verifier", {}).get("commands"), "missing verifier commands"
+          print(f"smoke-test: py-tool-001 OK (track={case['track']})")
+          EOF
+
+  report-artifact:
+    name: Upload Report Artifact
+    runs-on: ubuntu-latest
+    needs: [smoke-test]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Upload reports directory
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-reports
+          path: reports/
+          if-no-files-found: warn

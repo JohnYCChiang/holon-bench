@@ -8,3 +8,4 @@ reports/*
 !reports/model_matrix.md
 !reports/per_track.json
 !reports/routing_recommendation.json
+!reports/baseline_summary.md
