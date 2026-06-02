@@ -9,7 +9,7 @@
 - Repaired cases: 14/15
 - Total repair attempts: 16
 - Repair tax: 0.14 attempts/case
-- Protected/hidden verifier coverage: 27/118
+- Protected/hidden verifier coverage: 28/118
 - Mutation verifier coverage: 1/118
 - Hidden/mutation failures: 1/1
 - Avg repair attempts to pass: 1.07
@@ -22,7 +22,7 @@
 
 - Integration: artifact output sometimes needs recovery; keep strict contract checks and pollution tags enabled
 - Integration: public verifiers can pass while hidden or mutation gates fail; expand hidden coverage before treating 100% public pass as production-ready
-- Integration: protected/hidden and mutation coverage is partial (27/118 protected/hidden, 1/118 mutation)
+- Integration: protected/hidden and mutation coverage is partial (28/118 protected/hidden, 1/118 mutation)
 - Deployment: 1 cases exhausted repair budget; enforce bounded loops, timeouts, and stop reasons
 - Operations: track first-pass and repaired-pass separately; repaired success is useful but has higher operating cost
 
@@ -130,6 +130,6 @@
 - Repair conversion rate: 100.00%
 - Repaired cases: 2/2
 - Repair tax: 0.20 attempts/case
-- Protected/hidden verifier coverage: 4/15
+- Protected/hidden verifier coverage: 5/15
 - Mutation verifier coverage: 0/15
 - Soft score avg: 100.00
