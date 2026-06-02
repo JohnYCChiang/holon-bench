@@ -1,0 +1,29 @@
+--- FILE: lib/widgets/responsive_panel.dart ---
+import 'package:flutter/material.dart';
+
+class ResponsivePanel extends StatelessWidget {
+  const ResponsivePanel({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            final children = const [
+              SizedBox(width: 220, child: Text('Filters')),
+              SizedBox(width: 220, child: Text('Results')),
+            ];
+            if (constraints.maxWidth < 440) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: children,
+              );
+            }
+            return Row(children: children);
+          },
+        ),
+      ),
+    );
+  }
+}

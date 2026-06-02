@@ -1,0 +1,334 @@
+track: rust_bevy
+cases:
+  - id: bevy-002
+    track: rust_bevy
+    language: rust
+    difficulty: easy
+    task_type: component_bundle
+    fixture: fixtures/bevy/health_component
+    user_request: Add a Health component and bundle without putting behavior into the component.
+    constraints:
+      - Components must be data-only.
+      - Existing spawn systems must keep compiling.
+      - Add pure tests for damage application.
+    allowed_paths: [src/components/**, src/systems/health.rs, tests/health_logic.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/health_logic.rs]
+    solution_paths: [src/systems/health.rs]
+    verifier:
+      commands: [cargo test health_logic]
+      timeout_seconds: 90
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [maintainability, test_quality, functional_correctness]
+    failure_tags: [domain_rule_violation, over_refactor]
+  - id: bevy-008
+    track: rust_bevy
+    language: rust
+    difficulty: medium
+    task_type: query_conflict
+    fixture: fixtures/bevy/query_mutability_conflict
+    user_request: Fix the Bevy query mutability conflict without splitting game state incorrectly.
+    constraints:
+      - Do not use unsafe.
+      - Preserve system behavior.
+      - Prefer query filtering or param restructuring over global resources.
+    allowed_paths: [src/systems/movement.rs, tests/movement_system.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/movement_system.rs]
+    solution_paths: [src/systems/movement.rs]
+    verifier:
+      commands: [cargo test movement_system]
+      timeout_seconds: 90
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [compile_fail, over_refactor]
+  - id: bevy-015
+    track: rust_bevy
+    language: rust
+    difficulty: hard
+    task_type: event_ordering
+    fixture: fixtures/bevy/event_reader_ordering
+    user_request: Fix missed damage events by correcting schedule ordering.
+    constraints:
+      - Do not poll events manually outside Bevy systems.
+      - Keep event type unchanged.
+      - Add a deterministic schedule test.
+    allowed_paths: [src/plugins/combat.rs, src/systems/combat.rs, tests/combat_schedule.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/combat_schedule.rs]
+    solution_paths: [src/plugins/combat.rs]
+    verifier:
+      commands: [cargo test combat_schedule]
+      timeout_seconds: 90
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, test_quality, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement]
+  - id: bevy-031
+    track: rust_bevy
+    language: rust
+    difficulty: medium
+    task_type: asset_abstraction
+    fixture: fixtures/bevy/desktop_filesystem_trap
+    user_request: Replace direct desktop filesystem loading with Bevy asset abstraction.
+    constraints:
+      - Must work for native and wasm builds.
+      - Do not use std::fs in gameplay code.
+      - Preserve asset path configuration.
+    allowed_paths: [src/assets/**, src/plugins/assets.rs, tests/asset_paths.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/asset_paths.rs]
+    solution_paths: [src/assets/loader.rs, src/plugins/assets.rs]
+    verifier:
+      commands: [cargo test asset_paths]
+      semantic_checks: [wasm_compatibility_scan]
+      timeout_seconds: 90
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass, semantic_pass]
+      soft_metrics: [platform_compatibility, maintainability, scope_disciplined]
+    failure_tags: [wasm_incompatible, desktop_assumption]
+  - id: bevy-041
+    track: rust_bevy
+    language: rust
+    difficulty: medium
+    task_type: pure_game_logic
+    fixture: fixtures/bevy/scoring_logic_pure_module
+    user_request: Extract score calculation into a pure Rust module with tests.
+    constraints:
+      - Do not require a Bevy App to test scoring.
+      - Preserve existing score events.
+      - Keep plugin registration unchanged.
+    allowed_paths: [src/score.rs, src/systems/score.rs, tests/score_logic.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/score_logic.rs]
+    solution_paths: [src/score.rs, src/systems/score.rs]
+    verifier:
+      commands: [cargo test score_logic]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [test_quality, maintainability, minimality]
+    failure_tags: [over_refactor, missing_requirement]
+  - id: bevy-046
+    track: rust_bevy
+    language: rust
+    difficulty: medium
+    task_type: input_mapping
+    fixture: fixtures/bevy/input_action_mapping
+    user_request: Add deadzone-aware action mapping so small analog input does not trigger movement.
+    constraints:
+      - Keep input mapping pure and testable.
+      - Preserve keyboard action behavior.
+      - Do not add Bevy runtime dependencies.
+    allowed_paths: [src/input.rs, tests/input_mapping.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/input_mapping.rs]
+    solution_paths: [src/input.rs]
+    verifier:
+      commands: [cargo test --test input_mapping]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, minimality]
+    failure_tags: [wrong_edge_case, missing_requirement]
+  - id: bevy-051
+    track: rust_bevy
+    language: rust
+    difficulty: medium
+    task_type: camera_bounds
+    fixture: fixtures/bevy/camera_follow_bounds
+    user_request: Clamp camera follow positions to world bounds after applying the target offset.
+    constraints:
+      - Keep camera math deterministic and pure.
+      - Do not mutate the target.
+      - Preserve existing follow offset behavior.
+    allowed_paths: [src/camera.rs, tests/camera_bounds.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/camera_bounds.rs]
+    solution_paths: [src/camera.rs]
+    verifier:
+      commands: [cargo test --test camera_bounds]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [wrong_edge_case, domain_rule_violation]
+  - id: bevy-056
+    track: rust_bevy
+    language: rust
+    difficulty: medium
+    task_type: loading_state
+    fixture: fixtures/bevy/loading_state_gate
+    user_request: Gate the transition from Loading to Playing until all required assets are ready.
+    constraints:
+      - Do not transition on partial readiness.
+      - Preserve Failed state behavior.
+      - Keep the state machine testable without a Bevy App.
+    allowed_paths: [src/loading.rs, tests/loading_state.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/loading_state.rs]
+    solution_paths: [src/loading.rs]
+    verifier:
+      commands: [cargo test --test loading_state]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [missing_requirement, wrong_edge_case]
+  - id: bevy-061
+    track: rust_bevy
+    language: rust
+    difficulty: hard
+    task_type: plugin_ordering
+    fixture: fixtures/bevy/plugin_ordering
+    user_request: Register startup systems in dependency order without duplicating systems.
+    constraints:
+      - Assets must be initialized before gameplay spawn.
+      - UI setup must run after gameplay spawn.
+      - Do not add duplicate system names.
+    allowed_paths: [src/plugin.rs, tests/plugin_ordering.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/plugin_ordering.rs]
+    solution_paths: [src/plugin.rs]
+    verifier:
+      commands: [cargo test --test plugin_ordering]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [domain_rule_violation, over_refactor]
+  - id: bevy-066
+    track: rust_bevy
+    language: rust
+    difficulty: medium
+    task_type: event_queue
+    fixture: fixtures/bevy/event_queue_drain
+    user_request: Drain only handled collision events while preserving unrelated events for later systems.
+    constraints:
+      - Preserve original event order.
+      - Do not drop events for other systems.
+      - Return handled pairs exactly once.
+    allowed_paths: [src/events.rs, tests/event_queue.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/event_queue.rs]
+    solution_paths: [src/events.rs]
+    verifier:
+      commands: [cargo test --test event_queue]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement]
+  - id: bevy-071
+    track: rust_bevy
+    language: rust
+    difficulty: medium
+    task_type: responsive_ui
+    fixture: fixtures/bevy/responsive_ui_grid
+    user_request: Make the inventory grid choose stable columns for narrow and wide layouts.
+    constraints:
+      - Columns must never be zero.
+      - Preserve configured minimum cell width.
+      - Avoid viewport-width font or layout hacks.
+    allowed_paths: [src/ui.rs, tests/ui_grid.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/ui_grid.rs]
+    solution_paths: [src/ui.rs]
+    verifier:
+      commands: [cargo test --test ui_grid]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass]
+      soft_metrics: [platform_compatibility, functional_correctness, maintainability]
+    failure_tags: [mobile_layout_break, wrong_edge_case]
+  - id: bevy-076
+    track: rust_bevy
+    language: rust
+    difficulty: hard
+    task_type: fixed_timestep
+    fixture: fixtures/bevy/fixed_timestep
+    user_request: Accumulate fixed timestep ticks deterministically and leave fractional time for the next frame.
+    constraints:
+      - Do not use wall clock time in the update function.
+      - Cap runaway catch-up ticks.
+      - Preserve remaining accumulator time.
+    allowed_paths: [src/time.rs, tests/fixed_timestep.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/fixed_timestep.rs]
+    solution_paths: [src/time.rs]
+    verifier:
+      commands: [cargo test --test fixed_timestep]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass]
+      soft_metrics: [functional_correctness, test_quality, maintainability]
+    failure_tags: [wrong_edge_case, fake_success]
+  - id: bevy-081
+    track: rust_bevy
+    language: rust
+    difficulty: medium
+    task_type: asset_handles
+    fixture: fixtures/bevy/typed_asset_handles
+    user_request: Keep sprite and audio handles in separate typed registries.
+    constraints:
+      - Do not allow audio lookups to return sprite handles.
+      - Preserve stable string asset keys.
+      - Keep registry behavior deterministic.
+    allowed_paths: [src/assets.rs, tests/asset_handles.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/asset_handles.rs]
+    solution_paths: [src/assets.rs]
+    verifier:
+      commands: [cargo test --test asset_handles]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [domain_rule_violation, wrong_edge_case]
+  - id: bevy-086
+    track: rust_bevy
+    language: rust
+    difficulty: medium
+    task_type: platform_storage
+    fixture: fixtures/bevy/wasm_storage_abstraction
+    user_request: Replace direct filesystem save loading with a platform-neutral storage trait.
+    constraints:
+      - Gameplay code must not call std::fs directly.
+      - Storage errors must be structured.
+      - Keep save/load behavior testable with memory storage.
+    allowed_paths: [src/storage.rs, tests/storage.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/storage.rs]
+    solution_paths: [src/storage.rs]
+    verifier:
+      commands: [cargo test --test storage]
+      semantic_checks: [wasm_compatibility_scan]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass, semantic_pass]
+      soft_metrics: [platform_compatibility, maintainability, observability]
+    failure_tags: [wasm_incompatible, desktop_assumption, unstructured_error]
+  - id: bevy-091
+    track: rust_bevy
+    language: rust
+    difficulty: medium
+    task_type: command_buffer
+    fixture: fixtures/bevy/spawn_command_buffer
+    user_request: Queue spawn commands and apply them at the end of the frame in insertion order.
+    constraints:
+      - Do not mutate the world while iterating spawn requests.
+      - Preserve insertion order.
+      - Clear pending commands only after applying them.
+    allowed_paths: [src/spawn.rs, tests/spawn_commands.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/spawn_commands.rs]
+    solution_paths: [src/spawn.rs]
+    verifier:
+      commands: [cargo test --test spawn_commands]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, maintainability, minimality]
+    failure_tags: [wrong_edge_case, over_refactor]

@@ -1,0 +1,12 @@
+--- FILE: src/labels.rs ---
+pub fn join_labels<'a, I, T>(labels: I) -> String
+where
+    I: IntoIterator<Item = &'a T>,
+    T: AsRef<str> + 'a,
+{
+    labels
+        .into_iter()
+        .map(|label| label.as_ref())
+        .collect::<Vec<_>>()
+        .join(",")
+}

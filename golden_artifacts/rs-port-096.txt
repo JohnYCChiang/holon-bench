@@ -1,0 +1,12 @@
+--- FILE: rust/src/exit_class.rs ---
+pub fn classify_exit(code: i32) -> (&'static str, bool) {
+    if code == 0 {
+        ("success", false)
+    } else if code == 2 {
+        ("usage_error", false)
+    } else if code < 0 {
+        ("interrupted", true)
+    } else {
+        ("failed", true)
+    }
+}

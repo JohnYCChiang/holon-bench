@@ -1,0 +1,14 @@
+--- FILE: rust/src/stderr_parser.rs ---
+pub fn parse_stderr(text: &str) -> String {
+    let mut errors = Vec::new();
+    let mut warnings = 0;
+    for line in text.lines() {
+        if let Some(message) = line.strip_prefix("ERROR:") {
+            errors.push(message.trim().to_string());
+        } else if line.starts_with("WARN:") {
+            warnings += 1;
+        }
+    }
+    let first = errors.first().cloned().unwrap_or_default();
+    format!("errors={};warnings={warnings};first={first}", errors.len())
+}

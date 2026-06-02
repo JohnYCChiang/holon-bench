@@ -1,0 +1,348 @@
+track: rust_porting
+cases:
+  - id: rs-port-001
+    track: rust_porting
+    language: rust
+    difficulty: easy
+    task_type: schema_port
+    fixture: fixtures/rust_porting/schema_structs
+    user_request: Port the Python request/response dict schema to Rust serde structs.
+    constraints:
+      - Preserve JSON field names exactly.
+      - Unknown fields must be rejected where the Python tool rejects them.
+      - Golden Python and Rust outputs must match semantically.
+    allowed_paths: [rust/src/schema.rs]
+    forbidden_paths: [python/**, Cargo.toml]
+    protected_paths: [python/**, rust/tests/**, rust/Cargo.toml, rust/Cargo.lock]
+    solution_paths: [rust/src/schema.rs]
+    verifier:
+      commands: [cargo test --manifest-path rust/Cargo.toml --test schema_parity]
+      semantic_checks: [python_rust_json_equivalence]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid, scope_pass, semantic_pass]
+      soft_metrics: [contract_compliance, functional_correctness, test_quality]
+    failure_tags: [python_rust_schema_mismatch, golden_output_mismatch]
+  - id: rs-port-008
+    track: rust_porting
+    language: rust
+    difficulty: medium
+    task_type: file_indexer_port
+    fixture: fixtures/rust_porting/pathlib_to_walkdir
+    user_request: Port the Python pathlib scanner to Rust PathBuf and walkdir.
+    constraints:
+      - Preserve exclude glob behavior.
+      - Preserve deterministic sorting.
+      - Do not follow symlinks unless the Python tool does.
+    allowed_paths: [rust/src/file_indexer.rs]
+    forbidden_paths: [python/**, Cargo.toml]
+    protected_paths: [python/**, rust/tests/**, rust/Cargo.toml, rust/Cargo.lock, hidden/**]
+    solution_paths: [rust/src/file_indexer.rs]
+    verifier:
+      commands: [cargo test --manifest-path rust/Cargo.toml --test file_indexer_parity]
+      semantic_checks: [python_rust_json_equivalence]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass, semantic_pass]
+      soft_metrics: [functional_correctness, maintainability, observability]
+    failure_tags: [behavior_not_equivalent, ignores_exclude_globs]
+  - id: rs-port-016
+    track: rust_porting
+    language: rust
+    difficulty: medium
+    task_type: process_wrapper_port
+    fixture: fixtures/rust_porting/subprocess_wrapper
+    user_request: Port the Python subprocess wrapper to Rust process execution.
+    constraints:
+      - Preserve stdout, stderr, exit_code, timed_out, and duration_ms.
+      - Preserve environment allowlist behavior.
+      - Do not invoke through a shell unless explicitly requested.
+    allowed_paths: [rust/src/process.rs]
+    forbidden_paths: [python/**]
+    protected_paths: [python/**, rust/tests/**, rust/Cargo.toml, rust/Cargo.lock]
+    solution_paths: [rust/src/process.rs]
+    verifier:
+      commands: [cargo test --manifest-path rust/Cargo.toml --test process_parity]
+      hidden_commands: [sh -c 'cp hidden/process_env_hidden.rs rust/tests/process_env_hidden.rs; trap "rm -f rust/tests/process_env_hidden.rs" EXIT; cargo test --manifest-path rust/Cargo.toml --test process_env_hidden']
+      semantic_checks: [python_rust_json_equivalence]
+      timeout_seconds: 90
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass, scope_pass, semantic_pass]
+      soft_metrics: [contract_compliance, functional_correctness, observability]
+    failure_tags: [behavior_not_equivalent, unsafe_path, timeout, hidden_verifier_failed]
+  - id: rs-port-024
+    track: rust_porting
+    language: rust
+    difficulty: hard
+    task_type: async_timeout_port
+    fixture: fixtures/rust_porting/asyncio_timeout_to_tokio
+    user_request: Port asyncio timeout and retry behavior to tokio.
+    constraints:
+      - Preserve retry count semantics.
+      - Timeout must cancel the in-flight operation.
+      - Preserve structured timeout error code.
+    allowed_paths: [rust/src/retry.rs]
+    forbidden_paths: [python/**, Cargo.toml]
+    protected_paths: [python/**, rust/tests/**, rust/Cargo.toml, rust/Cargo.lock]
+    solution_paths: [rust/src/retry.rs]
+    verifier:
+      commands: [cargo test --manifest-path rust/Cargo.toml --test retry_parity]
+      semantic_checks: [python_rust_json_equivalence]
+      timeout_seconds: 90
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass, scope_pass, semantic_pass]
+      soft_metrics: [functional_correctness, contract_compliance, test_quality]
+    failure_tags: [cancellation_ignored, error_taxonomy_mismatch, behavior_not_equivalent]
+  - id: rs-port-045
+    track: rust_porting
+    language: rust
+    difficulty: hard
+    task_type: cache_key_parity
+    fixture: fixtures/rust_porting/cache_key_hash
+    user_request: Implement Rust cache key generation that matches the Python golden hash.
+    constraints:
+      - Hash inputs must be normalized identically to Python.
+      - Preserve version salt.
+      - Golden fixtures must remain unchanged.
+    allowed_paths: [rust/src/cache_key.rs]
+    forbidden_paths: [python/**, golden/**]
+    protected_paths: [python/**, golden/**, rust/tests/**, rust/Cargo.toml, rust/Cargo.lock]
+    solution_paths: [rust/src/cache_key.rs]
+    verifier:
+      commands: [cargo test --manifest-path rust/Cargo.toml --test cache_key_parity]
+      semantic_checks: [golden_hash_equivalence]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid, scope_pass, semantic_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [golden_output_mismatch, behavior_not_equivalent]
+  - id: rs-port-052
+    track: rust_porting
+    language: rust
+    difficulty: medium
+    task_type: error_taxonomy_port
+    fixture: fixtures/rust_porting/error_taxonomy
+    user_request: Port the Python tool error taxonomy to Rust without changing codes or retryability.
+    constraints:
+      - Preserve error codes exactly.
+      - Preserve retryable semantics.
+      - Unknown errors must map to internal_error.
+    allowed_paths: [rust/src/error_taxonomy.rs]
+    forbidden_paths: [python/**, Cargo.toml]
+    protected_paths: [python/**, rust/tests/**, rust/Cargo.toml, rust/Cargo.lock]
+    solution_paths: [rust/src/error_taxonomy.rs]
+    verifier:
+      commands: [cargo test --manifest-path rust/Cargo.toml --test error_taxonomy_parity]
+      semantic_checks: [python_rust_error_taxonomy_equivalence]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid, scope_pass, semantic_pass]
+      soft_metrics: [contract_compliance, functional_correctness, maintainability]
+    failure_tags: [error_taxonomy_mismatch, behavior_not_equivalent]
+  - id: rs-port-056
+    track: rust_porting
+    language: rust
+    difficulty: hard
+    task_type: dry_run_delete_port
+    fixture: fixtures/rust_porting/dry_run_delete
+    user_request: Port the Python dry-run delete behavior to Rust.
+    constraints:
+      - dry_run must not delete files.
+      - Missing files count as skipped.
+      - Preserve deterministic report ordering.
+    allowed_paths: [rust/src/delete.rs]
+    forbidden_paths: [python/**, Cargo.toml]
+    protected_paths: [python/**, rust/tests/**, rust/Cargo.toml, rust/Cargo.lock]
+    solution_paths: [rust/src/delete.rs]
+    verifier:
+      commands: [cargo test --manifest-path rust/Cargo.toml --test delete_parity]
+      semantic_checks: [python_rust_dry_run_equivalence]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass, scope_pass, semantic_pass]
+      soft_metrics: [functional_correctness, observability, contract_compliance]
+    failure_tags: [missing_dry_run, behavior_not_equivalent]
+  - id: rs-port-061
+    track: rust_porting
+    language: rust
+    difficulty: medium
+    task_type: output_compaction_port
+    fixture: fixtures/rust_porting/output_compaction
+    user_request: Port Python output compaction to Rust with identical tail and omitted-line counts.
+    constraints:
+      - Preserve short output unchanged.
+      - Preserve the last N lines for long output.
+      - Report omitted line count.
+    allowed_paths: [rust/src/compactor.rs]
+    forbidden_paths: [python/**, Cargo.toml]
+    protected_paths: [python/**, rust/tests/**, rust/Cargo.toml, rust/Cargo.lock]
+    solution_paths: [rust/src/compactor.rs]
+    verifier:
+      commands: [cargo test --manifest-path rust/Cargo.toml --test compactor_parity]
+      semantic_checks: [python_rust_output_equivalence]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid, scope_pass, semantic_pass]
+      soft_metrics: [functional_correctness, observability, minimality]
+    failure_tags: [golden_output_mismatch, behavior_not_equivalent]
+  - id: rs-port-066
+    track: rust_porting
+    language: rust
+    difficulty: medium
+    task_type: path_normalization_port
+    fixture: fixtures/rust_porting/path_normalization
+    user_request: Port Python path normalization to Rust while rejecting parent traversal.
+    constraints:
+      - Convert backslashes to slashes.
+      - Drop current-directory segments.
+      - Reject parent traversal.
+    allowed_paths: [rust/src/path_norm.rs]
+    forbidden_paths: [python/**, Cargo.toml]
+    protected_paths: [python/**, rust/tests/**, rust/Cargo.toml, rust/Cargo.lock]
+    solution_paths: [rust/src/path_norm.rs]
+    verifier:
+      commands: [cargo test --manifest-path rust/Cargo.toml --test path_norm_parity]
+      semantic_checks: [python_rust_path_equivalence]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass, scope_pass, semantic_pass]
+      soft_metrics: [functional_correctness, maintainability, contract_compliance]
+    failure_tags: [unsafe_path, behavior_not_equivalent]
+  - id: rs-port-071
+    track: rust_porting
+    language: rust
+    difficulty: medium
+    task_type: env_filter_port
+    fixture: fixtures/rust_porting/env_filter
+    user_request: Port Python environment filtering to Rust.
+    constraints:
+      - Preserve allowlist behavior.
+      - Protected defaults cannot be overridden.
+      - Output keys must be sorted.
+    allowed_paths: [rust/src/env_filter.rs]
+    forbidden_paths: [python/**, Cargo.toml]
+    protected_paths: [python/**, rust/tests/**, rust/Cargo.toml, rust/Cargo.lock]
+    solution_paths: [rust/src/env_filter.rs]
+    verifier:
+      commands: [cargo test --manifest-path rust/Cargo.toml --test env_filter_parity]
+      semantic_checks: [python_rust_env_equivalence]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass, scope_pass, semantic_pass]
+      soft_metrics: [contract_compliance, observability, maintainability]
+    failure_tags: [behavior_not_equivalent, missing_requirement]
+  - id: rs-port-076
+    track: rust_porting
+    language: rust
+    difficulty: medium
+    task_type: jsonl_parser_port
+    fixture: fixtures/rust_porting/jsonl_parser
+    user_request: Port the Python JSONL parser to Rust with identical error reporting.
+    constraints:
+      - Preserve valid record ordering.
+      - Report invalid line numbers as 1-based.
+      - Empty lines must be skipped.
+    allowed_paths: [rust/src/jsonl.rs]
+    forbidden_paths: [python/**, Cargo.toml]
+    protected_paths: [python/**, rust/tests/**, rust/Cargo.toml, rust/Cargo.lock]
+    solution_paths: [rust/src/jsonl.rs]
+    verifier:
+      commands: [cargo test --manifest-path rust/Cargo.toml --test jsonl_parity]
+      semantic_checks: [python_rust_jsonl_equivalence]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid, scope_pass, semantic_pass]
+      soft_metrics: [functional_correctness, observability, contract_compliance]
+    failure_tags: [golden_output_mismatch, behavior_not_equivalent]
+  - id: rs-port-081
+    track: rust_porting
+    language: rust
+    difficulty: medium
+    task_type: diagnostic_span_port
+    fixture: fixtures/rust_porting/span_mapping
+    user_request: Port Python byte-offset diagnostic span mapping to Rust.
+    constraints:
+      - Lines and columns are 1-based.
+      - Columns count Unicode scalar values, not bytes.
+      - Offsets past end clamp to the last line.
+    allowed_paths: [rust/src/span.rs]
+    forbidden_paths: [python/**, Cargo.toml]
+    protected_paths: [python/**, rust/tests/**, rust/Cargo.toml, rust/Cargo.lock]
+    solution_paths: [rust/src/span.rs]
+    verifier:
+      commands: [cargo test --manifest-path rust/Cargo.toml --test span_parity]
+      semantic_checks: [python_rust_span_equivalence]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid, scope_pass, semantic_pass]
+      soft_metrics: [functional_correctness, maintainability, observability]
+    failure_tags: [wrong_edge_case, behavior_not_equivalent]
+  - id: rs-port-086
+    track: rust_porting
+    language: rust
+    difficulty: medium
+    task_type: cache_manifest_port
+    fixture: fixtures/rust_porting/cache_manifest
+    user_request: Port Python cache manifest summarization to Rust.
+    constraints:
+      - Sort entries by path.
+      - Sum byte sizes.
+      - Preserve stale entry count semantics.
+    allowed_paths: [rust/src/manifest.rs]
+    forbidden_paths: [python/**, Cargo.toml]
+    protected_paths: [python/**, rust/tests/**, rust/Cargo.toml, rust/Cargo.lock]
+    solution_paths: [rust/src/manifest.rs]
+    verifier:
+      commands: [cargo test --manifest-path rust/Cargo.toml --test manifest_parity]
+      semantic_checks: [python_rust_manifest_equivalence]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid, scope_pass, semantic_pass]
+      soft_metrics: [functional_correctness, observability, minimality]
+    failure_tags: [behavior_not_equivalent, golden_output_mismatch]
+  - id: rs-port-091
+    track: rust_porting
+    language: rust
+    difficulty: medium
+    task_type: stderr_parser_port
+    fixture: fixtures/rust_porting/stderr_parser
+    user_request: Port Python structured stderr parsing to Rust.
+    constraints:
+      - Extract ERROR and WARN lines.
+      - Preserve first error message.
+      - Ignore unrelated stderr noise.
+    allowed_paths: [rust/src/stderr_parser.rs]
+    forbidden_paths: [python/**, Cargo.toml]
+    protected_paths: [python/**, rust/tests/**, rust/Cargo.toml, rust/Cargo.lock]
+    solution_paths: [rust/src/stderr_parser.rs]
+    verifier:
+      commands: [cargo test --manifest-path rust/Cargo.toml --test stderr_parser_parity]
+      semantic_checks: [python_rust_stderr_equivalence]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid, scope_pass, semantic_pass]
+      soft_metrics: [observability, functional_correctness, contract_compliance]
+    failure_tags: [unstructured_error, behavior_not_equivalent]
+  - id: rs-port-096
+    track: rust_porting
+    language: rust
+    difficulty: medium
+    task_type: exit_classifier_port
+    fixture: fixtures/rust_porting/exit_classifier
+    user_request: Port Python process exit-code classification to Rust.
+    constraints:
+      - Preserve success, usage_error, interrupted, and failed classes.
+      - Negative signal codes must map to interrupted.
+      - Include retryable flag.
+    allowed_paths: [rust/src/exit_class.rs]
+    forbidden_paths: [python/**, Cargo.toml]
+    protected_paths: [python/**, rust/tests/**, rust/Cargo.toml, rust/Cargo.lock]
+    solution_paths: [rust/src/exit_class.rs]
+    verifier:
+      commands: [cargo test --manifest-path rust/Cargo.toml --test exit_class_parity]
+      semantic_checks: [python_rust_exit_equivalence]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid, scope_pass, semantic_pass]
+      soft_metrics: [contract_compliance, functional_correctness, observability]
+    failure_tags: [error_taxonomy_mismatch, behavior_not_equivalent]

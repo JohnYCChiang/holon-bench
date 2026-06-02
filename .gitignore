@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+
+# Benchmark run artifacts are regenerated and noisy. Keep only the stable
+# summary reports tracked.
+reports/*
+!reports/
+!reports/model_matrix.md
+!reports/per_track.json
+!reports/routing_recommendation.json

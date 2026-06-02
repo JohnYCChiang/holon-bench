@@ -1,0 +1,17 @@
+--- FILE: rust/src/env_filter.rs ---
+use std::collections::BTreeMap;
+
+pub fn filter_env(input: &BTreeMap<String, String>, allow: &[String]) -> BTreeMap<String, String> {
+    let mut out = BTreeMap::new();
+    out.insert("HOME".to_string(), "/home/tool".to_string());
+    out.insert("PATH".to_string(), "/usr/bin".to_string());
+    for key in allow {
+        if key == "HOME" || key == "PATH" {
+            continue;
+        }
+        if let Some(value) = input.get(key) {
+            out.insert(key.clone(), value.clone());
+        }
+    }
+    out
+}

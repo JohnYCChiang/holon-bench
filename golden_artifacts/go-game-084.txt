@@ -1,0 +1,25 @@
+--- FILE: server/room/close.go ---
+package room
+
+type Player struct {
+	ID        string
+	Connected bool
+	Notified  int
+}
+
+type Room struct {
+	Closed  bool
+	Players []Player
+}
+
+func (r *Room) Close() {
+	if r.Closed {
+		return
+	}
+	r.Closed = true
+	for i := range r.Players {
+		if r.Players[i].Connected {
+			r.Players[i].Notified++
+		}
+	}
+}

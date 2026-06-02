@@ -1,0 +1,36 @@
+--- FILE: lib/widgets/profile_card.dart ---
+import 'package:flutter/material.dart';
+
+class ProfileCard extends StatelessWidget {
+  const ProfileCard({super.key});
+
+  static const name = 'Very long profile name that must remain visible';
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            final narrow = constraints.maxWidth < 420;
+            final children = [
+              const Icon(Icons.person, size: 96),
+              SizedBox(width: narrow ? 0 : 24, height: narrow ? 12 : 0),
+              const Flexible(child: Text(name)),
+            ];
+            return narrow
+                ? const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.person, size: 96),
+                      SizedBox(height: 12),
+                      Text(name),
+                    ],
+                  )
+                : Row(children: children);
+          },
+        ),
+      ),
+    );
+  }
+}

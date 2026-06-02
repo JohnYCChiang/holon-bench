@@ -1,0 +1,20 @@
+--- FILE: src/events.rs ---
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Event {
+    Collision(u32, u32),
+    AudioCue(&'static str),
+    Score(u32),
+}
+
+pub fn drain_collisions(events: &mut Vec<Event>) -> Vec<(u32, u32)> {
+    let mut collisions = Vec::new();
+    let mut retained = Vec::new();
+    for event in events.drain(..) {
+        match event {
+            Event::Collision(a, b) => collisions.push((a, b)),
+            other => retained.push(other),
+        }
+    }
+    *events = retained;
+    collisions
+}

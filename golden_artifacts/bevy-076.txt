@@ -1,0 +1,17 @@
+--- FILE: src/time.rs ---
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct FixedClock {
+    pub step: f32,
+    pub accumulator: f32,
+    pub max_ticks: u32,
+}
+
+pub fn advance(clock: &mut FixedClock, delta: f32) -> u32 {
+    clock.accumulator += delta;
+    let mut ticks = 0;
+    while clock.accumulator + f32::EPSILON >= clock.step && ticks < clock.max_ticks {
+        clock.accumulator -= clock.step;
+        ticks += 1;
+    }
+    ticks
+}

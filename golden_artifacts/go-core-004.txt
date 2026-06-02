@@ -1,0 +1,34 @@
+--- FILE: internal/loader/loader.go ---
+package loader
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+)
+
+var ErrInvalidConfig = errors.New("invalid config")
+
+type Config struct {
+	Name string `json:"name"`
+}
+
+type Reader func(path string) ([]byte, error)
+
+func LoadConfig(path string, read Reader) (*Config, error) {
+	if path == "" {
+		return nil, ErrInvalidConfig
+	}
+	data, err := read(path)
+	if err != nil {
+		return nil, fmt.Errorf("load config %q failed: %w", path, err)
+	}
+	var cfg Config
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return nil, fmt.Errorf("%w: parse %q: %v", ErrInvalidConfig, path, err)
+	}
+	if cfg.Name == "" {
+		return nil, fmt.Errorf("%w: missing name in %q", ErrInvalidConfig, path)
+	}
+	return &cfg, nil
+}

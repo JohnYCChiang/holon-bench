@@ -1,0 +1,30 @@
+--- FILE: src/error.rs ---
+use std::fmt;
+use std::io;
+
+#[derive(Debug)]
+pub enum ToolError {
+    Io(io::Error),
+}
+
+impl fmt::Display for ToolError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ToolError::Io(_) => write!(formatter, "io failure"),
+        }
+    }
+}
+
+impl std::error::Error for ToolError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            ToolError::Io(error) => Some(error),
+        }
+    }
+}
+
+impl From<io::Error> for ToolError {
+    fn from(value: io::Error) -> Self {
+        ToolError::Io(value)
+    }
+}

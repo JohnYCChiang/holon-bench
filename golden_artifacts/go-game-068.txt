@@ -1,0 +1,42 @@
+--- FILE: server/snapshot/snapshot.go ---
+package snapshot
+
+import "sort"
+
+type Player struct {
+	ID     string
+	Joined int
+}
+
+type Entity struct {
+	ID string
+	X  int
+}
+
+type Room struct {
+	Players  map[string]Player
+	Entities map[string]Entity
+}
+
+func Snapshot(room Room) []string {
+	players := make([]Player, 0, len(room.Players))
+	for _, player := range room.Players {
+		players = append(players, player)
+	}
+	sort.Slice(players, func(i, j int) bool {
+		return players[i].Joined < players[j].Joined
+	})
+	entities := make([]string, 0, len(room.Entities))
+	for id := range room.Entities {
+		entities = append(entities, id)
+	}
+	sort.Strings(entities)
+	out := []string{}
+	for _, player := range players {
+		out = append(out, "p:"+player.ID)
+	}
+	for _, id := range entities {
+		out = append(out, "e:"+id)
+	}
+	return out
+}

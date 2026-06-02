@@ -1,0 +1,366 @@
+track: python_tool_engineering
+cases:
+  - id: py-tool-001
+    track: python_tool_engineering
+    language: python
+    difficulty: easy
+    task_type: structured_error_output
+    fixture: fixtures/python/tool_error_enum
+    user_request: >
+      Replace free-form tool errors with a machine-readable error enum while
+      preserving the existing success response shape.
+    constraints:
+      - Do not change existing success response fields.
+      - Add error.code and error.message for failures.
+      - Preserve current CLI exit behavior.
+    allowed_paths: [src/tool_errors/**, tests/test_tool_errors.py]
+    forbidden_paths: [pyproject.toml, src/shared/schema.py]
+    protected_paths: [tests/test_tool_errors.py]
+    solution_paths: [src/tool_errors/runner.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_tool_errors]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid, scope_pass]
+      soft_metrics: [contract_compliance, maintainability, observability]
+    failure_tags: [unstructured_error, response_schema_break, over_refactor]
+  - id: py-tool-009
+    track: python_tool_engineering
+    language: python
+    difficulty: medium
+    task_type: file_scanner
+    fixture: fixtures/python/file_scanner_excludes
+    user_request: >
+      Make the file scanner skip binary files, hidden directories, and ignored
+      paths while keeping deterministic ordering.
+    constraints:
+      - Preserve existing exclude glob behavior.
+      - Do not read file contents larger than the configured limit.
+      - Return skipped counts by reason.
+    allowed_paths: [src/file_scanner/**, tests/test_file_scanner_excludes.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_file_scanner_excludes.py, tests/test_file_scanner_existing.py]
+    solution_paths: [src/file_scanner/scanner.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_file_scanner_excludes, python3 -m unittest tests.test_file_scanner_existing]
+      timeout_seconds: 45
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass, safety_pass]
+      soft_metrics: [functional_correctness, minimality, observability]
+    failure_tags: [unsafe_path, ignores_exclude_globs, over_refactor]
+  - id: py-tool-018
+    track: python_tool_engineering
+    language: python
+    difficulty: medium
+    task_type: shell_process_wrapper
+    fixture: fixtures/python/shell_runner_timeout
+    user_request: >
+      Add timeout support to the shell runner and preserve stdout, stderr,
+      exit_code, timed_out, and duration_ms in the result.
+    constraints:
+      - Kill the child process on timeout.
+      - Do not discard partial stdout or stderr.
+      - Timeout must be configurable per call.
+    allowed_paths: [src/shell_runner/**, tests/test_shell_runner_timeout.py]
+    forbidden_paths: [src/shared/schema.py]
+    protected_paths: [tests/test_shell_runner_timeout.py]
+    solution_paths: [src/shell_runner/runner.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_shell_runner_timeout]
+      timeout_seconds: 45
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid, safety_pass]
+      soft_metrics: [functional_correctness, contract_compliance, observability]
+    failure_tags: [timeout, unstructured_error, resource_leak]
+  - id: py-tool-041
+    track: python_tool_engineering
+    language: python
+    difficulty: medium
+    task_type: provenance_summary
+    fixture: fixtures/python/tool_output_compaction
+    user_request: >
+      Compact long tool output into a summary while keeping provenance, counts,
+      and the tail needed for debugging.
+    constraints:
+      - Do not truncate machine-readable status fields.
+      - Keep original output length and omitted byte count.
+      - Summary must be deterministic.
+    allowed_paths: [src/output_compactor/**, tests/test_output_compactor.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_output_compactor.py]
+    solution_paths: [src/output_compactor/compactor.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_output_compactor]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid]
+      soft_metrics: [contract_compliance, maintainability, observability]
+    failure_tags: [fake_provenance, response_schema_break]
+  - id: py-tool-056
+    track: python_tool_engineering
+    language: python
+    difficulty: hard
+    task_type: dry_run_safety
+    fixture: fixtures/python/delete_tool_dry_run
+    user_request: >
+      Add dry-run mode to the delete tool. It must report what would be deleted
+      without deleting files or mutating cache state.
+    constraints:
+      - Do not delete files when dry_run=true.
+      - Do not write cache files when dry_run=true.
+      - Preserve path safety checks.
+    allowed_paths: [src/delete_tool/**, tests/test_delete_tool_dry_run.py]
+    forbidden_paths: [pyproject.toml, src/shared/schema.py]
+    protected_paths: [tests/test_delete_tool_dry_run.py, tests/test_delete_tool_existing.py]
+    solution_paths: [src/delete_tool/delete.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_delete_tool_dry_run, python3 -m unittest tests.test_delete_tool_existing]
+      timeout_seconds: 45
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid, scope_pass, safety_pass]
+      soft_metrics: [functional_correctness, scope_disciplined, observability]
+    failure_tags: [missing_dry_run, unsafe_path, writes_during_dry_run]
+  - id: py-tool-010
+    track: python_tool_engineering
+    language: python
+    difficulty: medium
+    task_type: json_schema_defaults
+    fixture: fixtures/python/schema_defaults
+    user_request: >
+      Add request normalization for the schema tool. It must preserve explicit
+      values, add defaults for missing optional fields, and reject unknown keys.
+    constraints:
+      - Do not mutate the input payload.
+      - Preserve explicit dry_run and limit values.
+      - Return machine-readable validation errors.
+    allowed_paths: [src/schema_tool/**, tests/test_schema_defaults.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_schema_defaults.py]
+    solution_paths: [src/schema_tool/normalize.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_schema_defaults]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid, scope_pass]
+      soft_metrics: [contract_compliance, minimality, maintainability]
+    failure_tags: [invalid_json, response_schema_break, missing_requirement]
+  - id: py-tool-027
+    track: python_tool_engineering
+    language: python
+    difficulty: medium
+    task_type: incremental_cache
+    fixture: fixtures/python/incremental_cache
+    user_request: >
+      Make the cache writer idempotent. It should skip rewriting cache files
+      when content is unchanged and report whether the cache was written.
+    constraints:
+      - Do not rewrite unchanged cache files.
+      - Use deterministic JSON output.
+      - Preserve cache key behavior.
+    allowed_paths: [src/cache_tool/**, tests/test_incremental_cache.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_incremental_cache.py]
+    solution_paths: [src/cache_tool/cache.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_incremental_cache]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, observability]
+    failure_tags: [non_idempotent_tool, missing_requirement]
+  - id: py-tool-033
+    track: python_tool_engineering
+    language: python
+    difficulty: hard
+    task_type: path_safety
+    fixture: fixtures/python/path_sandbox
+    user_request: >
+      Harden path resolution so the tool rejects traversal, symlink escape,
+      and absolute paths outside the configured workspace root.
+    constraints:
+      - Resolve symlinks before checking containment.
+      - Return unsafe_path errors instead of raising.
+      - Preserve relative paths inside the workspace.
+    allowed_paths: [src/path_sandbox/**, tests/test_path_sandbox.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_path_sandbox.py]
+    solution_paths: [src/path_sandbox/resolver.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_path_sandbox]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, safety_pass, scope_pass]
+      soft_metrics: [functional_correctness, observability, maintainability]
+    failure_tags: [unsafe_path, fake_success]
+  - id: py-tool-048
+    track: python_tool_engineering
+    language: python
+    difficulty: medium
+    task_type: retry_taxonomy
+    fixture: fixtures/python/retry_taxonomy
+    user_request: >
+      Add retry handling that retries transient failures, never retries
+      permanent failures, and records attempt metadata.
+    constraints:
+      - Do not retry validation errors.
+      - Preserve final error code.
+      - Include attempts and retried in every response.
+    allowed_paths: [src/retry_tool/**, tests/test_retry_taxonomy.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_retry_taxonomy.py]
+    solution_paths: [src/retry_tool/retry.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_retry_taxonomy]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, observability, contract_compliance]
+    failure_tags: [wrong_edge_case, unstructured_error]
+  - id: py-tool-064
+    track: python_tool_engineering
+    language: python
+    difficulty: medium
+    task_type: golden_test_harness
+    fixture: fixtures/python/golden_harness
+    user_request: >
+      Implement a golden input/output regression harness that compares semantic
+      JSON equality while ignoring volatile timestamp fields.
+    constraints:
+      - Do not compare raw JSON strings.
+      - Ignore generated_at at any nesting level.
+      - Report mismatch paths deterministically.
+    allowed_paths: [src/golden_harness/**, tests/test_golden_harness.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_golden_harness.py]
+    solution_paths: [src/golden_harness/compare.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_golden_harness]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, maintainability, observability]
+    failure_tags: [golden_output_mismatch, fake_success]
+  - id: py-tool-071
+    track: python_tool_engineering
+    language: python
+    difficulty: medium
+    task_type: env_allowlist
+    fixture: fixtures/python/env_allowlist
+    user_request: >
+      Harden the process environment builder so only explicitly allowed
+      variables are passed through and request-provided variables cannot
+      override protected defaults.
+    constraints:
+      - Preserve HOME and PATH defaults.
+      - Do not pass through secrets by default.
+      - Return sorted environment keys for observability.
+    allowed_paths: [src/env_runner/**, tests/test_env_allowlist.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_env_allowlist.py]
+    solution_paths: [src/env_runner/env.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_env_allowlist]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, safety_pass, scope_pass]
+      soft_metrics: [contract_compliance, observability, maintainability]
+    failure_tags: [unsafe_path, dependency_added_without_permission, missing_requirement]
+  - id: py-tool-074
+    track: python_tool_engineering
+    language: python
+    difficulty: medium
+    task_type: cancellation_token
+    fixture: fixtures/python/cancellation_token
+    user_request: >
+      Add cooperative cancellation support to the batch processor. It should
+      stop between items, preserve completed results, and report cancellation.
+    constraints:
+      - Do not drop completed item results.
+      - Do not start new work after cancellation is requested.
+      - Keep response fields machine-readable.
+    allowed_paths: [src/cancel_tool/**, tests/test_cancellation_token.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_cancellation_token.py]
+    solution_paths: [src/cancel_tool/processor.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_cancellation_token]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, observability, maintainability]
+    failure_tags: [cancellation_ignored, fake_success]
+  - id: py-tool-078
+    track: python_tool_engineering
+    language: python
+    difficulty: medium
+    task_type: provenance_merge
+    fixture: fixtures/python/provenance_merge
+    user_request: >
+      Merge provenance records from multiple tool calls. Dedupe by source id,
+      preserve first-seen order, and combine tags deterministically.
+    constraints:
+      - Do not mutate input records.
+      - Preserve first-seen source ordering.
+      - Sort merged tag lists.
+    allowed_paths: [src/provenance_tool/**, tests/test_provenance_merge.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_provenance_merge.py]
+    solution_paths: [src/provenance_tool/merge.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_provenance_merge]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, observability, minimality]
+    failure_tags: [fake_provenance, wrong_edge_case]
+  - id: py-tool-082
+    track: python_tool_engineering
+    language: python
+    difficulty: hard
+    task_type: output_redaction
+    fixture: fixtures/python/output_redaction
+    user_request: >
+      Redact secrets from tool output while preserving line counts, byte
+      counts, and enough context for debugging.
+    constraints:
+      - Redact tokens and API keys.
+      - Preserve total line count.
+      - Return redaction count and deterministic preview.
+      - Generate preview from the redacted output, not from the raw output.
+    allowed_paths: [src/redaction_tool/**, tests/test_output_redaction.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_output_redaction.py, hidden/**]
+    solution_paths: [src/redaction_tool/redact.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_output_redaction]
+      hidden_commands: [python3 hidden/verify_output_redaction.py]
+      mutation_commands: [python3 hidden/verify_output_redaction_mutation.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, safety_pass, schema_valid]
+      soft_metrics: [functional_correctness, observability, contract_compliance]
+    failure_tags: [unstructured_error, response_schema_break, missing_requirement, hidden_verifier_failed, mutation_verifier_failed]
+  - id: py-tool-087
+    track: python_tool_engineering
+    language: python
+    difficulty: hard
+    task_type: atomic_write
+    fixture: fixtures/python/atomic_write
+    user_request: >
+      Make file writes atomic. The tool must write through a temporary file,
+      replace the destination atomically, and clean up temp files on failure.
+    constraints:
+      - Do not leave partial destination contents on write failure.
+      - Clean up temporary files.
+      - Keep parent directory creation behavior.
+    allowed_paths: [src/atomic_writer/**, tests/test_atomic_write.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_atomic_write.py]
+    solution_paths: [src/atomic_writer/write.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_atomic_write]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, safety_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, observability]
+    failure_tags: [test_fail, fake_success, missing_requirement]

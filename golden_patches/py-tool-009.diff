@@ -1,0 +1,41 @@
+diff --git a/src/file_scanner/scanner.py b/src/file_scanner/scanner.py
+index ee1180a..605914f 100644
+--- a/src/file_scanner/scanner.py
++++ b/src/file_scanner/scanner.py
+@@ -1,6 +1,7 @@
+ from __future__ import annotations
+ 
++import fnmatch
+ from pathlib import Path
+ 
+ 
+ def scan_files(root: str, exclude_globs: list[str] | None = None, max_bytes: int = 1024) -> dict:
+@@ -10,10 +11,27 @@ def scan_files(root: str, exclude_globs: list[str] | None = None, max_bytes: int
+     skipped = {"binary": 0, "hidden": 0, "ignored": 0, "too_large": 0}
+     for path in base.rglob("*"):
+         if not path.is_file():
+             continue
+         rel = path.relative_to(base).as_posix()
+-        if any(path.match(pattern) or rel == pattern for pattern in exclude_globs):
++        if any(part.startswith(".") for part in path.relative_to(base).parts):
++            skipped["hidden"] += 1
++            continue
++        if any(fnmatch.fnmatch(rel, pattern) or path.match(pattern) for pattern in exclude_globs):
+             skipped["ignored"] += 1
+             continue
++        try:
++            size = path.stat().st_size
++        except OSError:
++            continue
++        if size > max_bytes:
++            skipped["too_large"] += 1
++            continue
++        try:
++            sample = path.read_bytes()[:1024]
++        except OSError:
++            continue
++        if b"\x00" in sample:
++            skipped["binary"] += 1
++            continue
+         files.append(rel)
+     return {"files": sorted(files), "skipped": skipped}

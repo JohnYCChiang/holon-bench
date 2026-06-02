@@ -1,0 +1,53 @@
+--- FILE: server/session/session.go ---
+package session
+
+import "time"
+
+type Session struct {
+	ID        string
+	PlayerID  string
+	LobbyID   string
+	ExpiresAt time.Time
+}
+
+type Store struct {
+	next     int
+	byToken  map[string]*Session
+	lobbyIDs map[string][]string
+	now      func() time.Time
+}
+
+func NewStore(now func() time.Time) *Store {
+	return &Store{byToken: map[string]*Session{}, lobbyIDs: map[string][]string{}, now: now}
+}
+
+func (s *Store) Create(token, playerID, lobbyID string, ttl time.Duration) *Session {
+	s.next++
+	sess := &Session{ID: token, PlayerID: playerID, LobbyID: lobbyID, ExpiresAt: s.now().Add(ttl)}
+	s.byToken[token] = sess
+	s.addLobbyMember(lobbyID, playerID)
+	return sess
+}
+
+func (s *Store) Reconnect(token string) (*Session, bool) {
+	old := s.byToken[token]
+	if old == nil || !old.ExpiresAt.After(s.now()) {
+		return nil, false
+	}
+	old.ExpiresAt = s.now().Add(time.Minute)
+	s.addLobbyMember(old.LobbyID, old.PlayerID)
+	return old, true
+}
+
+func (s *Store) LobbyMembers(lobbyID string) []string {
+	return append([]string(nil), s.lobbyIDs[lobbyID]...)
+}
+
+func (s *Store) addLobbyMember(lobbyID, playerID string) {
+	for _, existing := range s.lobbyIDs[lobbyID] {
+		if existing == playerID {
+			return
+		}
+	}
+	s.lobbyIDs[lobbyID] = append(s.lobbyIDs[lobbyID], playerID)
+}

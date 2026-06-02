@@ -1,0 +1,16 @@
+--- FILE: src/output_compactor/compactor.py ---
+from __future__ import annotations
+
+
+def compact_output(result: dict, max_chars: int) -> dict:
+    output = result.get("output", "")
+    if len(output) <= max_chars:
+        return dict(result)
+    tail = output[-max_chars:]
+    compacted = dict(result)
+    compacted["original_length"] = len(output)
+    compacted["omitted_chars"] = len(output) - max_chars
+    compacted["output_tail"] = tail
+    compacted["summary"] = f"{output[:max_chars]}... ({len(output) - max_chars} chars omitted)"
+    compacted["output"] = tail
+    return compacted

@@ -1,0 +1,22 @@
+--- FILE: lib/platform/file_selector.dart ---
+class SelectedFile {
+  SelectedFile(this.path);
+
+  final String path;
+}
+
+abstract class FileSelector {
+  Future<SelectedFile?> pick(String path);
+}
+--- FILE: lib/services/file_picker.dart ---
+import '../platform/file_selector.dart';
+
+class ConfigFilePicker {
+  ConfigFilePicker(this.selector);
+
+  final FileSelector selector;
+
+  Future<SelectedFile?> pickConfigFile(String path) {
+    return selector.pick(path);
+  }
+}

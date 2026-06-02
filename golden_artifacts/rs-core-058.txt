@@ -1,0 +1,19 @@
+--- FILE: src/view.rs ---
+#[derive(Debug)]
+pub struct Record {
+    pub id: String,
+    pub active: bool,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct RecordView<'a> {
+    pub id: &'a str,
+}
+
+pub fn active_views(records: &[Record]) -> Vec<RecordView<'_>> {
+    records
+        .iter()
+        .filter(|record| record.active)
+        .map(|record| RecordView { id: record.id.as_str() })
+        .collect()
+}

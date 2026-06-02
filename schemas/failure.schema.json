@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Holon Benchmark Failure",
+  "type": "object",
+  "required": ["case_id", "category", "tag", "evidence"],
+  "properties": {
+    "case_id": { "type": "string" },
+    "category": { "type": "string" },
+    "tag": { "type": "string" },
+    "evidence": { "type": "string" }
+  }
+}

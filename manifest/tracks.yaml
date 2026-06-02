@@ -1,0 +1,46 @@
+tracks:
+  python_tool_engineering:
+    language: python
+    phase_1_cases: 5
+    full_cases: 70
+    role_focus: [contract_worker, tool_maker, patch_worker]
+  rust_core:
+    language: rust
+    phase_1_cases: 5
+    full_cases: 35
+    role_focus: [patch_worker, reviewer]
+  rust_porting:
+    language: rust
+    phase_1_cases: 5
+    full_cases: 60
+    role_focus: [porting_worker, contract_worker]
+  rust_bevy:
+    language: rust
+    phase_1_cases: 5
+    full_cases: 45
+    role_focus: [game_system_worker, patch_worker]
+  go_core:
+    language: go
+    phase_1_cases: 5
+    full_cases: 35
+    role_focus: [patch_worker, reviewer]
+  go_game_server:
+    language: go
+    phase_1_cases: 5
+    full_cases: 50
+    role_focus: [game_system_worker, reviewer]
+  flutter_cross_platform:
+    language: dart
+    phase_1_cases: 5
+    full_cases: 70
+    role_focus: [cross_platform_app_worker, reviewer]
+  graph_memory_workflow:
+    language: mixed
+    phase_1_cases: 3
+    full_cases: 20
+    role_focus: [planner, contract_worker, reviewer]
+  repair_needed:
+    language: mixed
+    phase_1_cases: 10
+    full_cases: 50
+    role_focus: [patch_worker, porting_worker, game_system_worker]

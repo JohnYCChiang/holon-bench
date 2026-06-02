@@ -1,0 +1,25 @@
+--- FILE: internal/validate/validate.go ---
+package validate
+
+import "errors"
+
+var (
+	ErrMissingName  = errors.New("missing name")
+	ErrInvalidLimit = errors.New("invalid limit")
+)
+
+type Request struct {
+	Name  string
+	Limit int
+}
+
+func Validate(req Request) error {
+	var errs []error
+	if req.Name == "" {
+		errs = append(errs, ErrMissingName)
+	}
+	if req.Limit <= 0 {
+		errs = append(errs, ErrInvalidLimit)
+	}
+	return errors.Join(errs...)
+}

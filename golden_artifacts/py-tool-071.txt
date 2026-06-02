@@ -1,0 +1,22 @@
+--- FILE: src/env_runner/env.py ---
+from __future__ import annotations
+
+import os
+
+
+PROTECTED_KEYS = {"HOME", "PATH"}
+
+
+def build_env(request_env: dict | None = None, allowlist: list[str] | None = None) -> dict:
+    request_env = request_env or {}
+    allowed = set(allowlist or [])
+    env = {
+        "HOME": os.environ.get("HOME", ""),
+        "PATH": os.environ.get("PATH", ""),
+    }
+    for key in sorted(allowed):
+        if key in PROTECTED_KEYS:
+            continue
+        if key in request_env:
+            env[key] = request_env[key]
+    return {"env": env, "keys": sorted(env)}

@@ -1,0 +1,13 @@
+[package]
+name = "cache_key_hash"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde_json = "1"
+sha2 = "0.10"
+
+[lib]
+path = "src/lib.rs"
+
+[workspace]

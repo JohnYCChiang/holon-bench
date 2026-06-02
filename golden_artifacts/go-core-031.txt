@@ -1,0 +1,25 @@
+--- FILE: pkg/schema/schema.go ---
+package schema
+
+import (
+	"bytes"
+	"encoding/json"
+)
+
+type Request struct {
+	Name      string `json:"name"`
+	TimeoutMS int    `json:"timeout_ms"`
+	DryRun    bool   `json:"dry_run,omitempty"`
+}
+
+func DecodeRequest(data []byte) (Request, error) {
+	var req Request
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	err := decoder.Decode(&req)
+	return req, err
+}
+
+func EncodeRequest(req Request) ([]byte, error) {
+	return json.Marshal(req)
+}

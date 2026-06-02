@@ -1,0 +1,32 @@
+--- FILE: pkg/config/config.go ---
+package config
+
+import (
+	"errors"
+	"fmt"
+)
+
+var ErrInvalidConfig = errors.New("invalid config")
+
+type Config struct {
+	host string
+	port int
+}
+
+func New(host string, port int) (Config, error) {
+	if host == "" {
+		return Config{}, fmt.Errorf("%w: host is required", ErrInvalidConfig)
+	}
+	if port <= 0 || port > 65535 {
+		return Config{}, fmt.Errorf("%w: port out of range", ErrInvalidConfig)
+	}
+	return Config{host: host, port: port}, nil
+}
+
+func (c Config) Hostname() string {
+	return c.host
+}
+
+func (c Config) PortNumber() int {
+	return c.port
+}

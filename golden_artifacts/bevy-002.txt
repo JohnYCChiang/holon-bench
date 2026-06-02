@@ -1,0 +1,21 @@
+--- FILE: src/systems/health.rs ---
+use crate::components::Health;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DamageResult {
+    pub remaining: i32,
+    pub died: bool,
+}
+
+pub fn is_alive(health: &Health) -> bool {
+    health.current > 0
+}
+
+pub fn apply_damage(health: &mut Health, amount: i32) -> DamageResult {
+    let damage = amount.max(0);
+    health.current = (health.current - damage).clamp(0, health.max);
+    DamageResult {
+        remaining: health.current,
+        died: health.current == 0,
+    }
+}

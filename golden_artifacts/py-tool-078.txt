@@ -1,0 +1,26 @@
+--- FILE: src/provenance_tool/merge.py ---
+from __future__ import annotations
+
+
+def merge_provenance(records: list[dict]) -> list[dict]:
+    merged: dict[str, dict] = {}
+    order: list[str] = []
+    for record in records:
+        source_id = record["source_id"]
+        if source_id not in merged:
+            order.append(source_id)
+            merged[source_id] = {
+                "source_id": source_id,
+                "path": record["path"],
+                "tags": set(record.get("tags", [])),
+            }
+        else:
+            merged[source_id]["tags"].update(record.get("tags", []))
+    return [
+        {
+            "source_id": source_id,
+            "path": merged[source_id]["path"],
+            "tags": sorted(merged[source_id]["tags"]),
+        }
+        for source_id in order
+    ]

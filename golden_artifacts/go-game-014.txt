@@ -1,0 +1,32 @@
+--- FILE: server/tick/loop.go ---
+package tick
+
+import (
+	"context"
+	"time"
+)
+
+type Loop struct {
+	Interval time.Duration
+	Step     func()
+}
+
+func (l Loop) Run(ctx context.Context) {
+	ticker := time.NewTicker(l.Interval)
+	defer ticker.Stop()
+	l.RunWithTicks(ctx, ticker.C)
+}
+
+func (l Loop) RunWithTicks(ctx context.Context, ticks <-chan time.Time) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case _, ok := <-ticks:
+			if !ok {
+				return
+			}
+			l.Step()
+		}
+	}
+}

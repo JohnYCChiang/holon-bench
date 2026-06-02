@@ -1,0 +1,28 @@
+--- FILE: lib/services/offline_queue.dart ---
+typedef Sender = Future<bool> Function(String message);
+
+class OfflineQueue {
+  OfflineQueue(this._sender);
+
+  final Sender _sender;
+  final List<String> _pending = [];
+
+  List<String> get pending => List.unmodifiable(_pending);
+
+  void add(String message) {
+    _pending.add(message);
+  }
+
+  Future<void> flush() async {
+    final remaining = <String>[];
+    for (final message in _pending) {
+      final delivered = await _sender(message);
+      if (!delivered) {
+        remaining.add(message);
+      }
+    }
+    _pending
+      ..clear()
+      ..addAll(remaining);
+  }
+}

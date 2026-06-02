@@ -1,0 +1,24 @@
+--- FILE: lib/services/profile_cache.dart ---
+typedef FetchProfile = Future<String> Function();
+typedef Clock = DateTime Function();
+
+class ProfileCache {
+  ProfileCache({required this.fetch, required this.now, required this.ttl});
+
+  final FetchProfile fetch;
+  final Clock now;
+  final Duration ttl;
+
+  String? _cached;
+  DateTime? _cachedAt;
+
+  Future<String> get() async {
+    final cachedAt = _cachedAt;
+    if (_cached != null && cachedAt != null && now().difference(cachedAt) < ttl) {
+      return _cached!;
+    }
+    _cached = await fetch();
+    _cachedAt = now();
+    return _cached!;
+  }
+}

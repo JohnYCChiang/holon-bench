@@ -1,0 +1,32 @@
+--- FILE: src/assets.rs ---
+use std::collections::BTreeMap;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SpriteHandle(pub u64);
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AudioHandle(pub u64);
+
+#[derive(Default, Debug)]
+pub struct AssetRegistry {
+    sprites: BTreeMap<String, SpriteHandle>,
+    audio: BTreeMap<String, AudioHandle>,
+}
+
+impl AssetRegistry {
+    pub fn insert_sprite(&mut self, key: impl Into<String>, handle: SpriteHandle) {
+        self.sprites.insert(key.into(), handle);
+    }
+
+    pub fn insert_audio(&mut self, key: impl Into<String>, handle: AudioHandle) {
+        self.audio.insert(key.into(), handle);
+    }
+
+    pub fn sprite(&self, key: &str) -> Option<SpriteHandle> {
+        self.sprites.get(key).cloned()
+    }
+
+    pub fn audio(&self, key: &str) -> Option<AudioHandle> {
+        self.audio.get(key).cloned()
+    }
+}

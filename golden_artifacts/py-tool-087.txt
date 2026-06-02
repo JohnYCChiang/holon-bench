@@ -1,0 +1,20 @@
+--- FILE: src/atomic_writer/write.py ---
+from __future__ import annotations
+
+import os
+from pathlib import Path
+
+
+def write_text_atomic(path: str | Path, text: str, fail_after_temp: bool = False) -> dict:
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temp = target.with_name(f".{target.name}.tmp")
+    try:
+        temp.write_text(text, encoding="utf-8")
+        if fail_after_temp:
+            raise RuntimeError("simulated failure")
+        os.replace(temp, target)
+    except Exception:
+        temp.unlink(missing_ok=True)
+        raise
+    return {"ok": True, "path": str(target), "bytes": len(text.encode("utf-8"))}

@@ -1,0 +1,12 @@
+[package]
+name = "feature_flags"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+verbose = []
+
+[lib]
+path = "src/lib.rs"
+
+[workspace]

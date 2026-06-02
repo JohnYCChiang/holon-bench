@@ -1,0 +1,19 @@
+--- FILE: internal/reader/reader.go ---
+package reader
+
+import "context"
+
+func ReadAll(ctx context.Context, in <-chan string) ([]string, error) {
+	var values []string
+	for {
+		select {
+		case <-ctx.Done():
+			return values, ctx.Err()
+		case value, ok := <-in:
+			if !ok {
+				return values, ctx.Err()
+			}
+			values = append(values, value)
+		}
+	}
+}

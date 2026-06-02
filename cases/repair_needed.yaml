@@ -1,0 +1,464 @@
+track: repair_needed
+cases:
+  - id: repair-py-tool-001
+    track: repair_needed
+    language: python
+    difficulty: medium
+    task_type: repair_structured_error_output
+    fixture: fixtures/python/tool_error_enum
+    user_request: >
+      Repair the tool error response so verifier failures are fixed while
+      preserving the existing success response shape.
+    constraints:
+      - Do not change existing success response fields.
+      - Add error.code and error.message for failures.
+      - Preserve current CLI exit behavior.
+    allowed_paths: [src/tool_errors/**, tests/test_tool_errors.py]
+    forbidden_paths: [pyproject.toml, src/shared/schema.py]
+    protected_paths: [tests/test_tool_errors.py]
+    solution_paths: [src/tool_errors/runner.py]
+    repair_seed_artifact:
+      src/tool_errors/runner.py: |
+        from __future__ import annotations
+
+
+        def run_tool(payload: dict) -> dict:
+            if "path" not in payload:
+                return {"ok": False, "error": "missing path"}
+            if payload.get("path") == "":
+                return {"ok": False, "error": "empty path"}
+            return {"ok": True, "path": payload["path"], "indexed": 1}
+    verifier:
+      commands: [python3 -m unittest tests.test_tool_errors]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid, scope_pass]
+      soft_metrics: [repair_conversion, contract_compliance, maintainability]
+    failure_tags: [repair_failed, unstructured_error, response_schema_break]
+
+  - id: repair-rs-core-003
+    track: repair_needed
+    language: rust
+    difficulty: medium
+    task_type: repair_typed_error
+    fixture: fixtures/rust/typed_error_propagation
+    user_request: >
+      Repair unwrap-based parsing after the verifier reports panics or wrong
+      error variants. Preserve the public parse_entry API.
+    constraints:
+      - Do not panic on malformed input.
+      - Preserve public function names.
+      - Return the typed variants required by the verifier.
+    allowed_paths: [src/parser.rs, src/error.rs, tests/parser_errors.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/parser_errors.rs]
+    solution_paths: [src/error.rs, src/parser.rs]
+    repair_seed_artifact:
+      src/error.rs: |
+        #[derive(Debug, PartialEq, Eq)]
+        pub enum ParseError {
+            InvalidInput,
+        }
+      src/parser.rs: |
+        use crate::ParseError;
+
+        #[derive(Debug, PartialEq, Eq)]
+        pub struct Entry {
+            pub key: String,
+            pub value: u32,
+        }
+
+        pub fn parse_entry(input: &str) -> Result<Entry, ParseError> {
+            let (key, value) = input.split_once(':').unwrap();
+            Ok(Entry {
+                key: key.to_string(),
+                value: value.parse::<u32>().unwrap(),
+            })
+        }
+    verifier:
+      commands: [cargo test --test parser_errors]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [repair_conversion, functional_correctness, maintainability]
+    failure_tags: [repair_failed, compile_fail, missing_requirement]
+
+  - id: repair-go-core-004
+    track: repair_needed
+    language: go
+    difficulty: medium
+    task_type: repair_error_wrapping
+    fixture: fixtures/go/error_wrapping
+    user_request: >
+      Repair LoadConfig so the verifier can observe wrapped read errors and
+      sentinel invalid config errors.
+    constraints:
+      - errors.Is must still match sentinel errors.
+      - Preserve path context for read failures.
+      - Do not change exported function names.
+    allowed_paths: [internal/loader/**, internal/loader/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/loader/*_test.go]
+    solution_paths: [internal/loader/loader.go]
+    repair_seed_artifact:
+      internal/loader/loader.go: |
+        package loader
+
+        import (
+          "encoding/json"
+          "errors"
+          "fmt"
+        )
+
+        var ErrInvalidConfig = errors.New("invalid config")
+
+        type Config struct {
+          Name string `json:"name"`
+        }
+
+        type Reader func(path string) ([]byte, error)
+
+        func LoadConfig(path string, read Reader) (*Config, error) {
+          if path == "" {
+            return nil, ErrInvalidConfig
+          }
+          data, err := read(path)
+          if err != nil {
+            return nil, fmt.Errorf("load config %q failed", path)
+          }
+          var cfg Config
+          if err := json.Unmarshal(data, &cfg); err != nil {
+            return nil, ErrInvalidConfig
+          }
+          if cfg.Name == "" {
+            return nil, ErrInvalidConfig
+          }
+          return &cfg, nil
+        }
+    verifier:
+      commands: [go test ./internal/loader]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [repair_conversion, maintainability, functional_correctness]
+    failure_tags: [repair_failed, missing_requirement, public_api_break]
+
+  - id: repair-rs-port-001
+    track: repair_needed
+    language: rust
+    difficulty: hard
+    task_type: repair_schema_port
+    fixture: fixtures/rust_porting/schema_structs
+    user_request: >
+      Repair the Rust serde schema so it matches the Python reference after
+      parity tests report schema mismatches.
+    constraints:
+      - Preserve JSON field names exactly.
+      - Unknown fields must be rejected where the Python tool rejects them.
+      - Golden Python and Rust outputs must match semantically.
+    allowed_paths: [rust/src/schema.rs]
+    forbidden_paths: [python/**, Cargo.toml]
+    protected_paths: [python/**, rust/tests/**, rust/Cargo.toml, rust/Cargo.lock]
+    solution_paths: [rust/src/schema.rs]
+    repair_seed_artifact:
+      rust/src/schema.rs: |
+        use serde::{Deserialize, Serialize};
+
+        #[derive(Debug, Deserialize)]
+        pub struct ToolRequest {
+            pub root: String,
+            pub include_hidden: Option<bool>,
+        }
+
+        #[derive(Debug, PartialEq, Serialize)]
+        pub struct ToolResponse {
+            pub ok: bool,
+            pub root: String,
+            pub include_hidden: bool,
+        }
+
+        pub fn run(request: ToolRequest) -> ToolResponse {
+            ToolResponse {
+                ok: true,
+                root: request.root,
+                include_hidden: request.include_hidden.unwrap_or(false),
+            }
+        }
+    verifier:
+      commands: [cargo test --manifest-path rust/Cargo.toml --test schema_parity]
+      semantic_checks: [python_rust_json_equivalence]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid, scope_pass, semantic_pass]
+      soft_metrics: [repair_conversion, contract_compliance, functional_correctness]
+    failure_tags: [repair_failed, python_rust_schema_mismatch, golden_output_mismatch]
+
+  - id: repair-bevy-041
+    track: repair_needed
+    language: rust
+    difficulty: hard
+    task_type: repair_pure_game_logic
+    fixture: fixtures/bevy/scoring_logic_pure_module
+    user_request: >
+      Repair score calculation so the pure score module and event-emitting
+      system share the same deterministic logic.
+    constraints:
+      - Do not require a Bevy App to test scoring.
+      - Preserve existing score events.
+      - Keep plugin registration unchanged.
+    allowed_paths: [src/score.rs, src/systems/score.rs, tests/score_logic.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/score_logic.rs]
+    solution_paths: [src/score.rs, src/systems/score.rs]
+    repair_seed_artifact:
+      src/score.rs: |
+        #[derive(Clone, Debug, PartialEq, Eq)]
+        pub struct ScoreInput {
+            pub base: i32,
+            pub combo: i32,
+            pub perfect_clear: bool,
+        }
+      src/systems/score.rs: |
+        use crate::score::ScoreInput;
+
+        #[derive(Default, Debug)]
+        pub struct ScoreEvents {
+            pub emitted: Vec<i32>,
+        }
+
+        pub fn emit_score(events: &mut ScoreEvents, input: ScoreInput) {
+            let mut score = input.base + input.combo * 10;
+            if input.perfect_clear {
+                score += 100;
+            }
+            events.emitted.push(score);
+        }
+    verifier:
+      commands: [cargo test score_logic]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [repair_conversion, maintainability, minimality]
+    failure_tags: [repair_failed, over_refactor, missing_requirement]
+
+  - id: repair-py-tool-082
+    track: repair_needed
+    language: python
+    difficulty: medium
+    task_type: repair_output_redaction
+    fixture: fixtures/python/output_redaction
+    user_request: >
+      Repair output redaction so secrets are removed while line, byte, and
+      preview metadata remain useful.
+    constraints:
+      - Redact API keys and live tokens from redacted output and preview.
+      - Preserve original line_count and byte_count semantics.
+      - Return redaction_count.
+    allowed_paths: [src/redaction_tool/**, tests/test_output_redaction.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_output_redaction.py]
+    solution_paths: [src/redaction_tool/redact.py]
+    repair_seed_artifact:
+      src/redaction_tool/redact.py: |
+        from __future__ import annotations
+
+
+        def redact_output(text: str, preview_lines: int = 3) -> dict:
+            lines = text.splitlines()
+            return {
+                "redacted": text,
+                "line_count": len(lines),
+                "byte_count": len(text.encode("utf-8")),
+                "redaction_count": 0,
+                "preview": "\n".join(lines[:preview_lines]),
+            }
+    verifier:
+      commands: [python3 -m unittest tests.test_output_redaction]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, safety_pass, schema_valid]
+      soft_metrics: [repair_conversion, security, observability]
+    failure_tags: [repair_failed, unsafe_path, missing_requirement]
+
+  - id: repair-go-core-009
+    track: repair_needed
+    language: go
+    difficulty: medium
+    task_type: repair_interface_boundary
+    fixture: fixtures/go/interface_extension
+    user_request: >
+      Repair SupportsStreaming so existing Runner implementations remain valid
+      while optional streaming capability is discovered.
+    constraints:
+      - Do not add SupportsStreaming to the required Runner interface.
+      - Use an optional interface assertion.
+      - Preserve existing Run implementations.
+    allowed_paths: [pkg/tool/**]
+    forbidden_paths: [go.mod]
+    protected_paths: [pkg/tool/*_test.go]
+    solution_paths: [pkg/tool/capabilities.go]
+    repair_seed_artifact:
+      pkg/tool/capabilities.go: |
+        package tool
+
+        func SupportsStreaming(Runner) bool {
+          return false
+        }
+    verifier:
+      commands: [go test ./pkg/tool]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [repair_conversion, maintainability, functional_correctness]
+    failure_tags: [repair_failed, public_api_break, missing_requirement]
+
+  - id: repair-go-game-063
+    track: repair_needed
+    language: go
+    difficulty: hard
+    task_type: repair_session_heartbeat_expiry
+    fixture: fixtures/go_game/session_heartbeat
+    user_request: >
+      Repair session heartbeat expiry so heartbeats extend deadlines by TTL
+      and expiration keeps the renewed session alive.
+    constraints:
+      - Heartbeat must return false for unknown sessions.
+      - Heartbeat must extend deadline to now + TTL.
+      - Expire must remove only expired sessions.
+    allowed_paths: [server/session/**]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/session/*_test.go]
+    solution_paths: [server/session/heartbeat.go]
+    repair_seed_artifact:
+      server/session/heartbeat.go: |
+        package session
+
+        type Session struct {
+          ID       string
+          Deadline int
+        }
+
+        type Store struct {
+          Sessions map[string]Session
+          TTL      int
+        }
+
+        func (s *Store) Heartbeat(id string, now int) bool {
+          session, ok := s.Sessions[id]
+          if !ok {
+            return false
+          }
+          session.Deadline = now
+          s.Sessions[id] = session
+          return true
+        }
+
+        func (s *Store) Expire(now int) []string {
+          expired := []string{}
+          for id, session := range s.Sessions {
+            if session.Deadline <= now {
+              expired = append(expired, id)
+              delete(s.Sessions, id)
+            }
+          }
+          return expired
+        }
+    verifier:
+      commands: [go test ./server/session]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
+      soft_metrics: [repair_conversion, game_system_correctness, deterministic_behavior]
+    failure_tags: [repair_failed, wrong_edge_case]
+
+  - id: repair-flutter-094
+    track: repair_needed
+    language: dart
+    difficulty: hard
+    task_type: repair_web_route_normalization
+    fixture: fixtures/flutter/platform_url_strategy
+    user_request: >
+      Repair web route normalization so hash and path URL strategies resolve
+      to the same logical route.
+    constraints:
+      - Preserve query parameters.
+      - Do not import dart:html.
+      - Keep native paths unchanged.
+    allowed_paths: [lib/navigation/**, test/navigation/**]
+    forbidden_paths: [pubspec.yaml]
+    protected_paths: [test/navigation/**]
+    solution_paths: [lib/navigation/url_normalizer.dart]
+    repair_seed_artifact:
+      lib/navigation/url_normalizer.dart: |
+        String normalizeUrl(String location) {
+          return location;
+        }
+    verifier:
+      commands: [flutter test test/navigation]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [repair_conversion, platform_compatibility, functional_correctness]
+    failure_tags: [repair_failed, desktop_assumption, backward_incompatibility]
+
+  - id: repair-rs-port-016
+    track: repair_needed
+    language: rust
+    difficulty: hard
+    task_type: repair_process_wrapper_port
+    fixture: fixtures/rust_porting/subprocess_wrapper
+    user_request: >
+      Repair the Rust process wrapper so it matches Python subprocess behavior
+      for stdout, stderr, exit code, timeout, and environment allowlisting.
+    constraints:
+      - Preserve stdout, stderr, exit_code, timed_out, and duration_ms.
+      - Preserve environment allowlist behavior.
+      - Do not invoke through a shell unless explicitly requested.
+    allowed_paths: [rust/src/process.rs]
+    forbidden_paths: [python/**]
+    protected_paths: [python/**, rust/tests/**, rust/Cargo.toml, rust/Cargo.lock]
+    solution_paths: [rust/src/process.rs]
+    repair_seed_artifact:
+      rust/src/process.rs: |
+        use serde::Serialize;
+        use std::collections::HashMap;
+        use std::process::Command;
+        use std::time::Duration;
+
+        #[derive(Debug, Serialize)]
+        pub struct ProcessResult {
+            pub stdout: String,
+            pub stderr: String,
+            pub exit_code: i32,
+            pub timed_out: bool,
+            pub duration_ms: u128,
+        }
+
+        pub fn run_command(
+            program: &str,
+            args: &[&str],
+            environment: &HashMap<String, String>,
+            _allowed_environment: &[&str],
+            _timeout: Duration,
+        ) -> ProcessResult {
+            let output = Command::new(program)
+                .args(args)
+                .envs(environment)
+                .output()
+                .unwrap();
+            ProcessResult {
+                stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+                stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+                exit_code: output.status.code().unwrap_or(-1),
+                timed_out: false,
+                duration_ms: 0,
+            }
+        }
+    verifier:
+      commands: [cargo test --manifest-path rust/Cargo.toml --test process_parity]
+      semantic_checks: [python_rust_json_equivalence]
+      timeout_seconds: 90
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass, scope_pass, semantic_pass]
+      soft_metrics: [repair_conversion, contract_compliance, functional_correctness]
+    failure_tags: [repair_failed, behavior_not_equivalent, unsafe_path, timeout]

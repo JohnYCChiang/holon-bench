@@ -1,0 +1,333 @@
+track: rust_core
+cases:
+  - id: rs-core-003
+    track: rust_core
+    language: rust
+    difficulty: easy
+    task_type: typed_error
+    fixture: fixtures/rust/typed_error_propagation
+    user_request: Replace unwrap-based parsing with typed error propagation.
+    constraints:
+      - Do not panic on malformed input.
+      - Preserve public function names.
+      - Add regression tests for each error variant.
+    allowed_paths: [src/parser.rs, src/error.rs, tests/parser_errors.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/parser_errors.rs]
+    solution_paths: [src/parser.rs, src/error.rs]
+    verifier:
+      commands: [cargo test --test parser_errors]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, test_quality]
+    failure_tags: [compile_fail, missing_requirement, public_api_break]
+  - id: rs-core-007
+    track: rust_core
+    language: rust
+    difficulty: medium
+    task_type: borrow_fix
+    fixture: fixtures/rust/borrow_without_clone
+    user_request: Fix the borrow conflict without cloning the large payload.
+    constraints:
+      - Do not clone LargePayload.
+      - Preserve O(n) behavior.
+      - Keep public API unchanged.
+    allowed_paths: [src/aggregator.rs, tests/aggregator.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/aggregator.rs]
+    solution_paths: [src/aggregator.rs]
+    verifier:
+      commands: [cargo test --test aggregator]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [compile_fail, over_refactor, public_api_break]
+  - id: rs-core-014
+    track: rust_core
+    language: rust
+    difficulty: medium
+    task_type: trait_boundary
+    fixture: fixtures/rust/trait_adapter
+    user_request: Add a trait implementation for the new adapter without breaking existing implementers.
+    constraints:
+      - Do not add required methods to the existing trait.
+      - Keep existing implementations compiling.
+      - Add tests for adapter dispatch.
+    allowed_paths: [src/traits.rs, src/adapters/**, tests/adapter_dispatch.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/adapter_dispatch.rs, tests/existing_impls.rs]
+    solution_paths: [src/adapters/prefix.rs]
+    verifier:
+      commands: [cargo test --test adapter_dispatch, cargo test --test existing_impls]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [contract_compliance, maintainability, test_quality]
+    failure_tags: [public_api_break, missing_requirement]
+  - id: rs-core-021
+    track: rust_core
+    language: rust
+    difficulty: hard
+    task_type: async_cancellation
+    fixture: fixtures/rust/tokio_cancellation
+    user_request: Ensure cancellation releases the resource lock and stops the background task.
+    constraints:
+      - Do not leak spawned tasks.
+      - Use tokio cancellation primitives or select.
+      - Avoid sleep-based flaky tests.
+    allowed_paths: [src/worker.rs, tests/worker_cancellation.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/worker_cancellation.rs, hidden/**]
+    solution_paths: [src/worker.rs]
+    verifier:
+      commands: [cargo test --test worker_cancellation]
+      hidden_commands: [sh -c 'cp hidden/worker_cancellation_hidden.rs tests/worker_cancellation_hidden.rs; trap "rm -f tests/worker_cancellation_hidden.rs" EXIT; cargo test --test worker_cancellation_hidden']
+      timeout_seconds: 90
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, test_quality, maintainability]
+    failure_tags: [cancellation_ignored, resource_leak, flaky_test, hidden_verifier_failed]
+  - id: rs-core-030
+    track: rust_core
+    language: rust
+    difficulty: medium
+    task_type: serde_compatibility
+    fixture: fixtures/rust/serde_backward_compat
+    user_request: Add the new optional field without breaking old serialized data.
+    constraints:
+      - Existing JSON fixtures must still deserialize.
+      - New field must be omitted when None.
+      - Do not rename existing fields.
+    allowed_paths: [src/schema.rs, tests/serde_compat.rs, tests/fixtures/**]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/serde_compat.rs, tests/fixtures/**]
+    solution_paths: [src/schema.rs]
+    verifier:
+      commands: [cargo test --test serde_compat]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
+      soft_metrics: [contract_compliance, functional_correctness, test_quality]
+    failure_tags: [backward_incompatibility, response_schema_break]
+  - id: rs-core-034
+    track: rust_core
+    language: rust
+    difficulty: medium
+    task_type: module_visibility
+    fixture: fixtures/rust/module_visibility
+    user_request: Expose a public facade without leaking internal helper modules.
+    constraints:
+      - Public API must expose parse_command.
+      - internal module must remain private.
+      - Preserve existing command representation.
+    allowed_paths: [src/lib.rs, src/command.rs, tests/module_visibility.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/module_visibility.rs]
+    solution_paths: [src/lib.rs, src/command.rs]
+    verifier:
+      commands: [cargo test --test module_visibility]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [contract_compliance, maintainability, minimality]
+    failure_tags: [public_api_break, compile_fail]
+  - id: rs-core-038
+    track: rust_core
+    language: rust
+    difficulty: medium
+    task_type: iterator_ownership
+    fixture: fixtures/rust/iterator_ownership
+    user_request: Fix iterator ownership so events can be summarized without consuming the caller's buffer.
+    constraints:
+      - Do not clone Event.
+      - Preserve event order.
+      - Keep public function names.
+    allowed_paths: [src/events.rs, tests/events.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/events.rs]
+    solution_paths: [src/events.rs]
+    verifier:
+      commands: [cargo test --test events]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [compile_fail, over_refactor]
+  - id: rs-core-043
+    track: rust_core
+    language: rust
+    difficulty: medium
+    task_type: generic_trait_bound
+    fixture: fixtures/rust/generic_bound
+    user_request: Relax an over-specific generic API so it accepts borrowed string-like values.
+    constraints:
+      - Do not allocate unnecessarily.
+      - Keep output ordering deterministic.
+      - Preserve function name.
+    allowed_paths: [src/labels.rs, tests/labels.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/labels.rs]
+    solution_paths: [src/labels.rs]
+    verifier:
+      commands: [cargo test --test labels]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, minimality]
+    failure_tags: [compile_fail, public_api_break]
+  - id: rs-core-048
+    track: rust_core
+    language: rust
+    difficulty: medium
+    task_type: result_aggregation
+    fixture: fixtures/rust/result_aggregation
+    user_request: Aggregate fallible shard results without discarding partial successes.
+    constraints:
+      - Preserve successful shard values.
+      - Collect all error messages.
+      - Return success only when no shard failed.
+    allowed_paths: [src/aggregate.rs, tests/aggregate.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/aggregate.rs]
+    solution_paths: [src/aggregate.rs]
+    verifier:
+      commands: [cargo test --test aggregate]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, observability, maintainability]
+    failure_tags: [missing_requirement, wrong_edge_case]
+  - id: rs-core-053
+    track: rust_core
+    language: rust
+    difficulty: hard
+    task_type: state_machine
+    fixture: fixtures/rust/state_machine
+    user_request: Make the connection state machine reject invalid transitions instead of silently accepting them.
+    constraints:
+      - Preserve valid transitions.
+      - Invalid transitions return typed errors.
+      - Do not add catch-all success branches.
+    allowed_paths: [src/state.rs, tests/state_machine.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/state_machine.rs]
+    solution_paths: [src/state.rs]
+    verifier:
+      commands: [cargo test --test state_machine]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, maintainability, contract_compliance]
+    failure_tags: [domain_rule_violation, fake_success]
+  - id: rs-core-058
+    track: rust_core
+    language: rust
+    difficulty: medium
+    task_type: lifetime_view
+    fixture: fixtures/rust/lifetime_view
+    user_request: Return borrowed record views instead of allocating owned copies.
+    constraints:
+      - Do not allocate String values in the view.
+      - Preserve input order.
+      - Keep invalid records out of the view.
+    allowed_paths: [src/view.rs, tests/view.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/view.rs]
+    solution_paths: [src/view.rs]
+    verifier:
+      commands: [cargo test --test view]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [compile_fail, over_refactor]
+  - id: rs-core-063
+    track: rust_core
+    language: rust
+    difficulty: medium
+    task_type: feature_flags
+    fixture: fixtures/rust/feature_flags
+    user_request: Gate verbose formatting behind the verbose feature while keeping default output compact.
+    constraints:
+      - Default build must not include verbose details.
+      - verbose feature includes diagnostic details.
+      - Public function name remains format_status.
+    allowed_paths: [src/status.rs, tests/status.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/status.rs]
+    solution_paths: [src/status.rs]
+    verifier:
+      commands: [cargo test --test status, cargo test --features verbose --test status]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [contract_compliance, minimality, maintainability]
+    failure_tags: [missing_requirement, public_api_break]
+  - id: rs-core-068
+    track: rust_core
+    language: rust
+    difficulty: medium
+    task_type: builder_validation
+    fixture: fixtures/rust/builder_validation
+    user_request: Add validation to the connection builder before build returns a config.
+    constraints:
+      - Missing endpoint returns typed error.
+      - Timeout must be greater than zero.
+      - Preserve fluent builder API.
+    allowed_paths: [src/builder.rs, tests/builder.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/builder.rs]
+    solution_paths: [src/builder.rs]
+    verifier:
+      commands: [cargo test --test builder]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [missing_requirement, fake_success]
+  - id: rs-core-073
+    track: rust_core
+    language: rust
+    difficulty: hard
+    task_type: queue_drain
+    fixture: fixtures/rust/queue_drain
+    user_request: Drain a bounded queue without blocking and preserve FIFO order.
+    constraints:
+      - drain_ready must never block.
+      - Preserve FIFO order.
+      - Leave later items queued when limit is reached.
+    allowed_paths: [src/queue.rs, tests/queue.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/queue.rs]
+    solution_paths: [src/queue.rs]
+    verifier:
+      commands: [cargo test --test queue]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, maintainability, minimality]
+    failure_tags: [deadlock, wrong_edge_case]
+  - id: rs-core-078
+    track: rust_core
+    language: rust
+    difficulty: medium
+    task_type: error_source
+    fixture: fixtures/rust/error_source
+    user_request: Preserve source errors when wrapping IO failures in the domain error type.
+    constraints:
+      - Implement std::error::Error::source.
+      - Preserve Display text.
+      - Do not expose std::io::Error in public success API.
+    allowed_paths: [src/error.rs, tests/error_source.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/error_source.rs]
+    solution_paths: [src/error.rs]
+    verifier:
+      commands: [cargo test --test error_source]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
+      soft_metrics: [contract_compliance, observability, maintainability]
+    failure_tags: [unstructured_error, missing_requirement]

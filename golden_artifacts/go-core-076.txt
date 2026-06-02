@@ -1,0 +1,43 @@
+--- FILE: internal/pool/pool.go ---
+package pool
+
+import "sync"
+
+type Job struct {
+	ID    int
+	Value int
+}
+
+type Result struct {
+	ID    int
+	Value int
+}
+
+type indexedJob struct {
+	index int
+	job   Job
+}
+
+func Process(jobs []Job, workers int) []Result {
+	if workers < 1 {
+		workers = 1
+	}
+	in := make(chan indexedJob)
+	results := make([]Result, len(jobs))
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for item := range in {
+				results[item.index] = Result{ID: item.job.ID, Value: item.job.Value * 2}
+			}
+		}()
+	}
+	for index, job := range jobs {
+		in <- indexedJob{index: index, job: job}
+	}
+	close(in)
+	wg.Wait()
+	return results
+}

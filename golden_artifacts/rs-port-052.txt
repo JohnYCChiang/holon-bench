@@ -1,0 +1,16 @@
+--- FILE: rust/src/error_taxonomy.rs ---
+#[derive(Debug, PartialEq, Eq)]
+pub struct ToolError {
+    pub code: &'static str,
+    pub retryable: bool,
+}
+
+pub fn classify(kind: &str) -> ToolError {
+    match kind {
+        "timeout" => ToolError { code: "timeout", retryable: true },
+        "rate" => ToolError { code: "rate_limited", retryable: true },
+        "validation" => ToolError { code: "validation", retryable: false },
+        "not_found" => ToolError { code: "not_found", retryable: false },
+        _ => ToolError { code: "internal_error", retryable: false },
+    }
+}

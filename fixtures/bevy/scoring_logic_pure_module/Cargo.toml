@@ -1,0 +1,9 @@
+[package]
+name = "scoring_logic_pure_module"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+path = "src/lib.rs"
+
+[workspace]

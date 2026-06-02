@@ -1,0 +1,11 @@
+--- FILE: pkg/tool/capabilities.go ---
+package tool
+
+type streamingCapability interface {
+	SupportsStreaming() bool
+}
+
+func SupportsStreaming(r Runner) bool {
+	capable, ok := r.(streamingCapability)
+	return ok && capable.SupportsStreaming()
+}

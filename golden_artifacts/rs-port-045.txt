@@ -1,0 +1,26 @@
+--- FILE: rust/src/cache_key.rs ---
+use serde_json::{Map, Value};
+use sha2::{Digest, Sha256};
+
+const VERSION_SALT: &str = "holon-cache-v2:";
+
+fn normalize(value: &Value) -> Value {
+    match value {
+        Value::Object(object) => {
+            let mut normalized = Map::new();
+            for (key, value) in object {
+                normalized.insert(key.clone(), normalize(value));
+            }
+            Value::Object(normalized)
+        }
+        Value::Array(items) => Value::Array(items.iter().map(normalize).collect()),
+        Value::String(text) => Value::String(text.trim().to_string()),
+        other => other.clone(),
+    }
+}
+
+pub fn cache_key(payload: &Value) -> String {
+    let canonical = serde_json::to_string(&normalize(payload)).unwrap();
+    let digest = Sha256::digest(format!("{VERSION_SALT}{canonical}").as_bytes());
+    format!("{digest:x}")
+}

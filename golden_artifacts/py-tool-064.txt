@@ -1,0 +1,50 @@
+--- FILE: src/golden_harness/compare.py ---
+from __future__ import annotations
+
+import json
+from typing import Any
+
+
+def _strip_volatile(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            key: _strip_volatile(item)
+            for key, item in value.items()
+            if key != "generated_at"
+        }
+    if isinstance(value, list):
+        return [_strip_volatile(item) for item in value]
+    return value
+
+
+def _diff(actual: Any, expected: Any, path: str, mismatches: list[str]) -> None:
+    if type(actual) is not type(expected):
+        mismatches.append(path)
+        return
+    if isinstance(actual, dict):
+        keys = sorted(set(actual) | set(expected))
+        for key in keys:
+            child = f"{path}.{key}"
+            if key not in actual or key not in expected:
+                mismatches.append(child)
+            else:
+                _diff(actual[key], expected[key], child, mismatches)
+        return
+    if isinstance(actual, list):
+        for index in range(max(len(actual), len(expected))):
+            child = f"{path}[{index}]"
+            if index >= len(actual) or index >= len(expected):
+                mismatches.append(child)
+            else:
+                _diff(actual[index], expected[index], child, mismatches)
+        return
+    if actual != expected:
+        mismatches.append(path)
+
+
+def compare_json(actual_text: str, expected_text: str) -> dict:
+    actual = _strip_volatile(json.loads(actual_text))
+    expected = _strip_volatile(json.loads(expected_text))
+    mismatches: list[str] = []
+    _diff(actual, expected, "$", mismatches)
+    return {"ok": not mismatches, "mismatches": mismatches}

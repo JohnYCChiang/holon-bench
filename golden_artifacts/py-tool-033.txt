@@ -1,0 +1,23 @@
+--- FILE: src/path_sandbox/resolver.py ---
+from __future__ import annotations
+
+from pathlib import Path
+
+
+def _unsafe(path: str) -> dict:
+    return {
+        "ok": False,
+        "error": {"code": "unsafe_path", "message": f"path escapes workspace: {path}"},
+    }
+
+
+def resolve_workspace_path(root: str | Path, requested: str) -> dict:
+    root_path = Path(root).resolve()
+    requested_path = Path(requested)
+    candidate = requested_path if requested_path.is_absolute() else root_path / requested_path
+    resolved = candidate.resolve(strict=False)
+    try:
+        resolved.relative_to(root_path)
+    except ValueError:
+        return _unsafe(requested)
+    return {"ok": True, "path": str(resolved)}

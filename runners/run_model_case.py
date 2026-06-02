@@ -1,0 +1,1038 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import pathlib
+import re
+import signal
+import shutil
+import subprocess
+import tempfile
+import urllib.request
+
+from common import bench_root, find_case
+
+
+def fixture_context(root: pathlib.Path, fixture: str, max_chars: int) -> str:
+    base = root / fixture
+    if not base.exists():
+        raise SystemExit(f"fixture does not exist: {base}")
+    parts: list[str] = []
+    length = 0
+    for path in sorted(base.rglob("*")):
+        if (
+            not path.is_file()
+            or ".git" in path.parts
+            or ".holon" in path.parts
+            or "__pycache__" in path.parts
+            or "target" in path.parts
+            or "hidden" in path.parts
+            or ".bench" in path.parts
+        ):
+            continue
+        rel = path.relative_to(base).as_posix()
+        try:
+            text = path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            continue
+        block = f"\n--- FILE: {rel} ---\n{text}\n"
+        if length + len(block) > max_chars:
+            break
+        parts.append(block)
+        length += len(block)
+    return "".join(parts)
+
+
+def build_prompt(case: dict, files: str, protocol: str) -> str:
+    constraints = "\n".join(f"- {item}" for item in case["constraints"])
+    allowed = "\n".join(f"- {item}" for item in case["allowed_paths"])
+    forbidden = "\n".join(f"- {item}" for item in case["forbidden_paths"])
+    protected = "\n".join(f"- {item}" for item in case.get("protected_paths", [])) or "- none"
+    if protocol == "patch":
+        output_contract = """Return ONLY one unified git diff suitable for `git apply`. Do not use Markdown
+fences and do not include explanation. Modify only allowed paths."""
+    else:
+        targets = "\n".join(f"- {path}" for path in case.get("solution_paths", []))
+        output_contract = f"""Return ONLY complete owned file artifacts in this exact format:
+--- FILE: relative/path ---
+complete file content
+
+Write exactly these owned files and no others:
+{targets}
+Do not use Markdown fences and do not include explanation."""
+
+    return f"""You are the patch worker being benchmarked. Solve exactly one repository task.
+
+{output_contract}
+
+CASE ID: {case["id"]}
+TASK:
+{case["user_request"].strip()}
+
+CONSTRAINTS:
+{constraints}
+
+ALLOWED PATHS:
+{allowed}
+
+FORBIDDEN PATHS:
+{forbidden}
+
+PROTECTED PATHS (read-only verifier assets; do not modify):
+{protected}
+
+TESTING EXPECTATION:
+- Add focused regression/unit tests when they fit inside owned solution files or
+  explicitly allowed test files.
+- Do not modify protected verifier assets to make checks pass.
+
+CURRENT FIXTURE FILES:
+{files}
+"""
+
+
+def build_holon_cli_prompt(case: dict, files: str, protocol: str) -> str:
+    constraints = "\n".join(f"- {item}" for item in case["constraints"])
+    allowed = "\n".join(f"- {item}" for item in case["allowed_paths"])
+    forbidden = "\n".join(f"- {item}" for item in case["forbidden_paths"])
+    protected = "\n".join(f"- {item}" for item in case.get("protected_paths", [])) or "- none"
+    targets = "\n".join(f"- {path}" for path in case.get("solution_paths", [])) or "- use the allowed paths"
+    verifier_commands = "\n".join(f"- {command}" for command in case.get("verifier", {}).get("commands", [])) or "- none"
+    return f"""You are the Holon CLI worker being benchmarked. Solve exactly one repository task.
+
+Use your tools to modify the workspace files directly. Do not emit the final patch,
+diff, or file artifact in chat; the benchmark runner will extract the result from
+the workspace after tool execution.
+
+Before responding DONE, run the verifier commands listed below when they are not
+"none". If a verifier fails, inspect the error, modify only owned solution files,
+and rerun the failing verifier. Respond DONE only after the verifier passes or
+after you have a concrete blocker that cannot be fixed within the allowed files.
+
+When the workspace changes are complete, stop calling tools and respond exactly:
+DONE
+
+CASE ID: {case["id"]}
+TASK:
+{case["user_request"].strip()}
+
+CONSTRAINTS:
+{constraints}
+
+ALLOWED PATHS:
+{allowed}
+
+FORBIDDEN PATHS:
+{forbidden}
+
+PROTECTED PATHS (read-only verifier assets; do not modify):
+{protected}
+
+OWNED SOLUTION FILES:
+{targets}
+
+TESTING EXPECTATION:
+- Add focused regression/unit tests when they fit inside owned solution files or
+  explicitly allowed test files.
+- Do not modify protected verifier assets to make checks pass.
+
+VERIFIER COMMANDS:
+{verifier_commands}
+
+CURRENT FIXTURE FILES:
+{files}
+"""
+
+
+def request_patch(endpoint: str, model: str, prompt: str) -> str:
+    payload = json.dumps(
+        {
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.1,
+            "stream": False,
+        }
+    ).encode("utf-8")
+    request = urllib.request.Request(
+        endpoint.rstrip("/") + "/chat/completions",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=600) as response:
+        body = json.loads(response.read().decode("utf-8"))
+    return body["choices"][0]["message"]["content"]
+
+
+def append_repair_feedback(prompt: str, previous_artifact: str | None, feedback_error: str | None) -> str:
+    if not previous_artifact or not feedback_error:
+        return prompt
+    prev_path = pathlib.Path(previous_artifact).resolve()
+    if not prev_path.exists():
+        return prompt
+    prev_content = prev_path.read_text(encoding="utf-8")
+    return (
+        f"{prompt}\n\n--- PREVIOUS DRAFT ---\n{prev_content}\n\n"
+        "Your previous submission failed compilation or verification checks.\n"
+        f"Here is the stdout/stderr diagnostic:\n{feedback_error}\n\n"
+        "Repair contract:\n"
+        "- Treat the previous draft as the starting point; make the smallest sufficient correction.\n"
+        "- Preserve behavior that was already correct in the previous draft.\n"
+        "- If there is a compile/type error, fix that before changing semantics.\n"
+        "- If tests fail after compilation, map each failing assertion to the smallest code change that satisfies it.\n"
+        "- Do not add files, dependencies, shell wrappers, broad rewrites, or unrelated abstractions.\n"
+        "- Return only the corrected complete owned file artifact and still obey the original output contract."
+    )
+
+
+def ensure_git_repo(workspace: pathlib.Path) -> None:
+    if (workspace / ".git").exists():
+        return
+    subprocess.run(["git", "init"], cwd=workspace, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+    subprocess.run(["git", "config", "user.name", "bench"], cwd=workspace, check=True)
+    subprocess.run(["git", "config", "user.email", "bench@holon"], cwd=workspace, check=True)
+    subprocess.run(["git", "add", "."], cwd=workspace, check=True)
+    subprocess.run(
+        ["git", "commit", "-m", "initial fixture"],
+        cwd=workspace,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=True,
+    )
+
+
+def run_process_group(
+    command: list[str],
+    *,
+    cwd: pathlib.Path,
+    env: dict[str, str] | None = None,
+    timeout: float | None = None,
+) -> subprocess.CompletedProcess[str]:
+    proc = subprocess.Popen(
+        command,
+        cwd=cwd,
+        env=env,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        start_new_session=True,
+    )
+    try:
+        stdout, stderr = proc.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        os.killpg(proc.pid, signal.SIGTERM)
+        try:
+            stdout, stderr = proc.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            os.killpg(proc.pid, signal.SIGKILL)
+            stdout, stderr = proc.communicate()
+        raise subprocess.TimeoutExpired(command, timeout, output=stdout, stderr=stderr)
+
+    completed = subprocess.CompletedProcess(command, proc.returncode, stdout, stderr)
+    if completed.returncode != 0:
+        raise subprocess.CalledProcessError(
+            completed.returncode,
+            command,
+            output=completed.stdout,
+            stderr=completed.stderr,
+        )
+    return completed
+
+
+def render_workspace_artifacts(workspace: pathlib.Path, solution_paths: list[str]) -> str:
+    parts = []
+    for sol_path in solution_paths:
+        file_path = workspace / sol_path
+        if file_path.exists():
+            content = file_path.read_text(encoding="utf-8")
+            parts.append(f"--- FILE: {sol_path} ---\n{content}\n")
+    return "".join(parts)
+
+
+def workspace_artifacts_changed(
+    source: pathlib.Path, workspace: pathlib.Path, solution_paths: list[str]
+) -> bool:
+    for sol_path in solution_paths:
+        source_file = source / sol_path
+        workspace_file = workspace / sol_path
+        if not workspace_file.exists():
+            continue
+        if not source_file.exists():
+            return True
+        if workspace_file.read_text(encoding="utf-8") != source_file.read_text(encoding="utf-8"):
+            return True
+    return False
+
+
+def workspace_artifacts_exist(workspace: pathlib.Path, solution_paths: list[str]) -> bool:
+    return bool(solution_paths) and all((workspace / sol_path).is_file() for sol_path in solution_paths)
+
+
+def extract_artifact_blocks(text: str, solution_paths: list[str]) -> str | None:
+    marker = "--- FILE: "
+    start = text.find(marker)
+    if start == -1:
+        return None
+    candidate = text[start:].strip()
+    if candidate.endswith("```"):
+        candidate = candidate[:-3].strip()
+
+    actual: set[str] = set()
+    for line in candidate.splitlines():
+        if line.startswith(marker) and line.endswith(" ---"):
+            actual.add(line[len(marker) : -4].strip())
+    expected = set(solution_paths)
+    placeholder_paths = {"relative/path", "path/to/file", "owned/file"}
+    actual_without_placeholders = {
+        path
+        for path in actual
+        if path not in placeholder_paths and not path.startswith(("relative/", "path/to/"))
+    }
+    if actual == expected or actual_without_placeholders == expected:
+        return candidate.rstrip("\r\n") + "\n"
+    return None
+
+
+def normalize_artifact_submission(text: str, solution_paths: list[str]) -> str:
+    recovered = extract_artifact_blocks(text, solution_paths)
+    if recovered is not None:
+        return recovered
+    if len(solution_paths) != 1:
+        return text
+
+    fenced = re.findall(r"```(?:rust|rs)?\s*\n(.*?)```", text, flags=re.DOTALL | re.IGNORECASE)
+    for block in fenced:
+        candidate = block.strip()
+        if "fn " in candidate or "pub " in candidate or "use " in candidate:
+            return f"--- FILE: {solution_paths[0]} ---\n{candidate.rstrip()}\n"
+    return text
+
+
+def run_holon_prompt_fallback(
+    holon_bin: str,
+    workspace: pathlib.Path,
+    env: dict[str, str],
+    args: argparse.Namespace,
+    prompt: str,
+    timeout: float | None,
+) -> str:
+    fallback_prompt = workspace / "bench_prompt_fallback.txt"
+    fallback_prompt.write_text(prompt, encoding="utf-8")
+    try:
+        completed = run_process_group(
+            [
+                holon_bin,
+                "--model",
+                args.model,
+                "--print",
+                "--prompt-file",
+                str(fallback_prompt),
+            ],
+            cwd=workspace,
+            env=env,
+            timeout=timeout,
+        )
+        return completed.stdout
+    except subprocess.CalledProcessError as exc:
+        return f"{exc.output or ''}\n{exc.stderr or ''}"
+    except subprocess.TimeoutExpired as exc:
+        return f"{exc.output or ''}\n{exc.stderr or ''}"
+
+
+GRAPH_TOOLS = {
+    "RecallMemory",
+    "QueryKnowledge",
+    "TraverseKnowledge",
+    "VerifyConstraints",
+}
+
+GRAPH_SEMANTIC_CHECKS = {
+    "graph_context_used",
+    "graph_relation_used",
+    "project_scoped_graph_context",
+}
+
+
+def detect_called_tools(text: str) -> list[str]:
+    called: set[str] = set()
+    for line in text.splitlines():
+        try:
+            payload = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, dict):
+            for tool in payload.get("graph_tool_calls", []):
+                if tool in GRAPH_TOOLS:
+                    called.add(tool)
+        message = payload.get("message", {}) if isinstance(payload, dict) else {}
+        for block in message.get("blocks", []):
+            if (
+                isinstance(block, dict)
+                and block.get("type") == "tool_use"
+                and block.get("name") in GRAPH_TOOLS
+            ):
+                called.add(block["name"])
+    return sorted(called)
+
+
+def collect_holon_trace(
+    *,
+    workspace: pathlib.Path,
+    home_dir: pathlib.Path,
+    auto_stdout: str,
+    fallback_stdout: str = "",
+    snapshot_roots: list[pathlib.Path] | None = None,
+) -> dict:
+    trace_text = [auto_stdout, fallback_stdout]
+    trace_files = []
+    for base in [workspace / ".holon", home_dir / ".holon"]:
+        if not base.exists():
+            continue
+        for path in sorted(base.rglob("*")):
+            if not path.is_file():
+                continue
+            try:
+                content = path.read_text(encoding="utf-8", errors="ignore")
+            except OSError:
+                continue
+            rel = path.relative_to(base).as_posix()
+            trace_files.append(
+                {
+                    "base": str(base),
+                    "path": rel,
+                    "bytes": len(content.encode("utf-8", errors="ignore")),
+                    "tail": content[-12000:],
+                }
+            )
+            trace_text.append(content)
+    artifact_snapshots = []
+    for root in snapshot_roots or []:
+        if not root.exists():
+            continue
+        for rel in [
+            "reports/graph_recall.md",
+            "reports/implement_artifact_rejection.md",
+            "reports/repair_artifact_rejection.md",
+            "src/router.py",
+            "src/review.py",
+            "src/banner.py",
+        ]:
+            path = root / rel
+            if not path.is_file():
+                continue
+            try:
+                content = path.read_text(encoding="utf-8", errors="ignore")
+            except OSError:
+                continue
+            artifact_snapshots.append(
+                {
+                    "root": str(root),
+                    "path": rel,
+                    "bytes": len(content.encode("utf-8", errors="ignore")),
+                    "tail": content[-12000:],
+                }
+            )
+    combined = "\n".join(trace_text)
+    return {
+        "called_tools": detect_called_tools(combined),
+        "auto_stdout_tail": auto_stdout[-12000:],
+        "fallback_stdout_tail": fallback_stdout[-12000:],
+        "trace_files": trace_files,
+        "artifact_snapshots": artifact_snapshots,
+    }
+
+
+def should_use_graph_recall_workflow(case: dict) -> bool:
+    semantic_checks = set(case.get("verifier", {}).get("semantic_checks", []))
+    return bool(semantic_checks & GRAPH_SEMANTIC_CHECKS)
+
+
+def graph_recall_queries_for_case(case: dict) -> list[str]:
+    node_queries = [
+        str(node.get("name", "")).strip()
+        for node in case.get("knowledge_seed", [])
+        if str(node.get("name", "")).strip()
+    ]
+    return node_queries + [
+        f"Stored project decisions and requirements relevant to {case['id']}: {case['user_request'].strip()}",
+        "Project memory that constrains the requested implementation behavior",
+    ]
+
+
+def write_graph_recall_workflow(
+    *,
+    workspace: pathlib.Path,
+    case: dict,
+    args: argparse.Namespace,
+) -> pathlib.Path:
+    solution_paths = case.get("solution_paths", [])
+    verifier_commands = case.get("verifier", {}).get("commands", [])
+    max_iterations = max(4, min(args.holon_max_iterations, 8))
+    constraints = "\n".join(f"- {item}" for item in case["constraints"])
+    allowed = "\n".join(f"- {item}" for item in case["allowed_paths"])
+    forbidden = "\n".join(f"- {item}" for item in case["forbidden_paths"])
+    protected = "\n".join(f"- {item}" for item in case.get("protected_paths", [])) or "- none"
+    targets = "\n".join(f"- {path}" for path in solution_paths)
+    workflow = {
+        "name": f"HolonBench_GraphRecall_{case['id']}",
+        "execution_mode": "serial",
+        "states": [
+            {
+                "id": "recall",
+                "description": "Recall project knowledge before implementation.",
+                "role": "Planner",
+                "model": args.model,
+                "base_url_override": args.endpoint,
+                "permission_mode": "read-only",
+                "allowed_tools": [],
+                "max_iterations": 3,
+                "thinking_budget": 768,
+                "max_output_tokens": 3072,
+                "artifact_output_path": "reports/graph_recall.md",
+                "graph_recall": {
+                    "required": True,
+                    "queries": graph_recall_queries_for_case(case),
+                    "minimum_tool_calls": 1,
+                },
+                "next_states": ["implement"],
+                "instructions_override": f"""Clean-context benchmark recall state.
+
+Use the provided graph recall queries exactly when possible. Call project knowledge graph recall/search tools, then stop calling tools.
+Summarize only the recalled project decision, requirement, or constraint needed by the implementer.
+Include exact policy strings, warning strings, formats, or target values returned by graph tools.
+If no memory is found, say MEMORY_NOT_FOUND. Do not inspect files and do not implement code.
+
+CASE ID: {case['id']}
+TASK:
+{case['user_request'].strip()}
+""",
+            },
+            {
+                "id": "implement",
+                "description": "Implement the benchmark task using the recalled project memory.",
+                "role": "Developer",
+                "model": args.model,
+                "base_url_override": args.endpoint,
+                "permission_mode": "read-only",
+                "allowed_tools": [],
+                "max_iterations": 1,
+                "thinking_budget": 768,
+                "max_output_tokens": 4096,
+                "artifact_inputs": ["reports/graph_recall.md"],
+                "context_globs": ["README.md", "src/**/*.py", "tests/**/*.py"],
+                "artifact_output_paths": solution_paths,
+                "next_states": ["verify"],
+                "instructions_override": f"""Clean-context benchmark implementation state.
+
+Output ONLY complete owned file artifacts in this exact format:
+--- FILE: relative/path ---
+complete file content
+
+The first line of your response must be exactly:
+--- FILE: {solution_paths[0] if solution_paths else 'relative/path'} ---
+
+Write exactly these owned files and no others:
+{targets}
+
+Use the recalled project memory from the shared context section named:
+--- ARTIFACT: reports/graph_recall.md ---
+Treat exact policy strings, warning strings, formats, and target values in that artifact as authoritative.
+If the recalled policy gives a domain concept but the source files do not define one exact input schema, implement a conservative domain predicate instead of guessing one brittle field name.
+For account-safety style policies, treat settled-account evidence as any common settled marker such as `settled is true` or `account_state`, `account_status`, `status`, or `state` equal to `"settled"`; treat external integration evidence as `source`, `requestor`, `origin`, or `actor` equal to `"external_api"`; treat mutation evidence as `operation`, `action`, or `type` equal to `"mutation"` or a non-zero amount.
+
+Do not call tools. Do not output a patch. Do not use Markdown fences. Do not include explanation outside file artifacts.
+
+CASE ID: {case['id']}
+TASK:
+{case['user_request'].strip()}
+
+CONSTRAINTS:
+{constraints}
+
+ALLOWED PATHS:
+{allowed}
+
+FORBIDDEN PATHS:
+{forbidden}
+
+PROTECTED PATHS (read-only verifier assets; do not modify):
+{protected}
+""",
+            },
+            {
+                "id": "verify",
+                "description": "Run deterministic benchmark verifiers.",
+                "role": "Reviewer",
+                "permission_mode": "danger-full-access",
+                "commands": verifier_commands,
+                "next_states": ["completed", "repair", "failed_exit"],
+                "transitions": [
+                    {
+                        "condition": {
+                            "type": "output_contains",
+                            "value": "VERIFY_VERDICT: PASS",
+                        },
+                        "next_state": "completed",
+                    },
+                    {
+                        "condition": {
+                            "type": "output_contains",
+                            "value": "VERIFY_VERDICT: FAIL",
+                        },
+                        "next_state": "repair",
+                        "max_retries": 1,
+                        "on_max_retries": "failed_exit",
+                    },
+                ],
+            },
+            {
+                "id": "repair",
+                "description": "Repair the failed artifact using verifier feedback.",
+                "role": "Developer",
+                "model": args.model,
+                "base_url_override": args.endpoint,
+                "permission_mode": "read-only",
+                "allowed_tools": [],
+                "max_iterations": 1,
+                "thinking_budget": 768,
+                "max_output_tokens": 4096,
+                "artifact_inputs": ["reports/graph_recall.md"],
+                "context_globs": ["README.md", "src/**/*.py", "tests/**/*.py"],
+                "artifact_output_paths": solution_paths,
+                "next_states": ["verify"],
+                "instructions_override": f"""Clean-context benchmark repair state.
+
+You are repairing a failed file artifact. Think internally about the verifier failure and make the smallest sufficient correction.
+
+Output ONLY complete owned file artifacts in this exact format:
+--- FILE: relative/path ---
+complete file content
+
+The first line of your response must be exactly:
+--- FILE: {solution_paths[0] if solution_paths else 'relative/path'} ---
+
+Write exactly these owned files and no others:
+{targets}
+
+Use the recalled project memory from the shared context section named:
+--- ARTIFACT: reports/graph_recall.md ---
+Treat exact policy strings, warning strings, formats, and target values in that artifact as authoritative.
+If the recalled policy gives a domain concept but the source files do not define one exact input schema, implement a conservative domain predicate instead of guessing one brittle field name.
+For account-safety style policies, treat settled-account evidence as any common settled marker such as `settled is true` or `account_state`, `account_status`, `status`, or `state` equal to `"settled"`; treat external integration evidence as `source`, `requestor`, `origin`, or `actor` equal to `"external_api"`; treat mutation evidence as `operation`, `action`, or `type` equal to `"mutation"` or a non-zero amount.
+
+Verifier feedback from the failed attempt:
+{{{{output.verify}}}}
+
+Repair rules:
+- Do not call tools.
+- Do not explain the bug.
+- Do not repeat the verifier output.
+- Do not redesign unrelated code.
+- Preserve existing passing behavior.
+- If the verifier expected a warning but got an empty list, repair the predicate that decides when the warning is emitted.
+- Do not repeat the same failed predicate under a different spelling; map the recalled policy to common domain fields and values already implied by the task.
+- Return only the corrected complete file artifact.
+
+CASE ID: {case['id']}
+TASK:
+{case['user_request'].strip()}
+
+CONSTRAINTS:
+{constraints}
+
+ALLOWED PATHS:
+{allowed}
+
+FORBIDDEN PATHS:
+{forbidden}
+
+PROTECTED PATHS (read-only verifier assets; do not modify):
+{protected}
+""",
+            },
+            {
+                "id": "completed",
+                "description": "Benchmark case completed.",
+                "role": "Reviewer",
+                "permission_mode": "danger-full-access",
+                "commands": ["true"],
+                "next_states": [],
+            },
+            {
+                "id": "failed_exit",
+                "description": "Benchmark verifier failed.",
+                "role": "Reviewer",
+                "permission_mode": "danger-full-access",
+                "commands": ["false"],
+                "next_states": [],
+            },
+        ],
+    }
+    workflow_path = workspace / ".holon" / "bench_graph_recall_workflow.json"
+    workflow_path.write_text(json.dumps(workflow, indent=2), encoding="utf-8")
+    return workflow_path
+
+
+def latest_holon_worktree(workspace: pathlib.Path) -> pathlib.Path | None:
+    worktrees_dir = workspace / ".holon" / "worktrees"
+    if not worktrees_dir.exists():
+        return None
+    candidates = [path for path in worktrees_dir.iterdir() if path.is_dir()]
+    if not candidates:
+        return None
+    return max(candidates, key=lambda path: path.stat().st_mtime)
+
+
+def run_holon_cli_driver(
+    root: pathlib.Path,
+    case: dict,
+    args: argparse.Namespace,
+    prompt: str,
+    fallback_prompt: str,
+) -> str:
+    source = (root / case["fixture"]).resolve()
+    with tempfile.TemporaryDirectory(prefix=f"holon-bench-{case['id']}-") as temp:
+        workspace = pathlib.Path(temp) / source.name
+        ignore = shutil.ignore_patterns(".git", ".holon", "__pycache__", "target", "bench_prompt.txt")
+        shutil.copytree(source, workspace, ignore=ignore)
+        ensure_git_repo(workspace)
+
+        holon_dir = workspace / ".holon"
+        holon_dir.mkdir(exist_ok=True)
+        if case.get("knowledge_seed"):
+            (holon_dir / "knowledge_seed.json").write_text(
+                json.dumps({"nodes": case["knowledge_seed"]}, indent=2),
+                encoding="utf-8",
+            )
+        cognitive_recall = bool(case.get("cognitive_recall", False))
+        (holon_dir / "settings.json").write_text(
+            json.dumps(
+                {
+                    "capabilities": {
+                        "maxIterations": args.holon_max_iterations,
+                        "autoIsolate": True,
+                        "cognitiveRecall": {
+                            "enabled": cognitive_recall,
+                            "threshold": 0.85,
+                            "limit": 5,
+                        },
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+        exclude_file = workspace / ".git" / "info" / "exclude"
+        with exclude_file.open("a", encoding="utf-8") as handle:
+            handle.write("\n.holon/\nbench_prompt.txt\n")
+
+        prompt_file = workspace / "bench_prompt.txt"
+        prompt_file.write_text(prompt, encoding="utf-8")
+
+        env = os.environ.copy()
+        home_dir = pathlib.Path(temp) / "home"
+        home_dir.mkdir(parents=True, exist_ok=True)
+        env["HOME"] = str(home_dir)
+        env["LLAMACPP_BASE_URL"] = args.endpoint
+        env["OLLAMA_BASE_URL"] = args.endpoint
+        env["KLAW_MODEL"] = args.model
+        env.setdefault("ANTHROPIC_API_KEY", "dummy")
+        env.setdefault("OPENAI_API_KEY", "dummy")
+
+        # HOME is set to a fresh temp dir to isolate holon's .holon state between runs.
+        # Preserve RUSTUP_HOME/CARGO_HOME so rustup can still find its toolchain config
+        # (stored in the real HOME), preventing preflight from wrongly marking rustc as
+        # unavailable and falling back to --print mode (which has no graph tools).
+        real_home = os.environ.get("HOME", str(pathlib.Path.home()))
+        env.setdefault("RUSTUP_HOME", os.path.join(real_home, ".rustup"))
+        env.setdefault("CARGO_HOME", os.path.join(real_home, ".cargo"))
+
+        holon_bin = os.environ.get("HOLON_BIN", "/home/taichi/Migration/holon/target/debug/holon")
+        if not pathlib.Path(holon_bin).exists():
+            raise SystemExit(f"compiled holon binary not found at: {holon_bin}. Run cargo build first.")
+
+
+        session_id = f"session-{case['id']}"
+        auto_stdout = ""
+        use_graph_workflow = should_use_graph_recall_workflow(case)
+        if not args.holon_skip_auto:
+            try:
+                if use_graph_workflow:
+                    workflow_path = write_graph_recall_workflow(
+                        workspace=workspace,
+                        case=case,
+                        args=args,
+                    )
+                    completed = run_process_group(
+                        [
+                            holon_bin,
+                            "--workflow",
+                            str(workflow_path),
+                            case["user_request"].strip(),
+                        ],
+                        cwd=workspace,
+                        env=env,
+                        timeout=args.holon_timeout_seconds,
+                    )
+                else:
+                    completed = run_process_group(
+                        [
+                            holon_bin,
+                            "--model",
+                            args.model,
+                            "--auto",
+                            "--max-turns",
+                            "1",
+                            "--dangerously-skip-permissions",
+                            "--allowed-tools",
+                            "read_file,write_file,edit_file,bash,RecallMemory,QueryKnowledge,TraverseKnowledge,VerifyConstraints,ContextStatus",
+                            "--prompt-file",
+                            str(prompt_file),
+                            "--session-id",
+                            session_id,
+                        ],
+                        cwd=workspace,
+                        env=env,
+                        timeout=args.holon_auto_timeout_seconds,
+                    )
+                auto_stdout = completed.stdout
+            except (subprocess.TimeoutExpired, subprocess.CalledProcessError) as exc:
+                output = getattr(exc, "output", None)
+                if isinstance(output, str):
+                    auto_stdout = output
+                stderr = getattr(exc, "stderr", None)
+                if isinstance(stderr, str):
+                    auto_stdout += "\n" + stderr
+
+        worktree_dir = (
+            latest_holon_worktree(workspace)
+            if use_graph_workflow
+            else workspace / ".holon" / "worktrees" / session_id
+        )
+        if worktree_dir is None:
+            worktree_dir = workspace
+        if not worktree_dir.exists():
+            worktree_dir = workspace
+        metadata = collect_holon_trace(
+            workspace=workspace,
+            home_dir=home_dir,
+            auto_stdout=auto_stdout,
+            snapshot_roots=[workspace, worktree_dir],
+        )
+
+        if args.protocol == "patch":
+            diff = subprocess.run(
+                ["git", "diff"],
+                cwd=worktree_dir,
+                capture_output=True,
+                text=True,
+                check=True,
+            ).stdout
+            return diff, metadata
+
+        solution_paths = case.get("solution_paths", [])
+        artifact_roots = [workspace, worktree_dir] if use_graph_workflow else [worktree_dir]
+        for artifact_root in artifact_roots:
+            if workspace_artifacts_changed(source, artifact_root, solution_paths):
+                return render_workspace_artifacts(artifact_root, solution_paths), metadata
+        if use_graph_workflow:
+            for artifact_root in artifact_roots:
+                if workspace_artifacts_exist(artifact_root, solution_paths):
+                    return render_workspace_artifacts(artifact_root, solution_paths), metadata
+
+        recovered = extract_artifact_blocks(auto_stdout, solution_paths)
+        if recovered is not None:
+            return recovered, metadata
+
+        if use_graph_workflow:
+            return auto_stdout, metadata
+
+        fallback_stdout = run_holon_prompt_fallback(
+            holon_bin,
+            workspace,
+            env,
+            args,
+            fallback_prompt,
+            timeout=args.holon_timeout_seconds,
+        )
+        metadata = collect_holon_trace(
+            workspace=workspace,
+            home_dir=home_dir,
+            auto_stdout=auto_stdout,
+            fallback_stdout=fallback_stdout,
+            snapshot_roots=[workspace, worktree_dir],
+        )
+        recovered = extract_artifact_blocks(fallback_stdout, solution_paths)
+        if recovered is not None:
+            return recovered, metadata
+        direct_fallback = request_patch(args.endpoint, args.model, fallback_prompt)
+        recovered = extract_artifact_blocks(direct_fallback, solution_paths)
+        if recovered is not None:
+            return recovered, metadata
+        return direct_fallback, metadata
+
+
+def run_claw_cli_driver(
+    root: pathlib.Path,
+    case: dict,
+    args: argparse.Namespace,
+    prompt: str,
+    fallback_prompt: str,
+) -> str:
+    source = (root / case["fixture"]).resolve()
+    with tempfile.TemporaryDirectory(prefix=f"holon-bench-{case['id']}-") as temp:
+        workspace = pathlib.Path(temp) / source.name
+        ignore = shutil.ignore_patterns(".git", ".claw", ".holon", "__pycache__", "target", "bench_prompt.txt")
+        shutil.copytree(source, workspace, ignore=ignore)
+        ensure_git_repo(workspace)
+
+        exclude_file = workspace / ".git" / "info" / "exclude"
+        with exclude_file.open("a", encoding="utf-8") as handle:
+            handle.write("\n.claw/\nbench_prompt.txt\n")
+
+        prompt_file = workspace / "bench_prompt.txt"
+        prompt_file.write_text(prompt, encoding="utf-8")
+
+        env = os.environ.copy()
+        env["DASHSCOPE_BASE_URL"] = args.endpoint
+        env["DASHSCOPE_API_KEY"] = "dummy"
+        env["OPENAI_BASE_URL"] = args.endpoint
+        env["OPENAI_API_KEY"] = "dummy"
+        env["ANTHROPIC_BASE_URL"] = args.endpoint
+        env["ANTHROPIC_API_KEY"] = "dummy"
+
+        claw_bin = os.environ.get("CLAW_BIN", "/home/taichi/Migration/claw-code/rust/target/debug/claw")
+        if not pathlib.Path(claw_bin).exists():
+            raise SystemExit(f"compiled claw binary not found at: {claw_bin}. Run cargo build first.")
+
+        auto_stdout = ""
+        if not args.holon_skip_auto:
+            try:
+                completed = run_process_group(
+                    [
+                        claw_bin,
+                        "prompt",
+                        prompt,
+                        "--model",
+                        args.model,
+                        "--dangerously-skip-permissions",
+                        "--allowed-tools",
+                        "read_file,write_file,edit_file,bash",
+                    ],
+                    cwd=workspace,
+                    env=env,
+                    timeout=args.holon_auto_timeout_seconds,
+                )
+                auto_stdout = completed.stdout
+            except (subprocess.TimeoutExpired, subprocess.CalledProcessError) as exc:
+                output = getattr(exc, "output", None)
+                if isinstance(output, str):
+                    auto_stdout = output
+
+        if args.protocol == "patch":
+            diff = subprocess.run(
+                ["git", "diff"],
+                cwd=workspace,
+                capture_output=True,
+                text=True,
+                check=True,
+            ).stdout
+            return diff, {
+                "called_tools": detect_called_tools(auto_stdout),
+                "auto_stdout_tail": auto_stdout[-12000:],
+            }
+
+        solution_paths = case.get("solution_paths", [])
+        if workspace_artifacts_changed(source, workspace, solution_paths):
+            return render_workspace_artifacts(workspace, solution_paths), {
+                "called_tools": detect_called_tools(auto_stdout),
+                "auto_stdout_tail": auto_stdout[-12000:],
+            }
+
+        recovered = extract_artifact_blocks(auto_stdout, solution_paths)
+        if recovered is not None:
+            return recovered, {
+                "called_tools": detect_called_tools(auto_stdout),
+                "auto_stdout_tail": auto_stdout[-12000:],
+            }
+
+        direct_fallback = request_patch(args.endpoint, args.model, fallback_prompt)
+        recovered = extract_artifact_blocks(direct_fallback, solution_paths)
+        if recovered is not None:
+            return recovered, {
+                "called_tools": detect_called_tools(auto_stdout),
+                "auto_stdout_tail": auto_stdout[-12000:],
+            }
+        return direct_fallback, {
+            "called_tools": detect_called_tools(auto_stdout),
+            "auto_stdout_tail": auto_stdout[-12000:],
+        }
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("case_id")
+    parser.add_argument("--model", required=True)
+    parser.add_argument("--endpoint", required=True)
+    parser.add_argument("--bench-root", default=".")
+    parser.add_argument("--out")
+    parser.add_argument("--protocol", choices=["patch", "artifact"], default="patch")
+    parser.add_argument("--driver", choices=["direct", "holon-cli", "claw-cli"], default="direct")
+    parser.add_argument("--max-context-chars", type=int, default=40000)
+    parser.add_argument("--holon-max-iterations", type=int, default=100)
+    parser.add_argument("--holon-timeout-seconds", type=float, default=540.0)
+    parser.add_argument("--holon-auto-timeout-seconds", type=float, default=75.0)
+    parser.add_argument("--holon-skip-auto", action="store_true")
+    parser.add_argument("--previous-artifact")
+    parser.add_argument("--feedback-error")
+    args = parser.parse_args()
+
+    root = bench_root(args.bench_root)
+    case = find_case(root, args.case_id)
+    files = fixture_context(root, case["fixture"], args.max_context_chars)
+    prompt = (
+        build_holon_cli_prompt(case, files, args.protocol)
+        if args.driver in ["holon-cli", "claw-cli"]
+        else build_prompt(case, files, args.protocol)
+    )
+    prompt = append_repair_feedback(prompt, args.previous_artifact, args.feedback_error)
+    fallback_prompt = append_repair_feedback(
+        build_prompt(case, files, args.protocol), args.previous_artifact, args.feedback_error
+    )
+
+    patch, metadata = (
+        run_claw_cli_driver(root, case, args, prompt, fallback_prompt)
+        if args.driver == "claw-cli"
+        else run_holon_cli_driver(root, case, args, prompt, fallback_prompt)
+        if args.driver == "holon-cli"
+        else (request_patch(args.endpoint, args.model, prompt), {"called_tools": []})
+    )
+    if args.protocol == "artifact":
+        patch = normalize_artifact_submission(patch, case.get("solution_paths", []))
+    suffix = "patch.diff" if args.protocol == "patch" else "artifact.txt"
+    out = pathlib.Path(args.out).resolve() if args.out else root / "reports" / f"{args.model}_{args.protocol}_{args.case_id}_{suffix}"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(patch.rstrip("\r\n") + "\n", encoding="utf-8")
+    meta_out = out.with_suffix(out.suffix + ".meta.json")
+    meta_out.write_text(
+        json.dumps(
+            {
+                "case_id": case["id"],
+                "model": args.model,
+                "driver": args.driver,
+                "protocol": args.protocol,
+                **metadata,
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    print(out)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

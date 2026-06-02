@@ -1,0 +1,24 @@
+--- FILE: src/assets/loader.rs ---
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AssetConfig {
+    pub root: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AssetRequest {
+    pub path: String,
+    pub uses_desktop_fs: bool,
+}
+
+pub fn asset_request(config: &AssetConfig, name: &str) -> AssetRequest {
+    AssetRequest {
+        path: format!("{}/{}", config.root.trim_end_matches('/'), name.trim_start_matches('/')),
+        uses_desktop_fs: false,
+    }
+}
+--- FILE: src/plugins/assets.rs ---
+use crate::assets::loader::{asset_request, AssetConfig};
+
+pub fn sprite_path(config: &AssetConfig, name: &str) -> String {
+    asset_request(config, name).path
+}

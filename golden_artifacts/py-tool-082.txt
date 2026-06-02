@@ -1,0 +1,26 @@
+--- FILE: src/redaction_tool/redact.py ---
+from __future__ import annotations
+
+import re
+
+
+PATTERNS = [
+    re.compile(r"(API_KEY=)[^\s]+"),
+    re.compile(r"(bearer token: )[^\s]+", re.IGNORECASE),
+]
+
+
+def redact_output(text: str, preview_lines: int = 3) -> dict:
+    redaction_count = 0
+    redacted = text
+    for pattern in PATTERNS:
+        redacted, count = pattern.subn(lambda match: match.group(1) + "[REDACTED]", redacted)
+        redaction_count += count
+    lines = redacted.splitlines()
+    return {
+        "redacted": redacted,
+        "line_count": len(text.splitlines()),
+        "byte_count": len(text.encode("utf-8")),
+        "redaction_count": redaction_count,
+        "preview": "\n".join(lines[:preview_lines]),
+    }

@@ -1,0 +1,8 @@
+--- FILE: src/status.rs ---
+pub fn format_status(ok: bool, detail: &str) -> String {
+    if cfg!(feature = "verbose") {
+        format!("ok={ok};detail={detail}")
+    } else {
+        format!("ok={ok}")
+    }
+}

@@ -1,0 +1,28 @@
+package sim
+
+type Input struct {
+	PlayerID string
+	Seq      int
+	DeltaX   int
+}
+
+type Result struct {
+	Accepted bool
+	Ignored  bool
+	Invalid  int
+}
+
+type State struct {
+	X       map[string]int
+	LastSeq map[string]int
+}
+
+func NewState() *State {
+	return &State{X: map[string]int{}, LastSeq: map[string]int{}}
+}
+
+func (s *State) Apply(input Input) Result {
+	s.X[input.PlayerID] += input.DeltaX
+	s.LastSeq[input.PlayerID] = input.Seq
+	return Result{Accepted: true}
+}

@@ -1,0 +1,31 @@
+--- FILE: src/file_scanner/scanner.py ---
+from __future__ import annotations
+
+from pathlib import Path
+
+
+def scan_files(root: str, exclude_globs: list[str] | None = None, max_bytes: int = 1024) -> dict:
+    base = Path(root)
+    exclude_globs = exclude_globs or []
+    files: list[str] = []
+    skipped = {"binary": 0, "hidden": 0, "ignored": 0, "too_large": 0}
+    for path in base.rglob("*"):
+        if not path.is_file():
+            continue
+        rel = path.relative_to(base).as_posix()
+        if any(part.startswith(".") for part in path.relative_to(base).parts):
+            skipped["hidden"] += 1
+            continue
+        if any(path.match(pattern) or rel == pattern or Path(rel).match(pattern) for pattern in exclude_globs):
+            skipped["ignored"] += 1
+            continue
+        stat = path.stat()
+        if stat.st_size > max_bytes:
+            skipped["too_large"] += 1
+            continue
+        data = path.read_bytes()
+        if b"\x00" in data:
+            skipped["binary"] += 1
+            continue
+        files.append(rel)
+    return {"files": sorted(files), "skipped": skipped}

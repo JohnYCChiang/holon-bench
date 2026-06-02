@@ -1,0 +1,27 @@
+--- FILE: src/parser.rs ---
+use crate::ParseError;
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct Entry {
+    pub key: String,
+    pub value: u32,
+}
+
+pub fn parse_entry(input: &str) -> Result<Entry, ParseError> {
+    let (key, value) = input.split_once(':').ok_or(ParseError::MissingSeparator)?;
+    if key.is_empty() {
+        return Err(ParseError::EmptyKey);
+    }
+    let value = value.parse::<u32>().map_err(|_| ParseError::InvalidNumber)?;
+    Ok(Entry {
+        key: key.to_string(),
+        value,
+    })
+}
+--- FILE: src/error.rs ---
+#[derive(Debug, PartialEq, Eq)]
+pub enum ParseError {
+    MissingSeparator,
+    EmptyKey,
+    InvalidNumber,
+}

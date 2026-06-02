@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Holon Benchmark Case Score",
+  "type": "object",
+  "required": ["case_id", "track", "task_type", "model", "protocol", "hard_pass", "soft_score", "role_signals"],
+  "properties": {
+    "case_id": { "type": "string" },
+    "track": { "type": "string" },
+    "task_type": { "type": "string" },
+    "model": { "type": "string" },
+    "protocol": { "enum": ["patch", "artifact"] },
+    "driver": { "enum": ["direct", "holon-cli", "claw-cli"] },
+    "attempt_count": { "type": "integer", "minimum": 1 },
+    "repair_used": { "type": "boolean" },
+    "first_pass": { "type": "boolean" },
+    "final_pass": { "type": "boolean" },
+    "repaired_pass": { "type": "boolean" },
+    "repair_attempts_used": { "type": "integer", "minimum": 0 },
+    "max_repair_attempts": { "type": "integer", "minimum": 0 },
+    "max_repair_exhausted": { "type": "boolean" },
+    "hard_pass": { "type": "boolean" },
+    "soft_score": { "type": "number", "minimum": 0, "maximum": 100 },
+    "role_signals": { "type": "object" },
+    "failure_tags": { "type": "array", "items": { "type": "string" } },
+    "first_failure_tags": { "type": "array", "items": { "type": "string" } },
+    "final_failure_tags": { "type": "array", "items": { "type": "string" } }
+  }
+}

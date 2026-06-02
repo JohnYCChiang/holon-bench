@@ -1,0 +1,27 @@
+--- FILE: src/storage.rs ---
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SaveGame {
+    pub slot: String,
+    pub payload: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum StorageError {
+    NotFound(String),
+    WriteFailed(String),
+    ReadFailed(String),
+}
+
+pub trait Storage {
+    fn write(&mut self, key: &str, value: &str) -> Result<(), StorageError>;
+    fn read(&self, key: &str) -> Result<String, StorageError>;
+}
+
+pub fn save_game(storage: &mut dyn Storage, save: &SaveGame) -> Result<(), StorageError> {
+    storage.write(&save.slot, &save.payload)
+}
+
+pub fn load_game(storage: &dyn Storage, slot: &str) -> Result<SaveGame, StorageError> {
+    let payload = storage.read(slot)?;
+    Ok(SaveGame { slot: slot.to_string(), payload })
+}
