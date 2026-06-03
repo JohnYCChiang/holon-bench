@@ -85,11 +85,12 @@ cases:
     verifier:
       commands: [cargo test --test worker_cancellation]
       hidden_commands: [sh -c 'cp hidden/worker_cancellation_hidden.rs tests/worker_cancellation_hidden.rs; trap "rm -f tests/worker_cancellation_hidden.rs" EXIT; cargo test --test worker_cancellation_hidden']
+      mutation_commands: [sh -c 'cp hidden/worker_cancellation_mutation.rs tests/worker_cancellation_mutation.rs; trap "rm -f tests/worker_cancellation_mutation.rs" EXIT; cargo test --test worker_cancellation_mutation']
       timeout_seconds: 90
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
       soft_metrics: [functional_correctness, test_quality, maintainability]
-    failure_tags: [cancellation_ignored, resource_leak, flaky_test, hidden_verifier_failed]
+    failure_tags: [cancellation_ignored, resource_leak, flaky_test, hidden_verifier_failed, mutation_verifier_failed]
   - id: rs-core-030
     track: rust_core
     language: rust
