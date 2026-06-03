@@ -28,6 +28,7 @@ cases:
     verifier:
       commands:
         - python3 -m unittest discover -s tests
+      hidden_commands:
         - python3 hidden/verify_policy.py
       timeout_seconds: 30
       semantic_checks: [graph_context_used]
@@ -70,6 +71,7 @@ cases:
     verifier:
       commands:
         - python3 -m unittest discover -s tests
+      hidden_commands:
         - python3 hidden/verify_review.py
       timeout_seconds: 30
       semantic_checks: [graph_relation_used]
@@ -108,6 +110,7 @@ cases:
     verifier:
       commands:
         - python3 -m unittest discover -s tests
+      hidden_commands:
         - python3 hidden/verify_scope.py
       timeout_seconds: 30
       semantic_checks: [project_scoped_graph_context]
