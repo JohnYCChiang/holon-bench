@@ -58,15 +58,16 @@ cases:
       - Shutdown must stop the loop.
     allowed_paths: [server/tick/**, server/tick/*_test.go]
     forbidden_paths: [go.mod]
-    protected_paths: [server/tick/*_test.go]
+    protected_paths: [server/tick/*_test.go, hidden/**]
     solution_paths: [server/tick/loop.go]
     verifier:
       commands: [go test ./server/tick -count=1]
+      hidden_commands: [sh -c 'cp hidden/tick_loop_hidden_test.go server/tick/tick_loop_hidden_test.go; trap "rm -f server/tick/tick_loop_hidden_test.go" EXIT; go test ./server/tick -run Hidden -count=1']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
       soft_metrics: [functional_correctness, test_quality, maintainability]
-    failure_tags: [flaky_test, cancellation_ignored, goroutine_leak]
+    failure_tags: [flaky_test, cancellation_ignored, goroutine_leak, hidden_verifier_failed]
   - id: go-game-021
     track: go_game_server
     language: go
