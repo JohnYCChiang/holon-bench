@@ -18,11 +18,12 @@ cases:
     verifier:
       commands: [go test ./internal/loader]
       hidden_commands: [sh -c 'cp hidden/loader_hidden_test.go internal/loader/loader_hidden_test.go; trap "rm -f internal/loader/loader_hidden_test.go" EXIT; go test ./internal/loader -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/loader_mutation_test.go internal/loader/loader_mutation_test.go; trap "rm -f internal/loader/loader_mutation_test.go" EXIT; go test ./internal/loader -run Mutation -count=1']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
       soft_metrics: [maintainability, test_quality, functional_correctness]
-    failure_tags: [missing_requirement, public_api_break, hidden_verifier_failed]
+    failure_tags: [missing_requirement, public_api_break, hidden_verifier_failed, mutation_verifier_failed]
   - id: go-core-009
     track: go_core
     language: go
