@@ -10,7 +10,7 @@
 - Total repair attempts: 16
 - Repair tax: 0.14 attempts/case
 - Protected/hidden verifier coverage: 44/118
-- Mutation verifier coverage: 1/118
+- Mutation verifier coverage: 2/118
 - Hidden/mutation failures: 3/1
 - Avg repair attempts to pass: 1.07
 - Max repair exhausted: 1
@@ -22,7 +22,7 @@
 
 - Integration: artifact output sometimes needs recovery; keep strict contract checks and pollution tags enabled
 - Integration: public verifiers can pass while hidden or mutation gates fail; expand hidden coverage before treating 100% public pass as production-ready
-- Integration: protected/hidden and mutation coverage is partial (44/118 protected/hidden, 1/118 mutation)
+- Integration: protected/hidden and mutation coverage is partial (44/118 protected/hidden, 2/118 mutation)
 - Deployment: 1 cases exhausted repair budget; enforce bounded loops, timeouts, and stop reasons
 - Operations: track first-pass and repaired-pass separately; repaired success is useful but has higher operating cost
 
@@ -47,7 +47,7 @@
 - Repaired cases: 0/0
 - Repair tax: 0.00 attempts/case
 - Protected/hidden verifier coverage: 4/15
-- Mutation verifier coverage: 0/15
+- Mutation verifier coverage: 1/15
 - Soft score avg: 100.00
 
 ### go_game_server
