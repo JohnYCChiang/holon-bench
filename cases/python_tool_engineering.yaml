@@ -63,15 +63,16 @@ cases:
       - Timeout must be configurable per call.
     allowed_paths: [src/shell_runner/**, tests/test_shell_runner_timeout.py]
     forbidden_paths: [src/shared/schema.py]
-    protected_paths: [tests/test_shell_runner_timeout.py]
+    protected_paths: [tests/test_shell_runner_timeout.py, hidden/**]
     solution_paths: [src/shell_runner/runner.py]
     verifier:
       commands: [python3 -m unittest tests.test_shell_runner_timeout]
+      hidden_commands: [python3 -m unittest hidden.test_shell_runner_hidden]
       timeout_seconds: 45
     scoring:
       hard_gates: [patch_applies, tests_pass, schema_valid, safety_pass]
       soft_metrics: [functional_correctness, contract_compliance, observability]
-    failure_tags: [timeout, unstructured_error, resource_leak]
+    failure_tags: [timeout, unstructured_error, resource_leak, hidden_verifier_failed]
   - id: py-tool-041
     track: python_tool_engineering
     language: python
