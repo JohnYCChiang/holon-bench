@@ -148,15 +148,16 @@ cases:
       - Report accepted and rejected counts.
     allowed_paths: [server/movement/**, server/movement/*_test.go]
     forbidden_paths: [go.mod]
-    protected_paths: [server/movement/*_test.go]
+    protected_paths: [server/movement/*_test.go, hidden/**]
     solution_paths: [server/movement/movement.go]
     verifier:
       commands: [go test ./server/movement]
+      hidden_commands: [sh -c 'cp hidden/movement_hidden_test.go server/movement/movement_hidden_test.go; trap "rm -f server/movement/movement_hidden_test.go" EXIT; go test ./server/movement -run Hidden -count=1']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
       soft_metrics: [functional_correctness, observability, test_quality]
-    failure_tags: [domain_rule_violation, fake_success]
+    failure_tags: [domain_rule_violation, fake_success, hidden_verifier_failed]
   - id: go-game-047
     track: go_game_server
     language: go
