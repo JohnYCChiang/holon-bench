@@ -2,27 +2,27 @@
 
 ## qwen36-35b-a3b-mtp-q8 [artifact/holon-cli]
 
-- Hard pass rate: 97.46%
-- First-pass rate: 85.59%
-- Final-pass rate: 97.46%
-- Repair conversion rate: 82.35%
-- Repaired cases: 14/17
+- Hard pass rate: 96.61%
+- First-pass rate: 84.75%
+- Final-pass rate: 96.61%
+- Repair conversion rate: 77.78%
+- Repaired cases: 14/18
 - Total repair attempts: 16
 - Repair tax: 0.14 attempts/case
-- Protected/hidden verifier coverage: 44/118
-- Mutation verifier coverage: 2/118
-- Hidden/mutation failures: 3/1
+- Protected/hidden verifier coverage: 45/118
+- Mutation verifier coverage: 3/118
+- Hidden/mutation failures: 3/2
 - Avg repair attempts to pass: 1.07
 - Max repair exhausted: 1
-- Soft score avg: 99.83
-- First failures: test_fail=11, missing_requirement=7, compile_fail=4, semantic_check_failed=4, hidden_verifier_failed=3, mutation_verifier_failed=1
-- Final failures: hidden_verifier_failed=3, mutation_verifier_failed=1, extra_text=1
+- Soft score avg: 99.79
+- First failures: test_fail=11, missing_requirement=7, compile_fail=4, semantic_check_failed=4, hidden_verifier_failed=3, mutation_verifier_failed=2
+- Final failures: hidden_verifier_failed=3, mutation_verifier_failed=2, extra_text=1
 
 ### Risk Summary
 
 - Integration: artifact output sometimes needs recovery; keep strict contract checks and pollution tags enabled
 - Integration: public verifiers can pass while hidden or mutation gates fail; expand hidden coverage before treating 100% public pass as production-ready
-- Integration: protected/hidden and mutation coverage is partial (44/118 protected/hidden, 2/118 mutation)
+- Integration: protected/hidden and mutation coverage is partial (45/118 protected/hidden, 3/118 mutation)
 - Deployment: 1 cases exhausted repair budget; enforce bounded loops, timeouts, and stop reasons
 - Operations: track first-pass and repaired-pass separately; repaired success is useful but has higher operating cost
 
@@ -52,15 +52,15 @@
 
 ### go_game_server
 
-- Hard pass rate: 93.33%
-- First-pass rate: 86.67%
-- Final-pass rate: 93.33%
-- Repair conversion rate: 50.00%
-- Repaired cases: 1/2
+- Hard pass rate: 86.67%
+- First-pass rate: 80.00%
+- Final-pass rate: 86.67%
+- Repair conversion rate: 33.33%
+- Repaired cases: 1/3
 - Repair tax: 0.07 attempts/case
-- Protected/hidden verifier coverage: 5/15
-- Mutation verifier coverage: 0/15
-- Soft score avg: 99.67
+- Protected/hidden verifier coverage: 6/15
+- Mutation verifier coverage: 1/15
+- Soft score avg: 99.33
 
 ### graph_memory_workflow
 
