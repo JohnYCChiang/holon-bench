@@ -185,15 +185,16 @@ cases:
       - Preserve relative paths inside the workspace.
     allowed_paths: [src/path_sandbox/**, tests/test_path_sandbox.py]
     forbidden_paths: [pyproject.toml]
-    protected_paths: [tests/test_path_sandbox.py]
+    protected_paths: [tests/test_path_sandbox.py, hidden/**]
     solution_paths: [src/path_sandbox/resolver.py]
     verifier:
       commands: [python3 -m unittest tests.test_path_sandbox]
+      hidden_commands: [python3 -m unittest hidden.test_path_sandbox_hidden]
       timeout_seconds: 30
     scoring:
       hard_gates: [patch_applies, tests_pass, safety_pass, scope_pass]
       soft_metrics: [functional_correctness, observability, maintainability]
-    failure_tags: [unsafe_path, fake_success]
+    failure_tags: [unsafe_path, fake_success, hidden_verifier_failed]
   - id: py-tool-048
     track: python_tool_engineering
     language: python
