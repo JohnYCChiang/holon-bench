@@ -104,15 +104,17 @@ cases:
       - Do not serialize the entire server behind one global lock.
     allowed_paths: [server/runtime/**, server/runtime/*_test.go]
     forbidden_paths: [go.mod]
-    protected_paths: [server/runtime/*_test.go]
+    protected_paths: [server/runtime/*_test.go, hidden/**]
     solution_paths: [server/runtime/server.go]
     verifier:
       commands: [go test -race ./server/runtime]
+      hidden_commands: [sh -c 'cp hidden/server_hidden_test.go server/runtime/server_hidden_test.go; trap "rm -f server/runtime/server_hidden_test.go" EXIT; go test -race ./server/runtime -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/server_mutation_test.go server/runtime/server_mutation_test.go; trap "rm -f server/runtime/server_mutation_test.go" EXIT; go test -race ./server/runtime -run Mutation -count=1']
       timeout_seconds: 120
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
       soft_metrics: [functional_correctness, maintainability, minimality]
-    failure_tags: [race_condition, goroutine_leak, over_refactor]
+    failure_tags: [race_condition, goroutine_leak, over_refactor, hidden_verifier_failed, mutation_verifier_failed]
   - id: go-game-028
     track: go_game_server
     language: go
