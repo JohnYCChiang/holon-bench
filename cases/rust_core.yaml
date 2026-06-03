@@ -126,15 +126,16 @@ cases:
       - Preserve existing command representation.
     allowed_paths: [src/lib.rs, src/command.rs, tests/module_visibility.rs]
     forbidden_paths: [Cargo.toml]
-    protected_paths: [tests/module_visibility.rs]
+    protected_paths: [tests/module_visibility.rs, hidden/**]
     solution_paths: [src/lib.rs, src/command.rs]
     verifier:
       commands: [cargo test --test module_visibility]
+      hidden_commands: [python3 hidden/verify_internal_private.py]
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
       soft_metrics: [contract_compliance, maintainability, minimality]
-    failure_tags: [public_api_break, compile_fail]
+    failure_tags: [public_api_break, compile_fail, hidden_verifier_failed]
   - id: rs-core-038
     track: rust_core
     language: rust
