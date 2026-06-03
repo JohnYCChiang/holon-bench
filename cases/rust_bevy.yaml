@@ -103,15 +103,16 @@ cases:
       - Keep plugin registration unchanged.
     allowed_paths: [src/score.rs, src/systems/score.rs, tests/score_logic.rs]
     forbidden_paths: [Cargo.toml]
-    protected_paths: [tests/score_logic.rs]
+    protected_paths: [tests/score_logic.rs, hidden/**]
     solution_paths: [src/score.rs, src/systems/score.rs]
     verifier:
       commands: [cargo test score_logic]
+      hidden_commands: [sh -c 'cp hidden/score_logic_hidden.rs tests/score_logic_hidden.rs; trap "rm -f tests/score_logic_hidden.rs" EXIT; cargo test --test score_logic_hidden']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
       soft_metrics: [test_quality, maintainability, minimality]
-    failure_tags: [over_refactor, missing_requirement]
+    failure_tags: [over_refactor, missing_requirement, hidden_verifier_failed]
   - id: bevy-046
     track: rust_bevy
     language: rust
