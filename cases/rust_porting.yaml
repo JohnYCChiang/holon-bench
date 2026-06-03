@@ -59,7 +59,7 @@ cases:
       - Do not invoke through a shell unless explicitly requested.
     allowed_paths: [rust/src/process.rs]
     forbidden_paths: [python/**]
-    protected_paths: [python/**, rust/tests/**, rust/Cargo.toml, rust/Cargo.lock]
+    protected_paths: [python/**, rust/tests/**, rust/Cargo.toml, rust/Cargo.lock, hidden/**]
     solution_paths: [rust/src/process.rs]
     verifier:
       commands: [cargo test --manifest-path rust/Cargo.toml --test process_parity]
@@ -83,16 +83,17 @@ cases:
       - Preserve structured timeout error code.
     allowed_paths: [rust/src/retry.rs]
     forbidden_paths: [python/**, Cargo.toml]
-    protected_paths: [python/**, rust/tests/**, rust/Cargo.toml, rust/Cargo.lock]
+    protected_paths: [python/**, rust/tests/**, rust/Cargo.toml, rust/Cargo.lock, hidden/**]
     solution_paths: [rust/src/retry.rs]
     verifier:
       commands: [cargo test --manifest-path rust/Cargo.toml --test retry_parity]
+      hidden_commands: [sh -c 'cp hidden/retry_cancellation_hidden.rs rust/tests/retry_cancellation_hidden.rs; trap "rm -f rust/tests/retry_cancellation_hidden.rs" EXIT; cargo test --manifest-path rust/Cargo.toml --test retry_cancellation_hidden']
       semantic_checks: [python_rust_json_equivalence]
       timeout_seconds: 90
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, safety_pass, scope_pass, semantic_pass]
       soft_metrics: [functional_correctness, contract_compliance, test_quality]
-    failure_tags: [cancellation_ignored, error_taxonomy_mismatch, behavior_not_equivalent]
+    failure_tags: [cancellation_ignored, error_taxonomy_mismatch, behavior_not_equivalent, hidden_verifier_failed]
   - id: rs-port-045
     track: rust_porting
     language: rust
