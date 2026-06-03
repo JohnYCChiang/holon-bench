@@ -126,15 +126,16 @@ cases:
       - Do not add Bevy runtime dependencies.
     allowed_paths: [src/input.rs, tests/input_mapping.rs]
     forbidden_paths: [Cargo.toml]
-    protected_paths: [tests/input_mapping.rs]
+    protected_paths: [tests/input_mapping.rs, hidden/**]
     solution_paths: [src/input.rs]
     verifier:
       commands: [cargo test --test input_mapping]
+      hidden_commands: [sh -c 'cp hidden/input_mapping_hidden.rs tests/input_mapping_hidden.rs; trap "rm -f tests/input_mapping_hidden.rs" EXIT; cargo test --test input_mapping_hidden']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
       soft_metrics: [functional_correctness, maintainability, minimality]
-    failure_tags: [wrong_edge_case, missing_requirement]
+    failure_tags: [wrong_edge_case, missing_requirement, hidden_verifier_failed]
   - id: bevy-051
     track: rust_bevy
     language: rust
