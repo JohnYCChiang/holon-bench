@@ -58,15 +58,17 @@ cases:
       - Add tests proving one request per logical refresh.
     allowed_paths: [lib/state/**, lib/services/**, test/state/**]
     forbidden_paths: [pubspec.yaml]
-    protected_paths: [test/state/**]
+    protected_paths: [test/state/**, hidden/**]
     solution_paths: [lib/state/user_controller.dart]
     verifier:
       commands: [flutter test test/state]
+      hidden_commands: [sh -c 'cp hidden/user_controller_hidden_test.dart test/state/user_controller_hidden_test.dart; trap "rm -f test/state/user_controller_hidden_test.dart" EXIT; flutter test test/state/user_controller_hidden_test.dart']
+      mutation_commands: [sh -c 'cp hidden/user_controller_mutation_test.dart test/state/user_controller_mutation_test.dart; trap "rm -f test/state/user_controller_mutation_test.dart" EXIT; flutter test test/state/user_controller_mutation_test.dart']
       timeout_seconds: 120
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
       soft_metrics: [functional_correctness, maintainability, test_quality]
-    failure_tags: [wrong_edge_case, over_refactor]
+    failure_tags: [wrong_edge_case, over_refactor, hidden_verifier_failed, mutation_verifier_failed]
   - id: flutter-027
     track: flutter_cross_platform
     language: dart
