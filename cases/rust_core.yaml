@@ -57,15 +57,16 @@ cases:
       - Add tests for adapter dispatch.
     allowed_paths: [src/traits.rs, src/adapters/**, tests/adapter_dispatch.rs]
     forbidden_paths: [Cargo.toml]
-    protected_paths: [tests/adapter_dispatch.rs, tests/existing_impls.rs]
+    protected_paths: [tests/adapter_dispatch.rs, tests/existing_impls.rs, hidden/**]
     solution_paths: [src/adapters/prefix.rs]
     verifier:
       commands: [cargo test --test adapter_dispatch, cargo test --test existing_impls]
+      hidden_commands: [sh -c 'cp hidden/adapter_boundary_hidden.rs tests/adapter_boundary_hidden.rs; trap "rm -f tests/adapter_boundary_hidden.rs" EXIT; cargo test --test adapter_boundary_hidden']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
       soft_metrics: [contract_compliance, maintainability, test_quality]
-    failure_tags: [public_api_break, missing_requirement]
+    failure_tags: [public_api_break, missing_requirement, hidden_verifier_failed]
   - id: rs-core-021
     track: rust_core
     language: rust
