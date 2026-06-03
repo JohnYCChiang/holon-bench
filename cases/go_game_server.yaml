@@ -126,15 +126,17 @@ cases:
       - Cancelled players cannot be matched later.
     allowed_paths: [server/match/**, server/match/*_test.go]
     forbidden_paths: [go.mod]
-    protected_paths: [server/match/*_test.go]
+    protected_paths: [server/match/*_test.go, hidden/**]
     solution_paths: [server/match/queue.go]
     verifier:
       commands: [go test ./server/match]
+      hidden_commands: [sh -c 'cp hidden/queue_hidden_test.go server/match/queue_hidden_test.go; trap "rm -f server/match/queue_hidden_test.go" EXIT; go test ./server/match -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/queue_mutation_test.go server/match/queue_mutation_test.go; trap "rm -f server/match/queue_mutation_test.go" EXIT; go test ./server/match -run Mutation -count=1']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
       soft_metrics: [functional_correctness, maintainability, observability]
-    failure_tags: [wrong_edge_case, cancellation_ignored]
+    failure_tags: [wrong_edge_case, cancellation_ignored, hidden_verifier_failed, mutation_verifier_failed]
   - id: go-game-044
     track: go_game_server
     language: go
