@@ -9,8 +9,8 @@
 - Repaired cases: 14/19
 - Total repair attempts: 16
 - Repair tax: 0.14 attempts/case
-- Protected/hidden verifier coverage: 47/118
-- Mutation verifier coverage: 7/118
+- Protected/hidden verifier coverage: 48/118
+- Mutation verifier coverage: 8/118
 - Hidden/mutation failures: 3/3
 - Avg repair attempts to pass: 1.07
 - Max repair exhausted: 1
@@ -22,7 +22,7 @@
 
 - Integration: artifact output sometimes needs recovery; keep strict contract checks and pollution tags enabled
 - Integration: public verifiers can pass while hidden or mutation gates fail; expand hidden coverage before treating 100% public pass as production-ready
-- Integration: protected/hidden and mutation coverage is partial (47/118 protected/hidden, 7/118 mutation)
+- Integration: protected/hidden and mutation coverage is partial (48/118 protected/hidden, 8/118 mutation)
 - Deployment: 1 cases exhausted repair budget; enforce bounded loops, timeouts, and stop reasons
 - Operations: track first-pass and repaired-pass separately; repaired success is useful but has higher operating cost
 
@@ -106,8 +106,8 @@
 - Repair conversion rate: 0.00%
 - Repaired cases: 0/1
 - Repair tax: 0.00 attempts/case
-- Protected/hidden verifier coverage: 5/15
-- Mutation verifier coverage: 0/15
+- Protected/hidden verifier coverage: 6/15
+- Mutation verifier coverage: 1/15
 - Soft score avg: 99.67
 
 ### rust_core
