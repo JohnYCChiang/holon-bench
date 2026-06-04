@@ -203,6 +203,11 @@ def ensure_git_repo(workspace: pathlib.Path) -> None:
     )
 
 
+def generation_fixture_ignore(_directory: str, names: list[str]) -> set[str]:
+    ignored = {".git", ".holon", "__pycache__", "target", "bench_prompt.txt", ".bench"}
+    return {name for name in names if name in ignored or name == "hidden"}
+
+
 def run_process_group(
     command: list[str],
     *,
@@ -274,7 +279,7 @@ def extract_artifact_blocks(text: str, solution_paths: list[str]) -> str | None:
     marker = "--- FILE: "
     start = text.find(marker)
     if start == -1:
-        return None
+        return extract_write_file_tool_calls(text, solution_paths)
     candidate = text[start:].strip()
     if candidate.endswith("```"):
         candidate = candidate[:-3].strip()
@@ -292,7 +297,32 @@ def extract_artifact_blocks(text: str, solution_paths: list[str]) -> str | None:
     }
     if actual == expected or actual_without_placeholders == expected:
         return candidate.rstrip("\r\n") + "\n"
-    return None
+    return extract_write_file_tool_calls(text, solution_paths)
+
+
+def extract_write_file_tool_calls(text: str, solution_paths: list[str]) -> str | None:
+    files: dict[str, str] = {}
+    for call in re.findall(
+        r"<function=write_file>(.*?)</function>",
+        text,
+        flags=re.DOTALL | re.IGNORECASE,
+    ):
+        params = {
+            name.lower(): value.strip("\r\n")
+            for name, value in re.findall(
+                r"<parameter=(path|content)>\s*(.*?)\s*</parameter>",
+                call,
+                flags=re.DOTALL | re.IGNORECASE,
+            )
+        }
+        if "path" in params and "content" in params:
+            files[params["path"].strip()] = params["content"]
+
+    if set(files) != set(solution_paths):
+        return None
+    return "".join(
+        f"--- FILE: {path} ---\n{files[path].rstrip()}\n" for path in solution_paths
+    )
 
 
 def normalize_artifact_submission(text: str, solution_paths: list[str]) -> str:
@@ -695,8 +725,7 @@ def run_holon_cli_driver(
     source = (root / case["fixture"]).resolve()
     with tempfile.TemporaryDirectory(prefix=f"holon-bench-{case['id']}-") as temp:
         workspace = pathlib.Path(temp) / source.name
-        ignore = shutil.ignore_patterns(".git", ".holon", "__pycache__", "target", "bench_prompt.txt")
-        shutil.copytree(source, workspace, ignore=ignore)
+        shutil.copytree(source, workspace, ignore=generation_fixture_ignore)
         ensure_git_repo(workspace)
 
         holon_dir = workspace / ".holon"
