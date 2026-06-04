@@ -259,15 +259,17 @@ cases:
       - Preserve remaining accumulator time.
     allowed_paths: [src/time.rs, tests/fixed_timestep.rs]
     forbidden_paths: [Cargo.toml]
-    protected_paths: [tests/fixed_timestep.rs]
+    protected_paths: [tests/fixed_timestep.rs, hidden/**]
     solution_paths: [src/time.rs]
     verifier:
       commands: [cargo test --test fixed_timestep]
+      hidden_commands: [sh -c 'cp hidden/fixed_timestep_hidden.rs tests/fixed_timestep_hidden.rs; trap "rm -f tests/fixed_timestep_hidden.rs" EXIT; cargo test --test fixed_timestep_hidden']
+      mutation_commands: [sh -c 'cp hidden/fixed_timestep_mutation.rs tests/fixed_timestep_mutation.rs; trap "rm -f tests/fixed_timestep_mutation.rs" EXIT; cargo test --test fixed_timestep_mutation']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass]
       soft_metrics: [functional_correctness, test_quality, maintainability]
-    failure_tags: [wrong_edge_case, fake_success]
+    failure_tags: [wrong_edge_case, fake_success, hidden_verifier_failed, mutation_verifier_failed]
   - id: bevy-081
     track: rust_bevy
     language: rust
