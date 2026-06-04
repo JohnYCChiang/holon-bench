@@ -210,15 +210,17 @@ cases:
       - Include attempts and retried in every response.
     allowed_paths: [src/retry_tool/**, tests/test_retry_taxonomy.py]
     forbidden_paths: [pyproject.toml]
-    protected_paths: [tests/test_retry_taxonomy.py]
+    protected_paths: [tests/test_retry_taxonomy.py, hidden/**]
     solution_paths: [src/retry_tool/retry.py]
     verifier:
       commands: [python3 -m unittest tests.test_retry_taxonomy]
+      hidden_commands: [python3 -m unittest hidden.test_retry_taxonomy_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_retry_taxonomy_mutation]
       timeout_seconds: 30
     scoring:
       hard_gates: [patch_applies, tests_pass, schema_valid]
       soft_metrics: [functional_correctness, observability, contract_compliance]
-    failure_tags: [wrong_edge_case, unstructured_error]
+    failure_tags: [wrong_edge_case, unstructured_error, hidden_verifier_failed, mutation_verifier_failed]
   - id: py-tool-064
     track: python_tool_engineering
     language: python
