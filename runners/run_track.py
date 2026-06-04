@@ -274,6 +274,13 @@ def main() -> int:
                         ],
                         allowed_returncodes={0, 1},
                     )
+                    preserve_better_previous_attempt(
+                        result_path=result_path,
+                        artifact_path=patch_path,
+                        previous_result_path=previous_result_path,
+                        previous_artifact_path=previous_patch_path,
+                        attempt_number=attempt_number,
+                    )
                     annotate_result(
                         result_path,
                         driver=args.driver,
@@ -349,6 +356,45 @@ def annotate_result(
     write_json(result_path, result)
 
 
+def preserve_better_previous_attempt(
+    *,
+    result_path: pathlib.Path,
+    artifact_path: pathlib.Path,
+    previous_result_path: pathlib.Path,
+    previous_artifact_path: pathlib.Path,
+    attempt_number: int,
+) -> bool:
+    current = json.loads(result_path.read_text(encoding="utf-8"))
+    previous = json.loads(previous_result_path.read_text(encoding="utf-8"))
+    current_score = sum(bool(value) for value in current.get("hard_gates", {}).values())
+    previous_score = sum(bool(value) for value in previous.get("hard_gates", {}).values())
+    if current_score >= previous_score:
+        return False
+
+    rejected_result_path = result_path.with_name(
+        result_path.name.replace("_result.json", f"_attempt{attempt_number}_rejected_result.json")
+    )
+    rejected_artifact_path = artifact_path.with_name(
+        artifact_path.name.replace(
+            artifact_path.suffix,
+            f"_attempt{attempt_number}_rejected{artifact_path.suffix}",
+        )
+    )
+    shutil.copy2(result_path, rejected_result_path)
+    shutil.copy2(artifact_path, rejected_artifact_path)
+    shutil.copy2(previous_result_path, result_path)
+    shutil.copy2(previous_artifact_path, artifact_path)
+
+    restored = json.loads(result_path.read_text(encoding="utf-8"))
+    restored["repair_reverted"] = True
+    restored["rejected_repair_result"] = rejected_result_path.name
+    restored["rejected_repair_artifact"] = rejected_artifact_path.name
+    restored["rejected_repair_failure_tags"] = current.get("failure_tags", [])
+    restored["rejected_repair_hard_gates"] = current.get("hard_gates", {})
+    write_json(result_path, restored)
+    return True
+
+
 def annotate_repair_seed(result_path: pathlib.Path) -> None:
     result = json.loads(result_path.read_text(encoding="utf-8"))
     result["repair_seeded"] = True
@@ -395,13 +441,28 @@ def build_feedback_error(case: dict, result: dict) -> str:
         return f"Artifact/patch application failed.\nStderr: {sub_stderr}\nStdout: {sub_stdout}"
 
     failed_cmds = []
-    for cmd in result.get("commands", []):
-        if cmd.get("exit_code") != 0 or cmd.get("timed_out"):
+    command_groups = (
+        ("public verifier", "commands"),
+        ("hidden verifier", "hidden_commands"),
+        ("mutation verifier", "mutation_commands"),
+    )
+    for label, group in command_groups:
+        for cmd in result.get(group, []) or []:
+            if cmd.get("exit_code") != 0 or cmd.get("timed_out"):
+                failed_cmds.append(
+                    f"{label.title()} failed.\n"
+                    f"Command: {cmd.get('command')}\n"
+                    f"Exit Code: {cmd.get('exit_code')}\n"
+                    f"Timed Out: {bool(cmd.get('timed_out'))}\n"
+                    f"Stdout:\n{cmd.get('stdout', '')}\n"
+                    f"Stderr:\n{cmd.get('stderr', '')}"
+                )
+    for check in result.get("semantic_checks", []) or []:
+        if isinstance(check, dict) and not check.get("passed", True):
             failed_cmds.append(
-                f"Command: {cmd.get('command')}\n"
-                f"Exit Code: {cmd.get('exit_code')}\n"
-                f"Stdout:\n{cmd.get('stdout', '')}\n"
-                f"Stderr:\n{cmd.get('stderr', '')}"
+                "Semantic verifier failed.\n"
+                f"Check: {check.get('name', check.get('check', 'unknown'))}\n"
+                f"Diagnostic: {check.get('message', check.get('detail', check))}"
             )
     if failed_cmds:
         feedback = "\n\n".join(failed_cmds)
