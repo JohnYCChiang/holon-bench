@@ -304,15 +304,17 @@ cases:
       - Race detector must pass.
     allowed_paths: [internal/pool/**, internal/pool/*_test.go]
     forbidden_paths: [go.mod]
-    protected_paths: [internal/pool/*_test.go]
+    protected_paths: [internal/pool/*_test.go, hidden/**]
     solution_paths: [internal/pool/pool.go]
     verifier:
       commands: [go test -race ./internal/pool]
+      hidden_commands: [sh -c 'cp hidden/pool_hidden_test.go internal/pool/pool_hidden_test.go; trap "rm -f internal/pool/pool_hidden_test.go" EXIT; go test -race ./internal/pool -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/pool_mutation_test.go internal/pool/pool_mutation_test.go; trap "rm -f internal/pool/pool_mutation_test.go" EXIT; go test -race ./internal/pool -run Mutation -count=1']
       timeout_seconds: 90
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
       soft_metrics: [functional_correctness, maintainability]
-    failure_tags: [race_condition, wrong_edge_case]
+    failure_tags: [race_condition, wrong_edge_case, hidden_verifier_failed, mutation_verifier_failed]
   - id: go-core-081
     track: go_core
     language: go
