@@ -13,15 +13,17 @@ cases:
       - Add pure tests for damage application.
     allowed_paths: [src/components/**, src/systems/health.rs, tests/health_logic.rs]
     forbidden_paths: [Cargo.toml]
-    protected_paths: [tests/health_logic.rs]
+    protected_paths: [tests/health_logic.rs, hidden/**]
     solution_paths: [src/systems/health.rs]
     verifier:
       commands: [cargo test health_logic]
+      hidden_commands: [sh -c 'cp hidden/health_logic_hidden.rs tests/health_logic_hidden.rs; trap "rm -f tests/health_logic_hidden.rs" EXIT; cargo test --test health_logic_hidden']
+      mutation_commands: [sh -c 'cp hidden/health_logic_mutation.rs tests/health_logic_mutation.rs; trap "rm -f tests/health_logic_mutation.rs" EXIT; cargo test --test health_logic_mutation']
       timeout_seconds: 90
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
       soft_metrics: [maintainability, test_quality, functional_correctness]
-    failure_tags: [domain_rule_violation, over_refactor]
+    failure_tags: [domain_rule_violation, over_refactor, hidden_verifier_failed, mutation_verifier_failed]
   - id: bevy-008
     track: rust_bevy
     language: rust
