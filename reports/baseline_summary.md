@@ -102,7 +102,7 @@ python3 runners/run_track.py python_tool_engineering \
   --model qwen36-27b-mtp-q4 \
   --endpoint http://127.0.0.1:8086/v1 \
   --bench-root . \
-  --repair-budget 3
+  --repair-attempts 3
 
 # Antigravity CLI baseline cases are in golden_patches/:
 # golden_patches/py-tool-001.diff

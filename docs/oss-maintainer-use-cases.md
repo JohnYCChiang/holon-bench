@@ -66,7 +66,7 @@ Holon-Bench measures all five. Before you adopt Codex, Claude, Gemini, or any ot
 - `avg_repair_attempts_to_pass` — among cases that eventually pass, how many turns did it take?
 - Compare: a model with `first_pass=0.60, repair_tax=0.4` vs. `first_pass=0.45, repair_tax=1.8` — very different operating costs.
 
-**Recommended tracks to run**: All tracks with `--repair-budget 3` flag.
+**Recommended tracks to run**: All tracks with `--repair-attempts 3`.
 
 ---
 
@@ -92,12 +92,13 @@ cd holon-bench
 # 2. Run schema check (no API key required)
 python3 runners/schema_check.py .
 
-# 3. Run 5 cases from python_tool_engineering against your model endpoint
+# 3. Run selected cases from python_tool_engineering against your model endpoint
 python3 runners/run_track.py python_tool_engineering \
   --model your-model-name \
   --endpoint http://your-endpoint/v1 \
   --bench-root . \
-  --limit 5
+  --repair-attempts 3 \
+  --case-ids py-tool-001,py-tool-009,py-tool-018,py-tool-041,py-tool-056
 
 # 4. Read the report
 cat reports/your-model-name_python_tool_engineering_report.json
