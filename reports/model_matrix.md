@@ -2,28 +2,29 @@
 
 ## qwen36-35b-a3b-mtp-q8 [artifact/holon-cli]
 
-- Hard pass rate: 95.76%
-- First-pass rate: 83.90%
-- Final-pass rate: 95.76%
-- Repair conversion rate: 73.68%
-- Repaired cases: 14/19
+- Hard pass rate: 94.92%
+- First-pass rate: 83.05%
+- Final-pass rate: 94.92%
+- Repair conversion rate: 70.00%
+- Repaired cases: 14/20
 - Total repair attempts: 16
 - Repair tax: 0.14 attempts/case
-- Protected/hidden verifier coverage: 48/118
-- Mutation verifier coverage: 8/118
-- Hidden/mutation failures: 3/3
+- Protected/hidden verifier coverage: 49/118
+- Mutation verifier coverage: 9/118
+- Hidden/mutation failures: 3/4
 - Avg repair attempts to pass: 1.07
 - Max repair exhausted: 1
-- Soft score avg: 99.75
-- First failures: test_fail=11, missing_requirement=7, compile_fail=4, semantic_check_failed=4, hidden_verifier_failed=3, mutation_verifier_failed=3
-- Final failures: hidden_verifier_failed=3, mutation_verifier_failed=3, extra_text=1
+- Soft score avg: 99.70
+- First failures: test_fail=11, missing_requirement=7, mutation_verifier_failed=4, compile_fail=4, semantic_check_failed=4, hidden_verifier_failed=3
+- Final failures: mutation_verifier_failed=4, hidden_verifier_failed=3, extra_text=1
 
 ### Risk Summary
 
 - Integration: artifact output sometimes needs recovery; keep strict contract checks and pollution tags enabled
 - Integration: public verifiers can pass while hidden or mutation gates fail; expand hidden coverage before treating 100% public pass as production-ready
-- Integration: protected/hidden and mutation coverage is partial (48/118 protected/hidden, 8/118 mutation)
+- Integration: protected/hidden and mutation coverage is partial (49/118 protected/hidden, 9/118 mutation)
 - Deployment: 1 cases exhausted repair budget; enforce bounded loops, timeouts, and stop reasons
+- Deployment: final pass rate is below 95%; use staged rollout or human approval for higher-impact changes
 - Operations: track first-pass and repaired-pass separately; repaired success is useful but has higher operating cost
 
 ### flutter_cross_platform
@@ -100,15 +101,15 @@
 
 ### rust_bevy
 
-- Hard pass rate: 93.33%
-- First-pass rate: 93.33%
-- Final-pass rate: 93.33%
+- Hard pass rate: 86.67%
+- First-pass rate: 86.67%
+- Final-pass rate: 86.67%
 - Repair conversion rate: 0.00%
-- Repaired cases: 0/1
+- Repaired cases: 0/2
 - Repair tax: 0.00 attempts/case
-- Protected/hidden verifier coverage: 6/15
-- Mutation verifier coverage: 1/15
-- Soft score avg: 99.67
+- Protected/hidden verifier coverage: 7/15
+- Mutation verifier coverage: 2/15
+- Soft score avg: 99.33
 
 ### rust_core
 
