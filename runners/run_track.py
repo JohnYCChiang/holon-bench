@@ -54,13 +54,25 @@ def main() -> int:
     parser.add_argument("--generation-timeout-seconds", type=float, default=90.0)
     parser.add_argument("--holon-max-iterations", type=int, default=100)
     parser.add_argument("--holon-auto-timeout-seconds", type=float, default=75.0)
-    parser.add_argument("--repair-attempts", type=int, default=0)
+    parser.add_argument(
+        "--repair-attempts",
+        "--repair-budget",
+        dest="repair_attempts",
+        type=int,
+        default=0,
+        help="Maximum verifier-feedback repair attempts. --repair-budget is deprecated.",
+    )
     parser.add_argument(
         "--case-ids",
         default="",
         help="Comma-separated case ids to run. Defaults to every case in the track.",
     )
     args = parser.parse_args()
+    if any(arg == "--repair-budget" or arg.startswith("--repair-budget=") for arg in sys.argv):
+        print(
+            "warning: --repair-budget is deprecated; use --repair-attempts",
+            file=sys.stderr,
+        )
 
     root = bench_root(args.bench_root)
     runners = root / "runners"

@@ -25,6 +25,9 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: python3 runners/schema_check.py .
 
+      - name: Validate documented runner commands
+        run: python3 runners/docs_check.py .
+
   py-compile:
     name: Python Compile Check
     runs-on: ubuntu-latest
@@ -54,23 +57,8 @@ jobs:
       - name: Install dependencies
         run: pip install pyyaml jsonschema
 
-      - name: Validate fixture for py-tool-001
-        run: |
-          python3 - <<'EOF'
-          import sys
-          sys.path.insert(0, "runners")
-          from common import bench_root, load_cases
-          root = bench_root(".")
-          cases = load_cases(root)
-          target = [c for c in cases if c.get("id") == "py-tool-001"]
-          if not target:
-              print("ERROR: py-tool-001 not found", file=sys.stderr)
-              sys.exit(1)
-          case = target[0]
-          assert case.get("track"), "missing track"
-          assert case.get("verifier", {}).get("commands"), "missing verifier commands"
-          print(f"smoke-test: py-tool-001 OK (track={case['track']})")
-          EOF
+      - name: Run deterministic benchmark pipeline smoke test
+        run: python3 runners/ci_smoke.py .
 
   report-artifact:
     name: Upload Report Artifact

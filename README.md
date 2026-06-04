@@ -71,6 +71,8 @@ examples/        Minimal runnable sample cases to onboard new contributors.
 ```bash
 python3 runners/schema_check.py .
 python3 -m py_compile runners/*.py
+python3 runners/docs_check.py .
+python3 runners/ci_smoke.py .
 ```
 
 ### Run a single case against any OpenAI-compatible endpoint
@@ -93,8 +95,12 @@ python3 runners/run_case.py py-tool-001 \
 python3 runners/run_track.py python_tool_engineering \
   --model <your-model-name> \
   --endpoint http://127.0.0.1:8086/v1 \
+  --repair-attempts 3 \
   --bench-root .
 ```
+
+`--repair-attempts` is the canonical repair-loop flag. The deprecated
+`--repair-budget` alias remains accepted for older automation.
 
 ### Use artifact protocol instead of strict unified diff
 
