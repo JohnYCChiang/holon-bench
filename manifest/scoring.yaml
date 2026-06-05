@@ -43,6 +43,20 @@ role_scores:
       - maintainability_critique_quality
       - risk_identification
       - false_positive_rate
+  planner:
+    metrics:
+      - requirement_decomposition
+      - scope_boundary_accuracy
+      - verifier_awareness
+      - repair_plan_quality
+      - dependency_risk_identification
+  tool_maker:
+    metrics:
+      - tool_contract_quality
+      - structured_error_quality
+      - idempotency
+      - path_safety
+      - regression_harness_quality
   porting_worker:
     metrics:
       - schema_parity

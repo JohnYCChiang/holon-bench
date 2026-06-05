@@ -65,6 +65,12 @@ def main() -> int:
         "contract_worker": score_bool(hard_gates.get("schema_valid")) * 0.5 + score_bool(hard_gates.get("scope_pass")) * 0.5,
         "patch_worker": score_bool(hard_gates.get("patch_applies")) * 0.3 + score_bool(hard_gates.get("tests_pass")) * 0.7,
         "reviewer": 0.0,
+        "planner": 0.0,
+        "tool_maker": (
+            score_bool(hard_gates.get("schema_valid")) * 0.4
+            + score_bool(hard_gates.get("tests_pass")) * 0.4
+            + score_bool(diff.get("has_regression_test_signal")) * 0.2
+        ),
         "porting_worker": porting_signal,
         "game_system_worker": 0.0,
         "cross_platform_app_worker": 0.0,

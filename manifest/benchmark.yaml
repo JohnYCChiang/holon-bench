@@ -2,13 +2,13 @@ id: holon-bench-v0.1
 name: Holon Benchmark v0.1
 phase: phase_2_compact_core
 case_count_target:
-  phase_1: 35
+  phase_1: 48
   phase_2: 118
   phase_3: 365
   phase_4: 500
 purpose: >
   Evaluate whether a model can act as a reliable organ inside Holon workflows:
-  contract worker, patcher, reviewer, planner, tool maker, porting worker,
+  contract worker, patch_worker, reviewer, planner, tool_maker, porting worker,
   game system worker, or cross-platform app worker.
 reporting:
   minimum_cases_for_routing: 5
