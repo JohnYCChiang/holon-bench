@@ -384,6 +384,8 @@ GRAPH_SEMANTIC_CHECKS = {
     "project_scoped_graph_context",
 }
 
+HOLON_CLI_MAX_AGENT_ITERATIONS = 12
+
 
 def detect_called_tools(text: str) -> list[str]:
     called: set[str] = set()
@@ -736,11 +738,15 @@ def run_holon_cli_driver(
                 encoding="utf-8",
             )
         cognitive_recall = bool(case.get("cognitive_recall", False))
+        agent_max_iterations = max(
+            4,
+            min(args.holon_max_iterations, HOLON_CLI_MAX_AGENT_ITERATIONS),
+        )
         (holon_dir / "settings.json").write_text(
             json.dumps(
                 {
                     "capabilities": {
-                        "maxIterations": args.holon_max_iterations,
+                        "maxIterations": agent_max_iterations,
                         "autoIsolate": True,
                         "cognitiveRecall": {
                             "enabled": cognitive_recall,
@@ -764,6 +770,7 @@ def run_holon_cli_driver(
         home_dir.mkdir(parents=True, exist_ok=True)
         env["HOME"] = str(home_dir)
         env["LLAMACPP_BASE_URL"] = args.endpoint
+        env["LLAMACPP_API_KEY"] = "dummy"
         env["OLLAMA_BASE_URL"] = args.endpoint
         env["KLAW_MODEL"] = args.model
         env.setdefault("ANTHROPIC_API_KEY", "dummy")
@@ -883,7 +890,7 @@ def run_holon_cli_driver(
             env,
             args,
             fallback_prompt,
-            timeout=args.holon_timeout_seconds,
+            timeout=min(args.holon_timeout_seconds, args.holon_auto_timeout_seconds),
         )
         metadata = collect_holon_trace(
             workspace=workspace,
