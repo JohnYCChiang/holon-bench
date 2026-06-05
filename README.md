@@ -153,8 +153,8 @@ Holon-Bench is not tied to Holon or any single model backend. Current baselines 
 |---|---|---|---|
 | `antigravity-cli` | External CLI agent (Google) | L2 graybox workspace | `python_tool_engineering` (3/5 cases) |
 | `codex` | External CLI agent (OpenAI) | L2 graybox workspace | pending |
-| `qwen36-27b-mtp-q4` | Local OpenAI-compatible endpoint | L1 blackbox artifact | `python_tool_engineering`, `rust_porting`, `repair_needed` |
-| `gemma3-27b-q4` | Local OpenAI-compatible endpoint | L1 blackbox artifact | `python_tool_engineering`, `rust_porting`, `repair_needed` |
+| `Qwen3.6-35B-A3B-MTP-UD-Q8_K_XL` | Local OpenAI-compatible endpoint | L1 blackbox artifact | `python_tool_engineering`, `rust_porting`, `repair_needed` |
+| `gemma-4-26B-A4B-it-UD-Q8_K_XL` | Local OpenAI-compatible endpoint | L1 blackbox artifact | `python_tool_engineering`, `rust_porting`, `repair_needed` |
 | `holon-cli` | Holon-native workflow driver | L3 whitebox native | active development |
 
 Antigravity CLI and Codex CLI are tracked as external-agent baselines to validate that Holon-Bench can evaluate CLI-based coding agents, not only local model endpoints. Holon-native runs may expose deeper process telemetry such as workflow type, generation path, knowledge-graph recall, and eventually COPR `prompt_stack`; external agents are still valid baselines when they only expose workspace diffs and artifacts.
