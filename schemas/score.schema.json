@@ -26,7 +26,21 @@
     "max_repair_exhausted": { "type": "boolean" },
     "hard_pass": { "type": "boolean" },
     "soft_score": { "type": "number", "minimum": 0, "maximum": 100 },
-    "role_signals": { "type": "object" },
+    "role_signals": {
+      "type": "object",
+      "required": ["contract_worker", "patch_worker", "reviewer", "planner", "tool_maker", "porting_worker", "game_system_worker", "cross_platform_app_worker"],
+      "properties": {
+        "contract_worker": { "type": "number", "minimum": 0, "maximum": 1 },
+        "patch_worker": { "type": "number", "minimum": 0, "maximum": 1 },
+        "reviewer": { "type": "number", "minimum": 0, "maximum": 1 },
+        "planner": { "type": "number", "minimum": 0, "maximum": 1 },
+        "tool_maker": { "type": "number", "minimum": 0, "maximum": 1 },
+        "porting_worker": { "type": "number", "minimum": 0, "maximum": 1 },
+        "game_system_worker": { "type": "number", "minimum": 0, "maximum": 1 },
+        "cross_platform_app_worker": { "type": "number", "minimum": 0, "maximum": 1 }
+      },
+      "additionalProperties": false
+    },
     "failure_tags": { "type": "array", "items": { "type": "string" } },
     "first_failure_tags": { "type": "array", "items": { "type": "string" } },
     "final_failure_tags": { "type": "array", "items": { "type": "string" } }

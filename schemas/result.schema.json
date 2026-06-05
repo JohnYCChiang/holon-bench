@@ -24,7 +24,22 @@
     "repair_attempts_used": { "type": "integer", "minimum": 0 },
     "max_repair_attempts": { "type": "integer", "minimum": 0 },
     "max_repair_exhausted": { "type": "boolean" },
-    "hard_gates": { "type": "object" },
+    "hard_gates": {
+      "type": "object",
+      "required": ["patch_applies", "compiles", "tests_pass", "schema_valid", "scope_pass", "safety_pass", "semantic_pass", "hidden_pass", "mutation_pass"],
+      "properties": {
+        "patch_applies": { "type": "boolean" },
+        "compiles": { "type": "boolean" },
+        "tests_pass": { "type": "boolean" },
+        "schema_valid": { "type": "boolean" },
+        "scope_pass": { "type": "boolean" },
+        "safety_pass": { "type": "boolean" },
+        "semantic_pass": { "type": "boolean" },
+        "hidden_pass": { "type": "boolean" },
+        "mutation_pass": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
     "commands": { "type": "array" },
     "changed_files": { "type": "array", "items": { "type": "string" } },
     "failure_tags": { "type": "array", "items": { "type": "string" } },

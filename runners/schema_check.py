@@ -32,12 +32,26 @@ def main() -> int:
     root = bench_root(args.bench_root)
     benchmark = load_yaml(root / "manifest/benchmark.yaml")
     tracks = load_yaml(root / "manifest/tracks.yaml")["tracks"]
+    scoring = load_yaml(root / "manifest/scoring.yaml")
     taxonomy = load_yaml(root / "manifest/failure_taxonomy.yaml")["failure_types"]
     known_failures = {tag for tags in taxonomy.values() for tag in tags}
+    known_roles = set(scoring.get("role_scores", {}))
 
     errors: list[str] = []
     seen_ids: set[str] = set()
     cases = load_cases(root)
+    for track_name, track in tracks.items():
+        for role in track.get("role_focus", []):
+            if role not in known_roles:
+                errors.append(f"tracks.{track_name}: unknown role_focus {role}")
+
+    phase_1_track_target = sum(int(track.get("phase_1_cases", 0) or 0) for track in tracks.values())
+    if int(benchmark["case_count_target"].get("phase_1", 0) or 0) != phase_1_track_target:
+        errors.append(
+            "phase_1 case_count_target expected "
+            f"{phase_1_track_target} from tracks.yaml, found {benchmark['case_count_target'].get('phase_1')}"
+        )
+
     for case in cases:
         missing = REQUIRED_CASE_FIELDS - set(case)
         if missing:

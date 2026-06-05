@@ -10,8 +10,8 @@ It measures whether an agent can do what a real maintainer cares about — not s
 
 - generating a correct patch on the first attempt (`first_pass`)
 - reading verifier feedback and repairing its own work (`repaired_pass`)
-- staying within the allowed file scope (`scope_control`)
-- passing hidden regression checks it cannot see (`hidden_verifier`)
+- staying within the allowed file scope (`scope_pass`, summarized as scope control)
+- passing hidden regression checks it cannot see (`hidden_pass`)
 - converging without exhausting the repair budget (`repair_tax_rate`)
 
 Holon is one private agent implementation that uses this benchmark. The benchmark harness itself is **agent-agnostic** — it works with any OpenAI-compatible endpoint, local model server, or API.
@@ -118,15 +118,17 @@ python3 runners/run_track.py python_tool_engineering \
 
 ## Scoring Model
 
-Each case produces five key metrics:
+Each case produces core trust and repair metrics:
 
 | Metric | Meaning |
 |---|---|
 | `first_pass` | Passes all hard gates on the initial submission |
 | `repaired_pass` | Passes after verifier-feedback repair loop |
 | `repair_attempts_used` | Number of repair turns consumed |
-| `final_fail` | Still fails after exhausting the repair budget |
-| `repair_tax_rate` | Repair attempts per benchmark case (cost signal) |
+| `final_pass` | Passes all hard gates after the repair loop |
+| `repair_tax_rate` | Aggregate repair attempts per benchmark case (cost signal) |
+| `hidden_pass` | Hidden regression verifier passed when present |
+| `mutation_pass` | Mutation verifier passed when present |
 
 A model with low `first_pass` but high `repaired_pass` is expensive but recoverable. A model with high `repair_tax_rate` on one track signals that routing should allocate more token budget for that role.
 
@@ -134,8 +136,8 @@ A model with low `first_pass` but high `repaired_pass` is expensive but recovera
 
 ## Phase Plan
 
-- **Phase 1** — 35 cases, 5 per track: validates runner/scorer/report plumbing.
-- **Phase 2** — 108 cases, 15 per original track plus 3 graph-memory workflow probes.
+- **Phase 1** — 48 cases: original mini core plus graph-memory and repair probes.
+- **Phase 2** — 118 cases: compact core across all enabled tracks.
 - **Phase 3** — 365 cases, full v0.1.
 - **Phase 4** — Mutation packs: scope traps, long-context noise, repair loops, security traps, legacy debt traps.
 
