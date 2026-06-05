@@ -707,6 +707,115 @@ PROTECTED PATHS (read-only verifier assets; do not modify):
     return workflow_path
 
 
+def benchmark_context_globs_for_case(case: dict) -> list[str]:
+    language = case.get("language", "")
+    common = [
+        "README.md",
+        "pyproject.toml",
+        "Cargo.toml",
+        "go.mod",
+        "pubspec.yaml",
+    ]
+    by_language = {
+        "python": ["src/**/*.py", "tests/**/*.py"],
+        "rust": ["src/**/*.rs", "tests/**/*.rs"],
+        "go": ["**/*.go"],
+        "dart": ["lib/**/*.dart", "test/**/*.dart"],
+    }
+    return common + by_language.get(language, ["src/**/*", "tests/**/*", "lib/**/*", "test/**/*"])
+
+
+def write_artifact_workflow(
+    *,
+    workspace: pathlib.Path,
+    case: dict,
+    args: argparse.Namespace,
+) -> pathlib.Path:
+    solution_paths = case.get("solution_paths", [])
+    constraints = "\n".join(f"- {item}" for item in case["constraints"])
+    allowed = "\n".join(f"- {item}" for item in case["allowed_paths"])
+    forbidden = "\n".join(f"- {item}" for item in case["forbidden_paths"])
+    protected = "\n".join(f"- {item}" for item in case.get("protected_paths", [])) or "- none"
+    targets = "\n".join(f"- {path}" for path in solution_paths)
+    previous_artifact = ""
+    previous_artifact_path = getattr(args, "previous_artifact", None)
+    if previous_artifact_path:
+        previous_path = pathlib.Path(previous_artifact_path)
+        if previous_path.exists():
+            previous_artifact = previous_path.read_text(encoding="utf-8", errors="replace")
+    feedback = getattr(args, "feedback_error", None) or ""
+    repair_section = ""
+    if previous_artifact or feedback:
+        repair_section = f"""
+PREVIOUS ATTEMPT ARTIFACT:
+{previous_artifact.strip()}
+
+VERIFIER FEEDBACK:
+{feedback.strip()}
+
+Repair rules:
+- Think internally about the verifier failure, then output the smallest sufficient correction.
+- Preserve existing passing behavior.
+- Do not repeat the same failed predicate under a different spelling.
+"""
+
+    workflow = {
+        "name": f"HolonBench_Artifact_{case['id']}",
+        "execution_mode": "serial",
+        "states": [
+            {
+                "id": "implement",
+                "description": "Implement one benchmark artifact task with bounded reasoning.",
+                "role": "Developer",
+                "model": args.model,
+                "base_url_override": args.endpoint,
+                "permission_mode": "read-only",
+                "allowed_tools": [],
+                "max_iterations": 1,
+                "thinking_budget": 768,
+                "max_output_tokens": 4096,
+                "context_globs": benchmark_context_globs_for_case(case),
+                "artifact_output_paths": solution_paths,
+                "next_states": [],
+                "instructions_override": f"""Clean-context benchmark implementation state.
+
+Output ONLY complete owned file artifacts in this exact format:
+--- FILE: relative/path ---
+complete file content
+
+The first line of your response must be exactly:
+--- FILE: {solution_paths[0] if solution_paths else 'relative/path'} ---
+
+Write exactly these owned files and no others:
+{targets}
+
+Do not call tools. Do not output a patch. Do not use Markdown fences. Do not include explanation outside file artifacts.
+
+CASE ID: {case['id']}
+TASK:
+{case['user_request'].strip()}
+
+CONSTRAINTS:
+{constraints}
+
+ALLOWED PATHS:
+{allowed}
+
+FORBIDDEN PATHS:
+{forbidden}
+
+PROTECTED PATHS (read-only verifier assets; do not modify):
+{protected}
+{repair_section}
+""",
+            }
+        ],
+    }
+    workflow_path = workspace / ".holon" / "bench_artifact_workflow.json"
+    workflow_path.write_text(json.dumps(workflow, indent=2), encoding="utf-8")
+    return workflow_path
+
+
 def latest_holon_worktree(workspace: pathlib.Path) -> pathlib.Path | None:
     worktrees_dir = workspace / ".holon" / "worktrees"
     if not worktrees_dir.exists():
@@ -792,9 +901,12 @@ def run_holon_cli_driver(
         session_id = f"session-{case['id']}"
         auto_stdout = ""
         use_graph_workflow = should_use_graph_recall_workflow(case)
+        use_artifact_workflow = args.protocol == "artifact"
+        workflow_attempted = False
         if not args.holon_skip_auto:
             try:
                 if use_graph_workflow:
+                    workflow_attempted = True
                     workflow_path = write_graph_recall_workflow(
                         workspace=workspace,
                         case=case,
@@ -810,6 +922,24 @@ def run_holon_cli_driver(
                         cwd=workspace,
                         env=env,
                         timeout=args.holon_timeout_seconds,
+                    )
+                elif use_artifact_workflow:
+                    workflow_attempted = True
+                    workflow_path = write_artifact_workflow(
+                        workspace=workspace,
+                        case=case,
+                        args=args,
+                    )
+                    completed = run_process_group(
+                        [
+                            holon_bin,
+                            "--workflow",
+                            str(workflow_path),
+                            case["user_request"].strip(),
+                        ],
+                        cwd=workspace,
+                        env=env,
+                        timeout=args.holon_auto_timeout_seconds,
                     )
                 else:
                     completed = run_process_group(
@@ -843,7 +973,7 @@ def run_holon_cli_driver(
 
         worktree_dir = (
             latest_holon_worktree(workspace)
-            if use_graph_workflow
+            if use_graph_workflow or use_artifact_workflow
             else workspace / ".holon" / "worktrees" / session_id
         )
         if worktree_dir is None:
@@ -868,11 +998,11 @@ def run_holon_cli_driver(
             return diff, metadata
 
         solution_paths = case.get("solution_paths", [])
-        artifact_roots = [workspace, worktree_dir] if use_graph_workflow else [worktree_dir]
+        artifact_roots = [workspace, worktree_dir] if workflow_attempted else [worktree_dir]
         for artifact_root in artifact_roots:
             if workspace_artifacts_changed(source, artifact_root, solution_paths):
                 return render_workspace_artifacts(artifact_root, solution_paths), metadata
-        if use_graph_workflow:
+        if use_graph_workflow and workflow_attempted:
             for artifact_root in artifact_roots:
                 if workspace_artifacts_exist(artifact_root, solution_paths):
                     return render_workspace_artifacts(artifact_root, solution_paths), metadata
@@ -881,7 +1011,7 @@ def run_holon_cli_driver(
         if recovered is not None:
             return recovered, metadata
 
-        if use_graph_workflow:
+        if workflow_attempted:
             return auto_stdout, metadata
 
         fallback_stdout = run_holon_prompt_fallback(
