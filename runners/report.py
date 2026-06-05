@@ -54,6 +54,13 @@ def main() -> int:
         repair_tax_rate = total_repair_attempts / len(model_scores)
         hidden_case_count = sum(1 for item in model_scores if item.get("has_hidden_verifier"))
         mutation_case_count = sum(1 for item in model_scores if item.get("has_mutation_verifier"))
+        governance_levels = collections.Counter(
+            item.get("governance_level") or "unknown" for item in model_scores
+        )
+        generation_paths = collections.Counter(
+            item.get("generation_path") or "unknown" for item in model_scores
+        )
+        fallback_count = sum(1 for item in model_scores if item.get("fallback_used"))
         hidden_failure_count = sum(
             1 for item in model_scores if item.get("has_hidden_verifier") and not item.get("hidden_pass", True)
         )
@@ -86,6 +93,9 @@ def main() -> int:
             "repair_tax_rate": round(repair_tax_rate, 4),
             "hidden_case_count": hidden_case_count,
             "mutation_case_count": mutation_case_count,
+            "governance_levels": dict(governance_levels),
+            "generation_paths": dict(generation_paths),
+            "fallback_count": fallback_count,
             "hidden_failure_count": hidden_failure_count,
             "mutation_failure_count": mutation_failure_count,
             "avg_repair_attempts_to_pass": round(avg_repair_attempts, 2),
@@ -118,6 +128,9 @@ def main() -> int:
         lines.append(f"- Repair tax: {repair_tax_rate:.2f} attempts/case")
         lines.append(f"- Protected/hidden verifier coverage: {hidden_case_count}/{len(model_scores)}")
         lines.append(f"- Mutation verifier coverage: {mutation_case_count}/{len(model_scores)}")
+        lines.append(f"- Governance levels: {format_failures(governance_levels)}")
+        lines.append(f"- Generation paths: {format_failures(generation_paths)}")
+        lines.append(f"- Fallback used: {fallback_count}/{len(model_scores)}")
         lines.append(f"- Hidden/mutation failures: {hidden_failure_count}/{mutation_failure_count}")
         lines.append(f"- Avg repair attempts to pass: {avg_repair_attempts:.2f}")
         lines.append(f"- Max repair exhausted: {max_repair_exhausted}")
@@ -141,6 +154,13 @@ def main() -> int:
             track_repair_tax = track_total_repair_attempts / len(track_scores)
             track_hidden_case_count = sum(1 for item in track_scores if item.get("has_hidden_verifier"))
             track_mutation_case_count = sum(1 for item in track_scores if item.get("has_mutation_verifier"))
+            track_governance_levels = collections.Counter(
+                item.get("governance_level") or "unknown" for item in track_scores
+            )
+            track_generation_paths = collections.Counter(
+                item.get("generation_path") or "unknown" for item in track_scores
+            )
+            track_fallback_count = sum(1 for item in track_scores if item.get("fallback_used"))
             track_hidden_failure_count = sum(
                 1 for item in track_scores if item.get("has_hidden_verifier") and not item.get("hidden_pass", True)
             )
@@ -168,6 +188,9 @@ def main() -> int:
                 "repair_tax_rate": round(track_repair_tax, 4),
                 "hidden_case_count": track_hidden_case_count,
                 "mutation_case_count": track_mutation_case_count,
+                "governance_levels": dict(track_governance_levels),
+                "generation_paths": dict(track_generation_paths),
+                "fallback_count": track_fallback_count,
                 "hidden_failure_count": track_hidden_failure_count,
                 "mutation_failure_count": track_mutation_failure_count,
                 "soft_score_avg": round(track_soft, 2),
@@ -183,6 +206,9 @@ def main() -> int:
             lines.append(f"- Repair tax: {track_repair_tax:.2f} attempts/case")
             lines.append(f"- Protected/hidden verifier coverage: {track_hidden_case_count}/{len(track_scores)}")
             lines.append(f"- Mutation verifier coverage: {track_mutation_case_count}/{len(track_scores)}")
+            lines.append(f"- Governance levels: {format_failures(track_governance_levels)}")
+            lines.append(f"- Generation paths: {format_failures(track_generation_paths)}")
+            lines.append(f"- Fallback used: {track_fallback_count}/{len(track_scores)}")
             lines.append(f"- Soft score avg: {track_soft:.2f}")
             lines.append("")
 

@@ -194,6 +194,8 @@ def main() -> int:
         "fallback_used": generation_trace.get("fallback_used"),
         "workflow_attempted": generation_trace.get("workflow_attempted"),
         "workflow_type": generation_trace.get("workflow_type"),
+        "governance_level": generation_trace.get("governance_level"),
+        "prompt_stack": generation_trace.get("prompt_stack"),
         "changed_files": changed,
         "diff_analysis": diff,
         "commands": commands,

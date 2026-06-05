@@ -191,6 +191,8 @@ server/tick/loop.go
             self.assertFalse(metadata["fallback_used"])
             self.assertTrue(metadata["workflow_attempted"])
             self.assertEqual(metadata["workflow_type"], "artifact")
+            self.assertEqual(metadata["governance_level"], "whitebox_native")
+            self.assertIsNone(metadata["prompt_stack"])
 
     def test_holon_cli_print_fallback_uses_short_timeout(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -245,6 +247,8 @@ server/tick/loop.go
             self.assertTrue(metadata["fallback_used"])
             self.assertFalse(metadata["workflow_attempted"])
             self.assertEqual(metadata["workflow_type"], "none")
+            self.assertEqual(metadata["governance_level"], "graybox_workspace")
+            self.assertIsNone(metadata["prompt_stack"])
 
     def test_artifact_workflow_includes_repair_feedback(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -330,6 +334,8 @@ server/tick/loop.go
             self.assertFalse(metadata["fallback_used"])
             self.assertTrue(metadata["workflow_attempted"])
             self.assertEqual(metadata["workflow_type"], "artifact")
+            self.assertEqual(metadata["governance_level"], "whitebox_native")
+            self.assertIsNone(metadata["prompt_stack"])
             fallback.assert_not_called()
             direct.assert_not_called()
 

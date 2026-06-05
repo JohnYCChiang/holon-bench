@@ -186,6 +186,33 @@ Commit:
 Record generation path metadata
 ```
 
+#### P0.4 Define HGP governance levels and telemetry fields
+
+Scope:
+- `docs/protocols/holon-governance-protocol.md`
+- `docs/agent-governance-ladder.md`
+- `runners/run_model_case.py`
+- `runners/run_case.py`
+- `runners/score_case.py`
+- `runners/report.py`
+- result and score schemas
+
+Required behavior:
+- Define HGP-L1 blackbox artifact, HGP-L2 graybox workspace, and HGP-L3 whitebox native.
+- Record `governance_level` for every result and score.
+- Preserve optional `prompt_stack` as nullable telemetry; do not fabricate prompt unit IDs for external drivers.
+- Report governance-level and generation-path distributions in aggregate reports.
+
+Why:
+- External CLI agents such as Codex CLI, Claude Code, Antigravity CLI, and Aider should remain comparable through L1/L2 result and workspace governance.
+- Holon-native runs can expose deeper L3 process telemetry without making it mandatory for black-box drivers.
+
+Commit:
+
+```text
+Document HGP governance levels
+```
+
 ### P1: Define Single-LLM COPR Units
 
 Goal: make prompt behavior explicit without building a full prompt runtime yet.
