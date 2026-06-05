@@ -476,6 +476,26 @@ def collect_holon_trace(
     }
 
 
+def mark_generation_path(
+    metadata: dict,
+    *,
+    generation_path: str,
+    fallback_used: bool,
+    workflow_attempted: bool,
+    workflow_type: str = "none",
+) -> dict:
+    marked = dict(metadata)
+    marked.update(
+        {
+            "generation_path": generation_path,
+            "fallback_used": fallback_used,
+            "workflow_attempted": workflow_attempted,
+            "workflow_type": workflow_type,
+        }
+    )
+    return marked
+
+
 def should_use_graph_recall_workflow(case: dict) -> bool:
     semantic_checks = set(case.get("verifier", {}).get("semantic_checks", []))
     return bool(semantic_checks & GRAPH_SEMANTIC_CHECKS)
@@ -987,6 +1007,15 @@ def run_holon_cli_driver(
             snapshot_roots=[workspace, worktree_dir],
         )
 
+        workflow_type = (
+            "graph_recall"
+            if use_graph_workflow and workflow_attempted
+            else "artifact"
+            if use_artifact_workflow and workflow_attempted
+            else "none"
+        )
+        primary_generation_path = "holon_workflow" if workflow_attempted else "holon_auto"
+
         if args.protocol == "patch":
             diff = subprocess.run(
                 ["git", "diff"],
@@ -995,24 +1024,54 @@ def run_holon_cli_driver(
                 text=True,
                 check=True,
             ).stdout
-            return diff, metadata
+            return diff, mark_generation_path(
+                metadata,
+                generation_path=primary_generation_path,
+                fallback_used=False,
+                workflow_attempted=workflow_attempted,
+                workflow_type=workflow_type,
+            )
 
         solution_paths = case.get("solution_paths", [])
         artifact_roots = [workspace, worktree_dir] if workflow_attempted else [worktree_dir]
         for artifact_root in artifact_roots:
             if workspace_artifacts_changed(source, artifact_root, solution_paths):
-                return render_workspace_artifacts(artifact_root, solution_paths), metadata
+                return render_workspace_artifacts(artifact_root, solution_paths), mark_generation_path(
+                    metadata,
+                    generation_path=primary_generation_path,
+                    fallback_used=False,
+                    workflow_attempted=workflow_attempted,
+                    workflow_type=workflow_type,
+                )
         if use_graph_workflow and workflow_attempted:
             for artifact_root in artifact_roots:
                 if workspace_artifacts_exist(artifact_root, solution_paths):
-                    return render_workspace_artifacts(artifact_root, solution_paths), metadata
+                    return render_workspace_artifacts(artifact_root, solution_paths), mark_generation_path(
+                        metadata,
+                        generation_path=primary_generation_path,
+                        fallback_used=False,
+                        workflow_attempted=workflow_attempted,
+                        workflow_type=workflow_type,
+                    )
 
         recovered = extract_artifact_blocks(auto_stdout, solution_paths)
         if recovered is not None:
-            return recovered, metadata
+            return recovered, mark_generation_path(
+                metadata,
+                generation_path=primary_generation_path,
+                fallback_used=False,
+                workflow_attempted=workflow_attempted,
+                workflow_type=workflow_type,
+            )
 
         if workflow_attempted:
-            return auto_stdout, metadata
+            return auto_stdout, mark_generation_path(
+                metadata,
+                generation_path="holon_workflow",
+                fallback_used=False,
+                workflow_attempted=True,
+                workflow_type=workflow_type,
+            )
 
         fallback_stdout = run_holon_prompt_fallback(
             holon_bin,
@@ -1031,12 +1090,27 @@ def run_holon_cli_driver(
         )
         recovered = extract_artifact_blocks(fallback_stdout, solution_paths)
         if recovered is not None:
-            return recovered, metadata
+            return recovered, mark_generation_path(
+                metadata,
+                generation_path="holon_print",
+                fallback_used=True,
+                workflow_attempted=False,
+            )
         direct_fallback = request_patch(args.endpoint, args.model, fallback_prompt)
         recovered = extract_artifact_blocks(direct_fallback, solution_paths)
         if recovered is not None:
-            return recovered, metadata
-        return direct_fallback, metadata
+            return recovered, mark_generation_path(
+                metadata,
+                generation_path="direct",
+                fallback_used=True,
+                workflow_attempted=False,
+            )
+        return direct_fallback, mark_generation_path(
+            metadata,
+            generation_path="direct",
+            fallback_used=True,
+            workflow_attempted=False,
+        )
 
 
 def run_claw_cli_driver(
@@ -1104,36 +1178,36 @@ def run_claw_cli_driver(
                 text=True,
                 check=True,
             ).stdout
-            return diff, {
+            return diff, mark_generation_path({
                 "called_tools": detect_called_tools(auto_stdout),
                 "auto_stdout_tail": auto_stdout[-12000:],
-            }
+            }, generation_path="claw_cli", fallback_used=False, workflow_attempted=False)
 
         solution_paths = case.get("solution_paths", [])
         if workspace_artifacts_changed(source, workspace, solution_paths):
-            return render_workspace_artifacts(workspace, solution_paths), {
+            return render_workspace_artifacts(workspace, solution_paths), mark_generation_path({
                 "called_tools": detect_called_tools(auto_stdout),
                 "auto_stdout_tail": auto_stdout[-12000:],
-            }
+            }, generation_path="claw_cli", fallback_used=False, workflow_attempted=False)
 
         recovered = extract_artifact_blocks(auto_stdout, solution_paths)
         if recovered is not None:
-            return recovered, {
+            return recovered, mark_generation_path({
                 "called_tools": detect_called_tools(auto_stdout),
                 "auto_stdout_tail": auto_stdout[-12000:],
-            }
+            }, generation_path="claw_cli", fallback_used=False, workflow_attempted=False)
 
         direct_fallback = request_patch(args.endpoint, args.model, fallback_prompt)
         recovered = extract_artifact_blocks(direct_fallback, solution_paths)
         if recovered is not None:
-            return recovered, {
+            return recovered, mark_generation_path({
                 "called_tools": detect_called_tools(auto_stdout),
                 "auto_stdout_tail": auto_stdout[-12000:],
-            }
-        return direct_fallback, {
+            }, generation_path="direct", fallback_used=True, workflow_attempted=False)
+        return direct_fallback, mark_generation_path({
             "called_tools": detect_called_tools(auto_stdout),
             "auto_stdout_tail": auto_stdout[-12000:],
-        }
+        }, generation_path="direct", fallback_used=True, workflow_attempted=False)
 
 
 def main() -> int:
@@ -1172,7 +1246,15 @@ def main() -> int:
         if args.driver == "claw-cli"
         else run_holon_cli_driver(root, case, args, prompt, fallback_prompt)
         if args.driver == "holon-cli"
-        else (request_patch(args.endpoint, args.model, prompt), {"called_tools": []})
+        else (
+            request_patch(args.endpoint, args.model, prompt),
+            mark_generation_path(
+                {"called_tools": []},
+                generation_path="direct",
+                fallback_used=False,
+                workflow_attempted=False,
+            ),
+        )
     )
     if args.protocol == "artifact":
         patch = normalize_artifact_submission(patch, case.get("solution_paths", []))

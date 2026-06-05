@@ -174,7 +174,7 @@ server/tick/loop.go
             with mock.patch.dict(run_model_case.os.environ, {"HOLON_BIN": str(fake_holon)}), mock.patch(
                 "run_model_case.run_process_group", side_effect=fake_run_process_group
             ):
-                artifact, _metadata = run_model_case.run_holon_cli_driver(
+                artifact, metadata = run_model_case.run_holon_cli_driver(
                     root,
                     case,
                     args,
@@ -187,6 +187,10 @@ server/tick/loop.go
             self.assertEqual(captured["llamacpp_api_key"], "dummy")
             self.assertEqual(captured["thinking_budget"], 768)
             self.assertEqual(captured["max_output_tokens"], 4096)
+            self.assertEqual(metadata["generation_path"], "holon_workflow")
+            self.assertFalse(metadata["fallback_used"])
+            self.assertTrue(metadata["workflow_attempted"])
+            self.assertEqual(metadata["workflow_type"], "artifact")
 
     def test_holon_cli_print_fallback_uses_short_timeout(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -227,7 +231,7 @@ server/tick/loop.go
             with mock.patch.dict(run_model_case.os.environ, {"HOLON_BIN": str(fake_holon)}), mock.patch(
                 "run_model_case.run_holon_prompt_fallback", side_effect=fake_fallback
             ):
-                artifact, _metadata = run_model_case.run_holon_cli_driver(
+                artifact, metadata = run_model_case.run_holon_cli_driver(
                     root,
                     case,
                     args,
@@ -237,6 +241,10 @@ server/tick/loop.go
 
             self.assertIn("return 3", artifact)
             self.assertEqual(captured["timeout"], 75.0)
+            self.assertEqual(metadata["generation_path"], "holon_print")
+            self.assertTrue(metadata["fallback_used"])
+            self.assertFalse(metadata["workflow_attempted"])
+            self.assertEqual(metadata["workflow_type"], "none")
 
     def test_artifact_workflow_includes_repair_feedback(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -309,7 +317,7 @@ server/tick/loop.go
             ), mock.patch("run_model_case.run_holon_prompt_fallback") as fallback, mock.patch(
                 "run_model_case.request_patch"
             ) as direct:
-                artifact, _metadata = run_model_case.run_holon_cli_driver(
+                artifact, metadata = run_model_case.run_holon_cli_driver(
                     root,
                     case,
                     args,
@@ -318,6 +326,10 @@ server/tick/loop.go
                 )
 
             self.assertEqual(artifact, "partial workflow output")
+            self.assertEqual(metadata["generation_path"], "holon_workflow")
+            self.assertFalse(metadata["fallback_used"])
+            self.assertTrue(metadata["workflow_attempted"])
+            self.assertEqual(metadata["workflow_type"], "artifact")
             fallback.assert_not_called()
             direct.assert_not_called()
 
