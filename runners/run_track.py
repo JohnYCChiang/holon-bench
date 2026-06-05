@@ -222,8 +222,6 @@ def main() -> int:
                 "--feedback-error",
                 feedback_error,
             ]
-            if args.driver == "holon-cli":
-                repair_command.append("--holon-skip-auto")
             shutil.rmtree(work_root, ignore_errors=True)
             try:
                 generated_repair = run_capture_process_group(
