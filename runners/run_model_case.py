@@ -483,7 +483,11 @@ def mark_generation_path(
     fallback_used: bool,
     workflow_attempted: bool,
     workflow_type: str = "none",
+    governance_level: str | None = None,
+    prompt_stack: dict | None = None,
 ) -> dict:
+    if governance_level is None:
+        governance_level = governance_level_for_path(generation_path)
     marked = dict(metadata)
     marked.update(
         {
@@ -491,9 +495,19 @@ def mark_generation_path(
             "fallback_used": fallback_used,
             "workflow_attempted": workflow_attempted,
             "workflow_type": workflow_type,
+            "governance_level": governance_level,
+            "prompt_stack": prompt_stack,
         }
     )
     return marked
+
+
+def governance_level_for_path(generation_path: str) -> str:
+    if generation_path == "holon_workflow":
+        return "whitebox_native"
+    if generation_path in {"holon_auto", "holon_print", "claw_cli"}:
+        return "graybox_workspace"
+    return "blackbox_artifact"
 
 
 def should_use_graph_recall_workflow(case: dict) -> bool:
