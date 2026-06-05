@@ -5,10 +5,13 @@ import json
 import shutil
 import sys
 import tempfile
+import types
 import unittest
+from unittest import mock
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
+import run_model_case
 from run_model_case import extract_artifact_blocks, generation_fixture_ignore
 from run_track import build_feedback_error, preserve_better_previous_attempt
 
@@ -119,6 +122,114 @@ server/tick/loop.go
             self.assertTrue(restored["repair_reverted"])
             self.assertEqual(artifact.read_text(encoding="utf-8"), "better")
             self.assertTrue((root / "model_case_attempt2_rejected_result.json").is_file())
+
+    def test_holon_cli_caps_agent_iterations_and_sets_llamacpp_key(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            fixture = root / "fixtures" / "sample"
+            fixture.mkdir(parents=True)
+            (fixture / "src").mkdir()
+            (fixture / "src" / "tool.py").write_text("def run():\n    return 1\n", encoding="utf-8")
+            fake_holon = root / "holon"
+            fake_holon.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            fake_holon.chmod(0o755)
+
+            captured: dict[str, object] = {}
+
+            def fake_run_process_group(command, cwd, env, timeout):
+                settings = json.loads((pathlib.Path(cwd) / ".holon" / "settings.json").read_text())
+                captured["max_iterations"] = settings["capabilities"]["maxIterations"]
+                captured["llamacpp_api_key"] = env.get("LLAMACPP_API_KEY")
+                return types.SimpleNamespace(
+                    stdout="--- FILE: src/tool.py ---\ndef run():\n    return 2\n",
+                    stderr="",
+                    returncode=0,
+                )
+
+            case = {
+                "id": "sample-001",
+                "fixture": "fixtures/sample",
+                "solution_paths": ["src/tool.py"],
+                "constraints": [],
+                "allowed_paths": ["src/tool.py"],
+                "forbidden_paths": [],
+                "user_request": "change return value",
+                "verifier": {},
+            }
+            args = types.SimpleNamespace(
+                model="local-model",
+                endpoint="http://127.0.0.1:8086/v1",
+                protocol="artifact",
+                holon_max_iterations=100,
+                holon_skip_auto=False,
+                holon_timeout_seconds=890.0,
+                holon_auto_timeout_seconds=75.0,
+            )
+
+            with mock.patch.dict(run_model_case.os.environ, {"HOLON_BIN": str(fake_holon)}), mock.patch(
+                "run_model_case.run_process_group", side_effect=fake_run_process_group
+            ):
+                artifact, _metadata = run_model_case.run_holon_cli_driver(
+                    root,
+                    case,
+                    args,
+                    prompt="prompt",
+                    fallback_prompt="fallback",
+                )
+
+            self.assertIn("return 2", artifact)
+            self.assertEqual(captured["max_iterations"], 12)
+            self.assertEqual(captured["llamacpp_api_key"], "dummy")
+
+    def test_holon_cli_print_fallback_uses_short_timeout(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = pathlib.Path(temp)
+            fixture = root / "fixtures" / "sample"
+            fixture.mkdir(parents=True)
+            (fixture / "src").mkdir()
+            (fixture / "src" / "tool.py").write_text("def run():\n    return 1\n", encoding="utf-8")
+            fake_holon = root / "holon"
+            fake_holon.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            fake_holon.chmod(0o755)
+            captured: dict[str, object] = {}
+
+            def fake_fallback(*_args, timeout):
+                captured["timeout"] = timeout
+                return "--- FILE: src/tool.py ---\ndef run():\n    return 3\n"
+
+            case = {
+                "id": "sample-002",
+                "fixture": "fixtures/sample",
+                "solution_paths": ["src/tool.py"],
+                "constraints": [],
+                "allowed_paths": ["src/tool.py"],
+                "forbidden_paths": [],
+                "user_request": "change return value",
+                "verifier": {},
+            }
+            args = types.SimpleNamespace(
+                model="local-model",
+                endpoint="http://127.0.0.1:8086/v1",
+                protocol="artifact",
+                holon_max_iterations=100,
+                holon_skip_auto=True,
+                holon_timeout_seconds=890.0,
+                holon_auto_timeout_seconds=75.0,
+            )
+
+            with mock.patch.dict(run_model_case.os.environ, {"HOLON_BIN": str(fake_holon)}), mock.patch(
+                "run_model_case.run_holon_prompt_fallback", side_effect=fake_fallback
+            ):
+                artifact, _metadata = run_model_case.run_holon_cli_driver(
+                    root,
+                    case,
+                    args,
+                    prompt="prompt",
+                    fallback_prompt="fallback",
+                )
+
+            self.assertIn("return 3", artifact)
+            self.assertEqual(captured["timeout"], 75.0)
 
 
 if __name__ == "__main__":
