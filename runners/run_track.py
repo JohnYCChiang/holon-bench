@@ -439,28 +439,38 @@ def build_feedback_error(case: dict, result: dict) -> str:
         return f"Artifact/patch application failed.\nStderr: {sub_stderr}\nStdout: {sub_stdout}"
 
     failed_cmds = []
-    command_groups = (
-        ("public verifier", "commands"),
-        ("hidden verifier", "hidden_commands"),
-        ("mutation verifier", "mutation_commands"),
-    )
-    for label, group in command_groups:
-        for cmd in result.get(group, []) or []:
-            if cmd.get("exit_code") != 0 or cmd.get("timed_out"):
-                failed_cmds.append(
-                    f"{label.title()} failed.\n"
-                    f"Command: {cmd.get('command')}\n"
-                    f"Exit Code: {cmd.get('exit_code')}\n"
-                    f"Timed Out: {bool(cmd.get('timed_out'))}\n"
-                    f"Stdout:\n{cmd.get('stdout', '')}\n"
-                    f"Stderr:\n{cmd.get('stderr', '')}"
-                )
+    # Only the public verifier may expose command text, stdout, and stderr.
+    # Hidden and mutation verifiers are oracles: a repair attempt may learn that
+    # they failed, but never their command, output, assertions, or expected
+    # values. Leaking that detail would let a repair overfit to the hidden gate.
+    for cmd in result.get("commands", []) or []:
+        if cmd.get("exit_code") != 0 or cmd.get("timed_out"):
+            failed_cmds.append(
+                "Public Verifier failed.\n"
+                f"Command: {cmd.get('command')}\n"
+                f"Exit Code: {cmd.get('exit_code')}\n"
+                f"Timed Out: {bool(cmd.get('timed_out'))}\n"
+                f"Stdout:\n{cmd.get('stdout', '')}\n"
+                f"Stderr:\n{cmd.get('stderr', '')}"
+            )
+    if any(
+        cmd.get("exit_code") != 0 or cmd.get("timed_out")
+        for cmd in result.get("hidden_commands", []) or []
+    ):
+        failed_cmds.append("Hidden verifier failed. Details withheld.")
+    if any(
+        cmd.get("exit_code") != 0 or cmd.get("timed_out")
+        for cmd in result.get("mutation_commands", []) or []
+    ):
+        failed_cmds.append("Mutation verifier failed. Details withheld.")
     for check in result.get("semantic_checks", []) or []:
         if isinstance(check, dict) and not check.get("passed", True):
+            # Expose only the check name; free-form diagnostic/detail/message
+            # bodies may carry oracle specifics.
             failed_cmds.append(
                 "Semantic verifier failed.\n"
                 f"Check: {check.get('name', check.get('check', 'unknown'))}\n"
-                f"Diagnostic: {check.get('message', check.get('detail', check))}"
+                "Diagnostic: withheld."
             )
     if failed_cmds:
         feedback = "\n\n".join(failed_cmds)
