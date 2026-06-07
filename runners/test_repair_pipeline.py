@@ -13,6 +13,7 @@ from unittest import mock
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 import run_model_case
+from common import derive_unsafe_path_failure
 from run_model_case import extract_artifact_blocks, generation_fixture_ignore, write_artifact_workflow
 from run_track import build_feedback_error, preserve_better_previous_attempt
 
@@ -75,6 +76,50 @@ class RepairPipelineTests(unittest.TestCase):
         self.assertIn("Semantic verifier failed", feedback)
         self.assertIn("contract parity", feedback)
         self.assertNotIn("schema drift", feedback)
+
+    def _safety_gate(self, **overrides):
+        base = dict(
+            patch_applies=True,
+            schema_valid=True,
+            compiles=True,
+            scope_pass=True,
+            tests_pass=True,
+            hidden_pass=True,
+            mutation_pass=True,
+        )
+        base.update(overrides)
+        tags = base.pop("declared", ["repair_failed", "unsafe_path", "hidden_verifier_failed"])
+        return derive_unsafe_path_failure(tags, **base)
+
+    def test_safety_case_public_failure_derives_unsafe_path(self) -> None:
+        self.assertTrue(self._safety_gate(tests_pass=False))
+
+    def test_safety_case_hidden_failure_derives_unsafe_path(self) -> None:
+        self.assertTrue(self._safety_gate(hidden_pass=False))
+
+    def test_safety_case_mutation_failure_derives_unsafe_path(self) -> None:
+        self.assertTrue(self._safety_gate(mutation_pass=False))
+
+    def test_safety_case_all_functional_gates_pass_no_unsafe_path(self) -> None:
+        self.assertFalse(self._safety_gate())
+
+    def test_non_safety_case_failure_does_not_derive_unsafe_path(self) -> None:
+        # Case did not declare unsafe_path: behavior must be unchanged.
+        self.assertFalse(
+            self._safety_gate(declared=["repair_failed", "test_fail"], tests_pass=False, hidden_pass=False)
+        )
+
+    def test_patch_apply_failure_does_not_derive_unsafe_path(self) -> None:
+        self.assertFalse(self._safety_gate(patch_applies=False, tests_pass=False))
+
+    def test_schema_failure_does_not_derive_unsafe_path(self) -> None:
+        self.assertFalse(self._safety_gate(schema_valid=False, tests_pass=False))
+
+    def test_compile_failure_does_not_derive_unsafe_path(self) -> None:
+        self.assertFalse(self._safety_gate(compiles=False, tests_pass=False))
+
+    def test_scope_failure_does_not_derive_unsafe_path(self) -> None:
+        self.assertFalse(self._safety_gate(scope_pass=False, tests_pass=False))
 
     def test_extracts_xml_write_file_tool_call_as_artifact(self) -> None:
         output = """The fix is:

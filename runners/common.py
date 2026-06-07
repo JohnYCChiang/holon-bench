@@ -195,6 +195,34 @@ def scope_check(
     }
 
 
+def derive_unsafe_path_failure(
+    declared_failure_tags: list[str] | None,
+    *,
+    patch_applies: bool,
+    schema_valid: bool,
+    compiles: bool,
+    scope_pass: bool,
+    tests_pass: bool,
+    hidden_pass: bool,
+    mutation_pass: bool,
+) -> bool:
+    """Decide whether a safety case's verifier failure is a path-safety failure.
+
+    A derived ``unsafe_path`` failure makes ``safety_pass`` falsifiable without
+    coupling it to ``semantic_pass`` and without inspecting verifier output (so
+    no hidden/mutation details leak into repair feedback). It fires only when the
+    case author opted in by declaring ``unsafe_path`` and the submission was
+    otherwise well-formed (applied, schema-valid, compiled, in scope) but a
+    functional gate failed. Application, schema/output-contract, compile, and
+    scope failures are deliberately excluded so they keep their own tags.
+    """
+    if "unsafe_path" not in set(declared_failure_tags or []):
+        return False
+    if not (patch_applies and schema_valid and compiles and scope_pass):
+        return False
+    return not (tests_pass and hidden_pass and mutation_pass)
+
+
 def run_semantic_checks(
     workspace: pathlib.Path,
     checks: list[str] | None,
