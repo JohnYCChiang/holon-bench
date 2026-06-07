@@ -462,3 +462,43 @@ cases:
       hard_gates: [patch_applies, compiles, tests_pass, safety_pass, scope_pass, semantic_pass]
       soft_metrics: [repair_conversion, contract_compliance, functional_correctness]
     failure_tags: [repair_failed, behavior_not_equivalent, unsafe_path, timeout]
+
+  - id: repair-py-tool-033
+    track: repair_needed
+    language: python
+    difficulty: hard
+    task_type: repair_path_safety
+    fixture: fixtures/python/path_sandbox
+    user_request: >
+      Repair the workspace path resolver after the verifier reports that unsafe
+      paths are accepted. It must only resolve paths that stay inside the
+      workspace root and report unsafe paths instead of returning them.
+    constraints:
+      - Resolve symlinks before checking containment.
+      - Return unsafe_path errors instead of raising.
+      - Preserve relative paths inside the workspace.
+    allowed_paths: [src/path_sandbox/**, tests/test_path_sandbox.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_path_sandbox.py, hidden/**]
+    solution_paths: [src/path_sandbox/resolver.py]
+    repair_seed_artifact:
+      src/path_sandbox/resolver.py: |
+        from __future__ import annotations
+
+        from pathlib import Path
+
+
+        def resolve_workspace_path(root: str | Path, requested: str) -> dict:
+            root_path = Path(root)
+            candidate = root_path / requested
+            if str(candidate).startswith(str(root_path)):
+                return {"ok": True, "path": str(candidate)}
+            return {"ok": False, "error": {"code": "unsafe_path"}}
+    verifier:
+      commands: [python3 -m unittest tests.test_path_sandbox]
+      hidden_commands: [python3 -m unittest hidden.test_path_sandbox_hidden]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, safety_pass, scope_pass]
+      soft_metrics: [repair_conversion, functional_correctness, observability]
+    failure_tags: [repair_failed, unsafe_path, hidden_verifier_failed]
