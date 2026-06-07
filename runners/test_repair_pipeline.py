@@ -18,10 +18,18 @@ from run_track import build_feedback_error, preserve_better_previous_attempt
 
 
 class RepairPipelineTests(unittest.TestCase):
-    def test_feedback_includes_hidden_mutation_and_semantic_failures(self) -> None:
+    def test_feedback_exposes_public_detail_but_withholds_oracle_details(self) -> None:
         result = {
             "hard_gates": {"patch_applies": True, "schema_valid": True},
-            "commands": [],
+            "commands": [
+                {
+                    "command": "python3 -m unittest tests.test_public",
+                    "exit_code": 1,
+                    "timed_out": False,
+                    "stdout": "public assertion failed: expected 2 got 1",
+                    "stderr": "public traceback detail",
+                }
+            ],
             "hidden_commands": [
                 {
                     "command": "hidden-check",
@@ -47,12 +55,26 @@ class RepairPipelineTests(unittest.TestCase):
 
         feedback = build_feedback_error({}, result)
 
-        self.assertIn("Hidden Verifier failed", feedback)
-        self.assertIn("closed channel was not handled", feedback)
-        self.assertIn("Mutation Verifier failed", feedback)
-        self.assertIn("zero workers deadlocked", feedback)
+        # Public verifier detail is still exposed.
+        self.assertIn("Public Verifier failed", feedback)
+        self.assertIn("python3 -m unittest tests.test_public", feedback)
+        self.assertIn("public assertion failed: expected 2 got 1", feedback)
+        self.assertIn("public traceback detail", feedback)
+
+        # Hidden/mutation failures report only a generic, non-revealing marker.
+        self.assertIn("Hidden verifier failed. Details withheld.", feedback)
+        self.assertIn("Mutation verifier failed. Details withheld.", feedback)
+
+        # Hidden/mutation command text and oracle stdout/stderr never leak.
+        self.assertNotIn("hidden-check", feedback)
+        self.assertNotIn("mutation-check", feedback)
+        self.assertNotIn("closed channel was not handled", feedback)
+        self.assertNotIn("zero workers deadlocked", feedback)
+
+        # Semantic check name is exposed, but its free-form diagnostic is not.
         self.assertIn("Semantic verifier failed", feedback)
-        self.assertIn("schema drift", feedback)
+        self.assertIn("contract parity", feedback)
+        self.assertNotIn("schema drift", feedback)
 
     def test_extracts_xml_write_file_tool_call_as_artifact(self) -> None:
         output = """The fix is:
