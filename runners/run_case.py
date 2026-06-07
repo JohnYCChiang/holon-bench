@@ -13,6 +13,7 @@ from common import (
     apply_artifact_file,
     apply_patch_file,
     bench_root,
+    derive_unsafe_path_failure,
     diff_analysis,
     find_case,
     git_changed_files,
@@ -181,6 +182,20 @@ def main() -> int:
             failure_tags.append("graph_context_not_used")
         else:
             failure_tags.append("semantic_check_failed")
+    if (
+        derive_unsafe_path_failure(
+            case.get("failure_tags", []),
+            patch_applies=patch_result["patch_applies"],
+            schema_valid=patch_result["output_contract_pass"],
+            compiles=compiles,
+            scope_pass=scope["scope_pass"],
+            tests_pass=tests_pass,
+            hidden_pass=hidden_pass,
+            mutation_pass=mutation_pass,
+        )
+        and "unsafe_path" not in failure_tags
+    ):
+        failure_tags.append("unsafe_path")
 
     result = {
         "case_id": case["id"],
