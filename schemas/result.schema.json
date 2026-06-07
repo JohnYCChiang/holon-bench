@@ -2,7 +2,8 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Holon Benchmark Case Result",
   "type": "object",
-  "required": ["case_id", "track", "task_type", "model", "protocol", "hard_gates", "commands", "changed_files", "failure_tags"],
+  "$comment": "repair_tax_rate is a derived metric (repaired_pass / final_pass) and is NOT stored in this schema. Compute it from repaired_pass and final_pass at analysis time. See HGP.md §Repair Tax.",
+  "required": ["case_id", "track", "task_type", "model", "protocol", "first_pass", "final_pass", "hard_gates", "commands", "changed_files", "failure_tags"],
   "properties": {
     "case_id": { "type": "string" },
     "track": { "type": "string" },
@@ -18,10 +19,23 @@
     "prompt_stack": { "type": ["object", "null"] },
     "attempt_count": { "type": "integer", "minimum": 1 },
     "repair_used": { "type": "boolean" },
-    "first_pass": { "type": "boolean" },
-    "final_pass": { "type": "boolean" },
-    "repaired_pass": { "type": "boolean" },
-    "repair_attempts_used": { "type": "integer", "minimum": 0 },
+    "first_pass": {
+      "type": "boolean",
+      "description": "True if the first attempt passed all hard gates without repair. Maps to HGP first_attempt_verdict / first_pass. See BENCHMARK_ALIGNMENT.md."
+    },
+    "final_pass": {
+      "type": "boolean",
+      "description": "True if the final attempt (after any repairs) passed all hard gates. Maps to HGP final_verdict / final_pass. Denominator of repair_tax_rate. See BENCHMARK_ALIGNMENT.md."
+    },
+    "repaired_pass": {
+      "type": "boolean",
+      "description": "True if the first attempt failed but a later repair attempt passed. Numerator of repair_tax_rate (repaired_pass / final_pass). See HGP.md §Repair Tax."
+    },
+    "repair_attempts_used": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of repair attempts consumed before final verdict. Maps to HGP repair_trace.attempts. See HGP.md §Attempt."
+    },
     "max_repair_attempts": { "type": "integer", "minimum": 0 },
     "max_repair_exhausted": { "type": "boolean" },
     "hard_gates": {
