@@ -9,6 +9,7 @@ import re
 import signal
 import shutil
 import subprocess
+import sys
 import tempfile
 import urllib.request
 
@@ -146,24 +147,47 @@ CURRENT FIXTURE FILES:
 """
 
 
-def request_patch(endpoint: str, model: str, prompt: str) -> str:
-    payload = json.dumps(
-        {
-            "model": model,
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.1,
-            "stream": False,
-        }
-    ).encode("utf-8")
+def request_patch(
+    endpoint: str,
+    model: str,
+    prompt: str,
+    *,
+    max_output_tokens: int | None = None,
+    generation_timeout_seconds: float = 600.0,
+    telemetry: dict | None = None,
+) -> str:
+    # Generation controls mirror Holon workflow fields: max_output_tokens maps to
+    # the OpenAI-compatible `max_tokens` request field; thinking_budget has no
+    # accepted per-request field in this repo, so it is recorded in metadata by
+    # the caller rather than sent on the wire.
+    body_payload: dict = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0.1,
+        "stream": False,
+    }
+    if max_output_tokens is not None:
+        body_payload["max_tokens"] = max_output_tokens
+    payload = json.dumps(body_payload).encode("utf-8")
     request = urllib.request.Request(
         endpoint.rstrip("/") + "/chat/completions",
         data=payload,
         headers={"Content-Type": "application/json"},
         method="POST",
     )
-    with urllib.request.urlopen(request, timeout=600) as response:
+    with urllib.request.urlopen(request, timeout=generation_timeout_seconds) as response:
         body = json.loads(response.read().decode("utf-8"))
-    return body["choices"][0]["message"]["content"]
+    choice = body["choices"][0]
+    if telemetry is not None:
+        usage = body.get("usage") or {}
+        finish_reason = choice.get("finish_reason")
+        telemetry["max_output_tokens"] = max_output_tokens
+        telemetry["max_tokens_in_request"] = max_output_tokens is not None
+        telemetry["prompt_tokens"] = usage.get("prompt_tokens")
+        telemetry["completion_tokens"] = usage.get("completion_tokens")
+        telemetry["finish_reason"] = finish_reason
+        telemetry["truncated"] = finish_reason == "length"
+    return choice["message"]["content"]
 
 
 def append_repair_feedback(prompt: str, previous_artifact: str | None, feedback_error: str | None) -> str:
@@ -1110,7 +1134,13 @@ def run_holon_cli_driver(
                 fallback_used=True,
                 workflow_attempted=False,
             )
-        direct_fallback = request_patch(args.endpoint, args.model, fallback_prompt)
+        direct_fallback = request_patch(
+            args.endpoint,
+            args.model,
+            fallback_prompt,
+            max_output_tokens=args.max_output_tokens,
+            generation_timeout_seconds=args.generation_timeout_seconds,
+        )
         recovered = extract_artifact_blocks(direct_fallback, solution_paths)
         if recovered is not None:
             return recovered, mark_generation_path(
@@ -1211,7 +1241,13 @@ def run_claw_cli_driver(
                 "auto_stdout_tail": auto_stdout[-12000:],
             }, generation_path="claw_cli", fallback_used=False, workflow_attempted=False)
 
-        direct_fallback = request_patch(args.endpoint, args.model, fallback_prompt)
+        direct_fallback = request_patch(
+            args.endpoint,
+            args.model,
+            fallback_prompt,
+            max_output_tokens=args.max_output_tokens,
+            generation_timeout_seconds=args.generation_timeout_seconds,
+        )
         recovered = extract_artifact_blocks(direct_fallback, solution_paths)
         if recovered is not None:
             return recovered, mark_generation_path({
@@ -1224,7 +1260,7 @@ def run_claw_cli_driver(
         }, generation_path="direct", fallback_used=True, workflow_attempted=False)
 
 
-def main() -> int:
+def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.add_argument("case_id")
     parser.add_argument("--model", required=True)
@@ -1234,13 +1270,47 @@ def main() -> int:
     parser.add_argument("--protocol", choices=["patch", "artifact"], default="patch")
     parser.add_argument("--driver", choices=["direct", "holon-cli", "claw-cli"], default="direct")
     parser.add_argument("--max-context-chars", type=int, default=40000)
+    # Holon-aligned generation controls. These mirror Holon workflow fields so the
+    # direct driver shares one vocabulary with Holon instead of an ad-hoc one.
+    parser.add_argument(
+        "--max-output-tokens",
+        "--generation-max-tokens",
+        dest="max_output_tokens",
+        type=int,
+        default=None,
+        help="Holon workflow field max_output_tokens. Sent as OpenAI-compatible "
+        "max_tokens on direct requests. --generation-max-tokens is a deprecated alias.",
+    )
+    parser.add_argument(
+        "--thinking-budget",
+        type=int,
+        default=None,
+        help="Holon workflow field thinking_budget. Recorded in generation metadata; "
+        "not sent as a request field unless the endpoint convention already supports one.",
+    )
+    parser.add_argument(
+        "--generation-timeout-seconds",
+        type=float,
+        default=600.0,
+        help="Per-request generation timeout in seconds for the direct driver.",
+    )
     parser.add_argument("--holon-max-iterations", type=int, default=100)
     parser.add_argument("--holon-timeout-seconds", type=float, default=540.0)
     parser.add_argument("--holon-auto-timeout-seconds", type=float, default=75.0)
     parser.add_argument("--holon-skip-auto", action="store_true")
     parser.add_argument("--previous-artifact")
     parser.add_argument("--feedback-error")
+    return parser
+
+
+def main() -> int:
+    parser = build_arg_parser()
     args = parser.parse_args()
+    if any(arg == "--generation-max-tokens" or arg.startswith("--generation-max-tokens=") for arg in sys.argv):
+        print(
+            "warning: --generation-max-tokens is deprecated; use --max-output-tokens",
+            file=sys.stderr,
+        )
 
     root = bench_root(args.bench_root)
     case = find_case(root, args.case_id)
@@ -1255,21 +1325,30 @@ def main() -> int:
         build_prompt(case, files, args.protocol), args.previous_artifact, args.feedback_error
     )
 
-    patch, metadata = (
-        run_claw_cli_driver(root, case, args, prompt, fallback_prompt)
-        if args.driver == "claw-cli"
-        else run_holon_cli_driver(root, case, args, prompt, fallback_prompt)
-        if args.driver == "holon-cli"
-        else (
-            request_patch(args.endpoint, args.model, prompt),
-            mark_generation_path(
-                {"called_tools": []},
-                generation_path="direct",
-                fallback_used=False,
-                workflow_attempted=False,
-            ),
+    if args.driver == "claw-cli":
+        patch, metadata = run_claw_cli_driver(root, case, args, prompt, fallback_prompt)
+    elif args.driver == "holon-cli":
+        patch, metadata = run_holon_cli_driver(root, case, args, prompt, fallback_prompt)
+    else:
+        generation_telemetry: dict = {}
+        patch = request_patch(
+            args.endpoint,
+            args.model,
+            prompt,
+            max_output_tokens=args.max_output_tokens,
+            generation_timeout_seconds=args.generation_timeout_seconds,
+            telemetry=generation_telemetry,
         )
-    )
+        metadata = mark_generation_path(
+            {
+                "called_tools": [],
+                "thinking_budget": args.thinking_budget,
+                **generation_telemetry,
+            },
+            generation_path="direct",
+            fallback_used=False,
+            workflow_attempted=False,
+        )
     if args.protocol == "artifact":
         patch = normalize_artifact_submission(patch, case.get("solution_paths", []))
     suffix = "patch.diff" if args.protocol == "patch" else "artifact.txt"

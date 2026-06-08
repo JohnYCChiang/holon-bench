@@ -104,6 +104,31 @@ python3 runners/run_track.py python_tool_engineering \
 `--repair-attempts` is the canonical repair-loop flag. The deprecated
 `--repair-budget` alias remains accepted for older automation.
 
+### Holon-aligned generation controls
+
+The direct driver exposes generation controls under the same vocabulary as Holon
+workflow fields, so a model behaves consistently in the benchmark and inside Holon:
+
+| Flag | Holon workflow field | Effect |
+|---|---|---|
+| `--max-output-tokens` | `max_output_tokens` | Sent as OpenAI-compatible `max_tokens` on the direct request; omitted when unset. |
+| `--thinking-budget` | `thinking_budget` | Recorded in generation metadata. Not sent as a request field unless the endpoint convention already supports one. |
+| `--generation-timeout-seconds` | — | Per-request generation timeout (default `600.0`). |
+
+The deprecated `--generation-max-tokens` alias normalizes to `--max-output-tokens`.
+`run_track.py` forwards all three to `run_model_case.py`.
+
+```bash
+python3 runners/run_track.py python_tool_engineering \
+  --model <your-model-name> \
+  --endpoint http://127.0.0.1:8086/v1 \
+  --protocol artifact --driver direct \
+  --max-output-tokens 4096 \
+  --thinking-budget 768 \
+  --generation-timeout-seconds 600 \
+  --bench-root .
+```
+
 ### Use artifact protocol instead of strict unified diff
 
 ```bash

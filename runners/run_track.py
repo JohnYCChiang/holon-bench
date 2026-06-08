@@ -42,6 +42,52 @@ def run_capture_process_group(args: list[str], timeout: float) -> subprocess.Com
     return subprocess.CompletedProcess(args, proc.returncode, stdout, stderr)
 
 
+def build_generation_command(
+    runners: pathlib.Path,
+    case_id: str,
+    args: argparse.Namespace,
+    *,
+    root: pathlib.Path,
+    patch_path: pathlib.Path,
+    previous_artifact: pathlib.Path | None = None,
+    feedback_error: str | None = None,
+) -> list[str]:
+    command = [
+        sys.executable,
+        str(runners / "run_model_case.py"),
+        case_id,
+        "--model",
+        args.model,
+        "--endpoint",
+        args.endpoint,
+        "--bench-root",
+        str(root),
+        "--out",
+        str(patch_path),
+        "--protocol",
+        args.protocol,
+        "--driver",
+        args.driver,
+        "--generation-timeout-seconds",
+        str(args.generation_timeout_seconds),
+        "--holon-max-iterations",
+        str(args.holon_max_iterations),
+        "--holon-timeout-seconds",
+        str(max(1.0, args.generation_timeout_seconds - 10.0)),
+        "--holon-auto-timeout-seconds",
+        str(args.holon_auto_timeout_seconds),
+    ]
+    if args.max_output_tokens is not None:
+        command += ["--max-output-tokens", str(args.max_output_tokens)]
+    if args.thinking_budget is not None:
+        command += ["--thinking-budget", str(args.thinking_budget)]
+    if previous_artifact is not None:
+        command += ["--previous-artifact", str(previous_artifact)]
+    if feedback_error is not None:
+        command += ["--feedback-error", feedback_error]
+    return command
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("track")
@@ -52,6 +98,22 @@ def main() -> int:
     parser.add_argument("--bench-root", default=".")
     parser.add_argument("--work-root", default="/tmp/holon-bench-track")
     parser.add_argument("--generation-timeout-seconds", type=float, default=90.0)
+    # Holon-aligned generation controls forwarded to run_model_case.py.
+    parser.add_argument(
+        "--max-output-tokens",
+        "--generation-max-tokens",
+        dest="max_output_tokens",
+        type=int,
+        default=None,
+        help="Holon workflow field max_output_tokens, forwarded to the direct driver "
+        "as max_tokens. --generation-max-tokens is a deprecated alias.",
+    )
+    parser.add_argument(
+        "--thinking-budget",
+        type=int,
+        default=None,
+        help="Holon workflow field thinking_budget, forwarded to run_model_case.py.",
+    )
     parser.add_argument("--holon-max-iterations", type=int, default=100)
     parser.add_argument("--holon-auto-timeout-seconds", type=float, default=75.0)
     parser.add_argument(
@@ -71,6 +133,11 @@ def main() -> int:
     if any(arg == "--repair-budget" or arg.startswith("--repair-budget=") for arg in sys.argv):
         print(
             "warning: --repair-budget is deprecated; use --repair-attempts",
+            file=sys.stderr,
+        )
+    if any(arg == "--generation-max-tokens" or arg.startswith("--generation-max-tokens=") for arg in sys.argv):
+        print(
+            "warning: --generation-max-tokens is deprecated; use --max-output-tokens",
             file=sys.stderr,
         )
 
@@ -99,29 +166,13 @@ def main() -> int:
             patch_path.parent.mkdir(parents=True, exist_ok=True)
             patch_path.write_text(render_seed_artifact(repair_seed_artifact), encoding="utf-8")
         else:
-            generation_command = [
-                sys.executable,
-                str(runners / "run_model_case.py"),
+            generation_command = build_generation_command(
+                runners,
                 case_id,
-                "--model",
-                args.model,
-                "--endpoint",
-                args.endpoint,
-                "--bench-root",
-                str(root),
-                "--out",
-                str(patch_path),
-                "--protocol",
-                args.protocol,
-                "--driver",
-                args.driver,
-                "--holon-max-iterations",
-                str(args.holon_max_iterations),
-                "--holon-timeout-seconds",
-                str(max(1.0, args.generation_timeout_seconds - 10.0)),
-                "--holon-auto-timeout-seconds",
-                str(args.holon_auto_timeout_seconds),
-            ]
+                args,
+                root=root,
+                patch_path=patch_path,
+            )
             started = time.monotonic()
             try:
                 generated = run_capture_process_group(
@@ -195,33 +246,15 @@ def main() -> int:
             feedback_error = build_feedback_error(case, res)
             print(f"[{case_id}] Repair loop triggered. Failed gates: {failed_gates(hard_gates)}")
             print(f"[{case_id}] Repair attempt {attempt_number}: re-generating with feedback (len={len(feedback_error)})...")
-            repair_command = [
-                sys.executable,
-                str(runners / "run_model_case.py"),
+            repair_command = build_generation_command(
+                runners,
                 case_id,
-                "--model",
-                args.model,
-                "--endpoint",
-                args.endpoint,
-                "--bench-root",
-                str(root),
-                "--out",
-                str(patch_path),
-                "--protocol",
-                args.protocol,
-                "--driver",
-                args.driver,
-                "--holon-max-iterations",
-                str(args.holon_max_iterations),
-                "--holon-timeout-seconds",
-                str(max(1.0, args.generation_timeout_seconds - 10.0)),
-                "--holon-auto-timeout-seconds",
-                str(args.holon_auto_timeout_seconds),
-                "--previous-artifact",
-                str(previous_patch_path),
-                "--feedback-error",
-                feedback_error,
-            ]
+                args,
+                root=root,
+                patch_path=patch_path,
+                previous_artifact=previous_patch_path,
+                feedback_error=feedback_error,
+            )
             shutil.rmtree(work_root, ignore_errors=True)
             try:
                 generated_repair = run_capture_process_group(
