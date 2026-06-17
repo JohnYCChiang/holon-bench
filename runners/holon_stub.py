@@ -22,6 +22,22 @@ so the stub stays case-agnostic:
                              otherwise the marker is prepended to the file
 - ``HOLON_STUB_GOVERNANCE``  ``"1"`` to emit ``.holon/governance.json``
 - ``HOLON_STUB_CASE``        case id recorded in the tao_truth_chain subject id
+
+Tao fs EffectOp witness model (``HOLON_STUB_FS_WITNESS``)
+--------------------------------------------------------
+When ``HOLON_STUB_FS_WITNESS`` is set, the stub models the one fs permission
+path that the Holon runtime gates when a ``TaoEffectOpWitnessSource`` is
+installed (holon#5 / tao#5). It overrides the generic governance path above and
+makes the governed-vs-ungoverned behavioral difference observable offline:
+
+- unset / ``none`` / ``absent``  -> no witness source installed: the legacy,
+  *ungoverned* path. Baseline allow — the fs write happens and an ``ungoverned``
+  governance record (no Tao checks) is emitted so the run is comparable.
+- ``admit`` / ``allow`` / ``grant`` -> witness *admits* the fs EffectOp: the fs
+  write happens and a passing ``fs_permission`` check is recorded.
+- ``deny`` / ``missing`` (or any unknown value, fail-closed) -> witness *denies*
+  (missing grant): the fs write is blocked and a failing ``fs_permission`` check
+  is recorded, with no edit applied.
 """
 from __future__ import annotations
 
@@ -84,10 +100,85 @@ def write_governance(cwd: pathlib.Path) -> None:
     )
 
 
+def fs_witness_decision() -> tuple[str | None, str | None]:
+    """Resolve the Tao fs EffectOp witness gate from ``HOLON_STUB_FS_WITNESS``.
+
+    Returns ``(mode, decision)``:
+
+    - ``(None, None)``        the var is unset: not in fs-witness mode, so the
+      stub's generic governance path runs instead (behavior unchanged).
+    - ``("ungoverned", "admit")``  no witness installed: baseline allow.
+    - ``("governed", "admit")``    witness grants the fs EffectOp.
+    - ``("governed", "deny")``     witness denies / missing grant (fail-closed
+      for unknown values).
+    """
+    raw = os.environ.get("HOLON_STUB_FS_WITNESS")
+    if raw is None:
+        return None, None
+    value = raw.strip().lower()
+    if value in ("", "none", "absent", "unconfigured", "legacy"):
+        return "ungoverned", "admit"
+    if value in ("admit", "allow", "grant", "granted"):
+        return "governed", "admit"
+    # deny / missing / missing_grant / denied and anything unrecognized fail closed.
+    return "governed", "deny"
+
+
+def write_fs_governance(cwd: pathlib.Path, mode: str, decision: str) -> None:
+    case_id = os.environ.get("HOLON_STUB_CASE", "smoke")
+    target = os.environ.get("HOLON_STUB_TARGET", "")
+    holon_dir = cwd / ".holon"
+    holon_dir.mkdir(exist_ok=True)
+    if mode == "ungoverned":
+        # Legacy/unconfigured: no Tao EffectOp witness ran, so no governance
+        # checks are recorded. The baseline-allow behavior is proven by the
+        # applied fs edit, not by a check.
+        governance: dict = {
+            "governance_mode": "ungoverned",
+            "governance_checks": [],
+        }
+    else:
+        admitted = decision == "admit"
+        governance = {
+            "governance_mode": "governed",
+            "governance_checks": [
+                {
+                    "name": "fs_permission",
+                    "passed": admitted,
+                    "tao_fact_id": f"fact-fs-{case_id}",
+                    "detail": (
+                        f"Tao EffectOp witness admitted fs write to {target}"
+                        if admitted
+                        else f"Tao EffectOp witness denied fs write to {target} "
+                        "(missing grant)"
+                    ),
+                }
+            ],
+            "tao_truth_chain": {
+                "subject_id": f"case::{case_id}",
+                "fact_kind": "effect_op_witness",
+                "fact_id": f"fact-fs-{case_id}",
+                "artifact_ids": [f"artifact-{case_id}"],
+                "verifier_input_ids": [f"witness-{case_id}"],
+            },
+        }
+    (holon_dir / "governance.json").write_text(
+        json.dumps(governance, indent=2), encoding="utf-8"
+    )
+
+
 def main() -> int:
     cwd = pathlib.Path.cwd()
-    apply_change(cwd)
-    write_governance(cwd)
+    fs_mode, fs_decision = fs_witness_decision()
+    if fs_mode is not None:
+        # Tao fs EffectOp witness path: the gate decides whether the fs write
+        # is allowed before it happens.
+        if fs_decision == "admit":
+            apply_change(cwd)
+        write_fs_governance(cwd, fs_mode, fs_decision)
+    else:
+        apply_change(cwd)
+        write_governance(cwd)
     # Holon-style trace line so the driver's graph-tool detection has input.
     print(json.dumps({"graph_tool_calls": ["RecallMemory"]}))
     return 0
