@@ -81,6 +81,7 @@ def main() -> int:
             model_failures.update(item.get("failure_tags", []))
             first_failures.update(item.get("first_failure_tags", []))
             final_failures.update(item.get("final_failure_tags", item.get("failure_tags", [])))
+        tao_truth_chains = collect_tao_truth_chains(model_scores)
         machine[model] = {
             "hard_pass_rate": round(hard_pass_rate, 4),
             "first_pass_rate": round(first_pass_rate, 4),
@@ -105,6 +106,7 @@ def main() -> int:
             "failure_distribution": dict(model_failures),
             "first_failure_distribution": dict(first_failures),
             "final_failure_distribution": dict(final_failures),
+            "tao_truth_chains": tao_truth_chains,
         }
         risk_summary = summarize_risks(
             model_scores=model_scores,
@@ -176,6 +178,7 @@ def main() -> int:
                 1 for item in track_scores if not item.get("final_pass", item["hard_pass"])
             )
             track_soft = sum(item["soft_score"] for item in track_scores) / len(track_scores)
+            track_tao_truth_chains = collect_tao_truth_chains(track_scores)
             per_track[model][track] = {
                 "hard_pass_rate": round(track_pass, 4),
                 "first_pass_rate": round(track_first_pass, 4),
@@ -195,6 +198,7 @@ def main() -> int:
                 "mutation_failure_count": track_mutation_failure_count,
                 "soft_score_avg": round(track_soft, 2),
                 "case_count": len(track_scores),
+                "tao_truth_chains": track_tao_truth_chains,
             }
             lines.append(f"### {track}")
             lines.append("")
@@ -265,6 +269,21 @@ def select_final_scores(scores: list[dict]) -> list[dict]:
         if previous is None or score_rank(score) > score_rank(previous):
             selected[key] = score
     return list(selected.values())
+
+
+def collect_tao_truth_chains(scores: list[dict]) -> list[dict]:
+    chains = []
+    for score in scores:
+        chain = score.get("tao_truth_chain")
+        if isinstance(chain, dict):
+            chains.append(
+                {
+                    "case_id": score.get("case_id"),
+                    "track": score.get("track"),
+                    "tao_truth_chain": chain,
+                }
+            )
+    return chains
 
 
 def score_rank(score: dict) -> tuple[int, int, int]:
