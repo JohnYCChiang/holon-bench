@@ -60,6 +60,9 @@ jobs:
       - name: Run deterministic benchmark pipeline smoke test
         run: python3 runners/ci_smoke.py .
 
+      - name: Run offline Holon (holon-cli) driver smoke test
+        run: python3 runners/holon_smoke.py .
+
   report-artifact:
     name: Upload Report Artifact
     runs-on: ubuntu-latest

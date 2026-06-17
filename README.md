@@ -75,7 +75,14 @@ python3 runners/schema_check.py .
 python3 -m py_compile runners/*.py
 python3 runners/docs_check.py .
 python3 runners/ci_smoke.py .
+python3 runners/holon_smoke.py .
 ```
+
+`holon_smoke.py` runs one case end-to-end through the `holon-cli` driver with an
+offline Holon stand-in (`runners/holon_stub.py`), so the Holon path — including
+surfaced governance metadata — is exercised without a compiled Holon binary or
+any remote API. Real Holon runs point the driver at the compiled binary via the
+`HOLON_BIN` environment variable.
 
 ### Run a single case against any OpenAI-compatible endpoint
 

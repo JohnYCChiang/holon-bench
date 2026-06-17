@@ -491,13 +491,60 @@ def collect_holon_trace(
                 }
             )
     combined = "\n".join(trace_text)
-    return {
+    trace = {
         "called_tools": detect_called_tools(combined),
         "auto_stdout_tail": auto_stdout[-12000:],
         "fallback_stdout_tail": fallback_stdout[-12000:],
         "trace_files": trace_files,
         "artifact_snapshots": artifact_snapshots,
     }
+    # Surface optional Holon governance metadata only when the run emitted it, so
+    # legacy runs that produce no governance file keep byte-for-byte identical
+    # metadata. mark_generation_path copies these keys through unchanged.
+    trace.update(read_holon_governance(snapshot_roots))
+    return trace
+
+
+GOVERNANCE_REL_PATHS = ("reports/governance.json", ".holon/governance.json")
+
+
+def read_holon_governance(snapshot_roots: list[pathlib.Path] | None) -> dict:
+    """Read Holon-emitted governance metadata when present.
+
+    Returns only the keys Holon actually emitted (governance_mode,
+    governance_checks, tao_truth_chain), validated against the result schema's
+    shape. Returns an empty dict when no governance file exists or it is
+    unreadable, leaving non-governed runs unchanged.
+    """
+    for root in snapshot_roots or []:
+        for rel in GOVERNANCE_REL_PATHS:
+            path = root / rel
+            if not path.is_file():
+                continue
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            if not isinstance(data, dict):
+                continue
+            surfaced: dict = {}
+            mode = data.get("governance_mode")
+            if mode in ("governed", "ungoverned"):
+                surfaced["governance_mode"] = mode
+            checks = data.get("governance_checks")
+            if isinstance(checks, list) and all(
+                isinstance(item, dict)
+                and isinstance(item.get("name"), str)
+                and isinstance(item.get("passed"), bool)
+                for item in checks
+            ):
+                surfaced["governance_checks"] = checks
+            chain = data.get("tao_truth_chain")
+            if isinstance(chain, dict) and isinstance(chain.get("subject_id"), str):
+                surfaced["tao_truth_chain"] = chain
+            if surfaced:
+                return surfaced
+    return {}
 
 
 def mark_generation_path(
