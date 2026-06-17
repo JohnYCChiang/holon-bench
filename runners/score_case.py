@@ -35,6 +35,13 @@ def main() -> int:
         (not final_pass) and max_repair_attempts > 0 and repair_attempts_used >= max_repair_attempts
     )
 
+    governance_checks = result.get("governance_checks") or []
+    governance_failures = [
+        str(check.get("name", f"governance_check_{index}"))
+        for index, check in enumerate(governance_checks)
+        if isinstance(check, dict) and not check.get("passed", True)
+    ]
+
     weights = scoring["soft_score"]
     soft = 0
     if hard_gates.get("tests_pass"):
@@ -85,6 +92,10 @@ def main() -> int:
         "driver": result.get("driver", "direct"),
         "generation_path": result.get("generation_path"),
         "governance_level": result.get("governance_level"),
+        "governance_mode": result.get("governance_mode"),
+        "governance_check_count": len(governance_checks),
+        "governance_failure_count": len(governance_failures),
+        "governance_failures": governance_failures,
         "fallback_used": result.get("fallback_used"),
         "workflow_attempted": result.get("workflow_attempted"),
         "workflow_type": result.get("workflow_type"),

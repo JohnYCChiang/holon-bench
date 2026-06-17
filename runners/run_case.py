@@ -210,6 +210,8 @@ def main() -> int:
         "workflow_attempted": generation_trace.get("workflow_attempted"),
         "workflow_type": generation_trace.get("workflow_type"),
         "governance_level": generation_trace.get("governance_level"),
+        "governance_mode": generation_trace.get("governance_mode"),
+        "governance_checks": generation_trace.get("governance_checks"),
         "prompt_stack": generation_trace.get("prompt_stack"),
         "tao_truth_chain": generation_trace.get("tao_truth_chain"),
         "changed_files": changed,
