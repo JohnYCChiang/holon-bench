@@ -509,6 +509,8 @@ def mark_generation_path(
     workflow_type: str = "none",
     governance_level: str | None = None,
     prompt_stack: dict | None = None,
+    governance_mode: str | None = None,
+    governance_checks: list | None = None,
 ) -> dict:
     if governance_level is None:
         governance_level = governance_level_for_path(generation_path)
@@ -523,6 +525,12 @@ def mark_generation_path(
             "prompt_stack": prompt_stack,
         }
     )
+    # Governance mode/checks are optional Tao-backed run metadata. Only emit the keys
+    # when a caller supplies them so legacy metadata stays byte-for-byte unchanged.
+    if governance_mode is not None:
+        marked["governance_mode"] = governance_mode
+    if governance_checks is not None:
+        marked["governance_checks"] = governance_checks
     return marked
 
 

@@ -16,6 +16,15 @@
     "workflow_attempted": { "type": ["boolean", "null"] },
     "workflow_type": { "enum": ["none", "artifact", "graph_recall", null] },
     "governance_level": { "enum": ["blackbox_artifact", "graybox_workspace", "whitebox_native", null] },
+    "governance_mode": {
+      "enum": ["governed", "ungoverned", null],
+      "description": "Whether Tao-backed governance checks were active for this run. 'governed' = run executed under Tao-backed checks; 'ungoverned' = matching run without them. Omit or null for legacy runs where the distinction does not apply."
+    },
+    "governance_checks": {
+      "type": ["array", "null"],
+      "description": "Optional record of the Tao-backed governance checks evaluated during a governed run. Each entry reports whether one check passed; failing entries are governance failures.",
+      "items": { "$ref": "#/$defs/governance_check" }
+    },
     "prompt_stack": { "type": ["object", "null"] },
     "tao_truth_chain": { "$ref": "#/$defs/tao_truth_chain" },
     "attempt_count": { "type": "integer", "minimum": 1 },
@@ -63,6 +72,17 @@
     "duration_seconds": { "type": "number" }
   },
   "$defs": {
+    "governance_check": {
+      "type": "object",
+      "description": "One Tao-backed governance check evaluated during a governed run.",
+      "required": ["name", "passed"],
+      "properties": {
+        "name": { "type": "string" },
+        "passed": { "type": "boolean" },
+        "tao_fact_id": { "type": "string" },
+        "detail": { "type": "string" }
+      }
+    },
     "tao_truth_chain": {
       "type": ["object", "null"],
       "description": "Optional Tao truth-chain references preserved from Holon metadata. Omit or null when unavailable.",

@@ -243,10 +243,16 @@ def main() -> int:
         "minimum_hard_pass_rate_for_routing": minimum_pass_rate,
     }
 
+    governance_comparison = build_governance_comparison(scores)
+    if governance_comparison is not None:
+        append_governance_comparison_lines(lines, governance_comparison)
+
     (root / "reports").mkdir(exist_ok=True)
     (root / "reports/model_matrix.md").write_text("\n".join(lines), encoding="utf-8")
     write_json(root / "reports/per_track.json", per_track)
     write_json(root / "reports/routing_recommendation.json", routing)
+    if governance_comparison is not None:
+        write_json(root / "reports/governance_comparison.json", governance_comparison)
     return 0
 
 
@@ -284,6 +290,126 @@ def collect_tao_truth_chains(scores: list[dict]) -> list[dict]:
                 }
             )
     return chains
+
+
+SCOPE_DRIFT_TAGS = {"over_refactor", "forbidden_file_touched", "test_tampering"}
+
+
+def scope_drifted(score: dict) -> bool:
+    tags = set(score.get("final_failure_tags", score.get("failure_tags", [])))
+    return bool(tags & SCOPE_DRIFT_TAGS)
+
+
+def governance_group_metrics(scores: list[dict]) -> dict:
+    count = len(scores)
+    total_repair_attempts = sum(int(item.get("repair_attempts_used", 0) or 0) for item in scores)
+    governance_failure_count = sum(int(item.get("governance_failure_count", 0) or 0) for item in scores)
+    return {
+        "case_count": count,
+        "scope_drift_rate": round(sum(1 for item in scores if scope_drifted(item)) / count, 4),
+        "repair_tax_rate": round(total_repair_attempts / count, 4),
+        "hidden_pass_rate": round(sum(1 for item in scores if item.get("hidden_pass", True)) / count, 4),
+        "final_pass_rate": round(
+            sum(1 for item in scores if item.get("final_pass", item.get("hard_pass", False))) / count, 4
+        ),
+        "total_repair_attempts": total_repair_attempts,
+        "governance_failure_count": governance_failure_count,
+        "cases_with_governance_failure": sum(
+            1 for item in scores if int(item.get("governance_failure_count", 0) or 0) > 0
+        ),
+    }
+
+
+COMPARISON_METRICS = (
+    "scope_drift_rate",
+    "repair_tax_rate",
+    "hidden_pass_rate",
+    "final_pass_rate",
+    "governance_failure_count",
+)
+
+
+def metric_deltas(governed: dict, ungoverned: dict) -> dict:
+    return {
+        metric: round(governed[metric] - ungoverned[metric], 4)
+        for metric in COMPARISON_METRICS
+    }
+
+
+def group_scores_by_case(scores: list[dict]) -> dict[tuple[str, str], list[dict]]:
+    grouped: dict[tuple[str, str], list[dict]] = collections.defaultdict(list)
+    for score in scores:
+        grouped[(str(score.get("track", "")), str(score.get("case_id", "")))].append(score)
+    return grouped
+
+
+def build_governance_comparison(scores: list[dict]) -> dict | None:
+    governed = [item for item in scores if item.get("governance_mode") == "governed"]
+    ungoverned = [item for item in scores if item.get("governance_mode") == "ungoverned"]
+    if not governed and not ungoverned:
+        return None
+
+    governed_by_case = group_scores_by_case(governed)
+    ungoverned_by_case = group_scores_by_case(ungoverned)
+    matched_keys = sorted(set(governed_by_case) & set(ungoverned_by_case))
+
+    matched_cases = []
+    for track, case_id in matched_keys:
+        governed_metrics = governance_group_metrics(governed_by_case[(track, case_id)])
+        ungoverned_metrics = governance_group_metrics(ungoverned_by_case[(track, case_id)])
+        matched_cases.append(
+            {
+                "case_id": case_id,
+                "track": track,
+                "governed": governed_metrics,
+                "ungoverned": ungoverned_metrics,
+                "deltas": metric_deltas(governed_metrics, ungoverned_metrics),
+            }
+        )
+
+    comparison: dict = {
+        "governed": governance_group_metrics(governed) if governed else None,
+        "ungoverned": governance_group_metrics(ungoverned) if ungoverned else None,
+        "matched_case_count": len(matched_keys),
+        "matched_cases": matched_cases,
+    }
+    if matched_keys:
+        matched_governed = [item for key in matched_keys for item in governed_by_case[key]]
+        matched_ungoverned = [item for key in matched_keys for item in ungoverned_by_case[key]]
+        governed_metrics = governance_group_metrics(matched_governed)
+        ungoverned_metrics = governance_group_metrics(matched_ungoverned)
+        comparison["matched_governed"] = governed_metrics
+        comparison["matched_ungoverned"] = ungoverned_metrics
+        comparison["deltas"] = metric_deltas(governed_metrics, ungoverned_metrics)
+    return comparison
+
+
+def append_governance_comparison_lines(lines: list[str], comparison: dict) -> None:
+    lines.append("## Governance Comparison (Tao-backed vs ungoverned)")
+    lines.append("")
+    for mode in ("governed", "ungoverned"):
+        metrics = comparison.get(mode)
+        if metrics is None:
+            lines.append(f"- {mode.title()}: no cases recorded")
+            continue
+        lines.append(
+            f"- {mode.title()} ({metrics['case_count']} cases): "
+            f"scope drift {metrics['scope_drift_rate']:.2%}, "
+            f"repair tax {metrics['repair_tax_rate']:.2f} attempts/case, "
+            f"hidden pass {metrics['hidden_pass_rate']:.2%}, "
+            f"governance failures {metrics['governance_failure_count']}"
+        )
+    lines.append(f"- Matched cases: {comparison['matched_case_count']}")
+    deltas = comparison.get("deltas")
+    if deltas is not None:
+        lines.append(
+            "- Governed − ungoverned (matched): "
+            f"scope drift {deltas['scope_drift_rate']:+.2%}, "
+            f"repair tax {deltas['repair_tax_rate']:+.2f}, "
+            f"hidden pass {deltas['hidden_pass_rate']:+.2%}, "
+            f"governance failures {deltas['governance_failure_count']:+d}"
+        )
+    lines.append("")
 
 
 def score_rank(score: dict) -> tuple[int, int, int]:

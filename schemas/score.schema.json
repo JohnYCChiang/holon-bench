@@ -12,6 +12,25 @@
     "driver": { "enum": ["direct", "holon-cli", "claw-cli"] },
     "generation_path": { "enum": ["direct", "holon_auto", "holon_workflow", "holon_print", "claw_cli", null] },
     "governance_level": { "enum": ["blackbox_artifact", "graybox_workspace", "whitebox_native", null] },
+    "governance_mode": {
+      "enum": ["governed", "ungoverned", null],
+      "description": "Carried from the result: 'governed' if Tao-backed checks were active, 'ungoverned' for the matching run without them, null/omitted for legacy scores. Used to pair governed and ungoverned cases in report comparisons."
+    },
+    "governance_check_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of Tao-backed governance checks recorded for this case."
+    },
+    "governance_failure_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of recorded governance checks that did not pass."
+    },
+    "governance_failures": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Names of the governance checks that failed."
+    },
     "fallback_used": { "type": ["boolean", "null"] },
     "workflow_attempted": { "type": ["boolean", "null"] },
     "workflow_type": { "enum": ["none", "artifact", "graph_recall", null] },
