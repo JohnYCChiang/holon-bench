@@ -76,6 +76,7 @@ python3 -m py_compile runners/*.py
 python3 runners/docs_check.py .
 python3 runners/ci_smoke.py .
 python3 runners/holon_smoke.py .
+python3 runners/holon_fs_governance_smoke.py .
 ```
 
 `holon_smoke.py` runs one case end-to-end through the `holon-cli` driver with an
@@ -83,6 +84,14 @@ offline Holon stand-in (`runners/holon_stub.py`), so the Holon path — includin
 surfaced governance metadata — is exercised without a compiled Holon binary or
 any remote API. Real Holon runs point the driver at the compiled binary via the
 `HOLON_BIN` environment variable.
+
+`holon_fs_governance_smoke.py` compares the same fs permission case across three
+witness configurations — unconfigured (ungoverned, baseline allow), governed +
+admit, and governed + deny — proving the behavioral difference the Tao
+`EffectOp` witness gate introduces (holon#5 / tao#5) flows through the bench
+end-to-end. The witness decision is modeled in the offline stub; see
+`.claude/tasks/holon-tao-witness-gate.md` for what is measured and what remains
+real-CLI wiring.
 
 ### Run a single case against any OpenAI-compatible endpoint
 
