@@ -89,6 +89,7 @@ def main() -> int:
         "workflow_attempted": result.get("workflow_attempted"),
         "workflow_type": result.get("workflow_type"),
         "prompt_stack": result.get("prompt_stack"),
+        "tao_truth_chain": result.get("tao_truth_chain"),
         "attempt_count": attempt_count,
         "repair_used": repair_used,
         "first_pass": first_pass,

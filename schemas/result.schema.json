@@ -17,6 +17,7 @@
     "workflow_type": { "enum": ["none", "artifact", "graph_recall", null] },
     "governance_level": { "enum": ["blackbox_artifact", "graybox_workspace", "whitebox_native", null] },
     "prompt_stack": { "type": ["object", "null"] },
+    "tao_truth_chain": { "$ref": "#/$defs/tao_truth_chain" },
     "attempt_count": { "type": "integer", "minimum": 1 },
     "repair_used": { "type": "boolean" },
     "first_pass": {
@@ -60,5 +61,19 @@
     "first_failure_tags": { "type": "array", "items": { "type": "string" } },
     "final_failure_tags": { "type": "array", "items": { "type": "string" } },
     "duration_seconds": { "type": "number" }
+  },
+  "$defs": {
+    "tao_truth_chain": {
+      "type": ["object", "null"],
+      "description": "Optional Tao truth-chain references preserved from Holon metadata. Omit or null when unavailable.",
+      "required": ["subject_id"],
+      "properties": {
+        "subject_id": { "type": "string" },
+        "artifact_ids": { "type": "array", "items": { "type": "string" } },
+        "fact_kind": { "type": "string" },
+        "fact_id": { "type": "string" },
+        "verifier_input_ids": { "type": "array", "items": { "type": "string" } }
+      }
+    }
   }
 }
