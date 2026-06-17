@@ -77,6 +77,7 @@ python3 runners/docs_check.py .
 python3 runners/ci_smoke.py .
 python3 runners/holon_smoke.py .
 python3 runners/holon_fs_governance_smoke.py .
+python3 runners/holon_real_fs_governance_smoke.py .
 ```
 
 `holon_smoke.py` runs one case end-to-end through the `holon-cli` driver with an
@@ -92,6 +93,13 @@ admit, and governed + deny — proving the behavioral difference the Tao
 end-to-end. The witness decision is modeled in the offline stub; see
 `.claude/tasks/holon-tao-witness-gate.md` for what is measured and what remains
 real-CLI wiring.
+
+`holon_real_fs_governance_smoke.py` is the opt-in real-binary version for Holon
+commit `394a734` or newer. It writes real witness files and drives
+`HOLON_TAO_FS_WITNESS=<path>` through the Holon CLI/settings surface added by
+holon#7. With no executable `HOLON_BIN`, it reports `not-run` and exits 0 so
+default CI remains offline. With `HOLON_BIN` and `HOLON_SMOKE_ENDPOINT` set, it
+checks unconfigured, governed-admit, and governed-deny/missing-grant runs.
 
 ### Run a single case against any OpenAI-compatible endpoint
 

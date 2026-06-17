@@ -36,7 +36,7 @@ deny verdict blocks the edit and surfaces a failing `fs_permission` check plus a
 - `runners/holon_fs_governance_smoke.py` — offline end-to-end smoke asserting the
   visible behavioral difference flows through to result/score.
 
-## Known limitation — what remains real-CLI wiring
+## Known limitation — superseded by holon-bench#9
 
 The compiled Holon CLI does **not** yet expose an external config surface for
 installing a `TaoEffectOpWitnessSource` (no flag / settings key drives the fs
@@ -50,3 +50,8 @@ binary, install a witness source via the new CLI/settings hook from
 `run_holon_cli_driver`, and drop the stub's `HOLON_STUB_FS_WITNESS` branch in
 favor of reading the runtime's own `.holon/governance.json`. The result/score
 plumbing and these assertions should carry over unchanged.
+
+holon#7 has since added that real surface:
+`HOLON_TAO_FS_WITNESS=<path>` or `tao.fsWitness.path`, with Holon merge commit
+`394a734`. holon-bench#9 adds `runners/holon_real_fs_governance_smoke.py` as the
+opt-in real-binary smoke while keeping this offline stub smoke for CI.

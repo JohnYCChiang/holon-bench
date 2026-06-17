@@ -38,6 +38,26 @@ makes the governed-vs-ungoverned behavioral difference observable offline:
 - ``deny`` / ``missing`` (or any unknown value, fail-closed) -> witness *denies*
   (missing grant): the fs write is blocked and a failing ``fs_permission`` check
   is recorded, with no edit applied.
+
+Real witness file gate (``HOLON_TAO_FS_WITNESS``)
+-------------------------------------------------
+When ``HOLON_TAO_FS_WITNESS`` is set to a path, the stub stands in for the real
+Holon config surface (holon#7, merge ``394a734``): it reads the on-disk witness
+file (``{ grants: [...] }``) and applies the same gate the compiled binary would.
+This lets the *real-binary* smoke be rehearsed offline against the same witness
+files it would feed a real ``holon`` binary. The contract mirrored here:
+
+- unset / empty                 -> legacy ungated path (no witness source), as if
+  ``HOLON_TAO_FS_WITNESS`` were absent. The generic path runs.
+- a grant matching the fs EffectOp with ``decision == "admit"`` and a
+  ``resultType`` -> admit: the fs write happens.
+- a malformed / unreadable witness file, a grant missing its required field, or
+  no matching grant row -> deny (fail-closed / missing grant): the write is
+  blocked.
+
+``HOLON_TAO_FS_WITNESS`` wins over ``HOLON_STUB_FS_WITNESS`` (env-over-model),
+matching Holon's env-over-settings precedence. The matched fs EffectOp defaults
+to ``fs.edit`` and can be overridden with ``HOLON_STUB_FS_EFFECT_OP``.
 """
 from __future__ import annotations
 
@@ -124,6 +144,60 @@ def fs_witness_decision() -> tuple[str | None, str | None]:
     return "governed", "deny"
 
 
+FS_EFFECT_OPS = ("fs.create", "fs.overwrite", "fs.edit", "fs.delete")
+
+
+def real_witness_decision() -> tuple[str | None, str | None]:
+    """Resolve the real fs EffectOp witness gate from ``HOLON_TAO_FS_WITNESS``.
+
+    Stands in for the compiled Holon binary's gate (holon#7, merge ``394a734``)
+    by reading the on-disk witness file and applying the same contract. Returns
+    ``(mode, decision)``:
+
+    - ``(None, None)``          the var is unset/empty: no witness source, so the
+      stub falls through to its other paths (legacy behavior unchanged).
+    - ``("governed", "admit")``  a matching grant admits the fs EffectOp.
+    - ``("governed", "deny")``   missing/malformed witness, missing required
+      grant field, or no matching grant row (all fail-closed).
+    """
+    raw = os.environ.get("HOLON_TAO_FS_WITNESS")
+    if raw is None or raw.strip() == "":
+        # Empty means unset; env-over-settings precedence is the caller's job.
+        return None, None
+    path = pathlib.Path(raw)
+    if not path.is_absolute():
+        # A relative witness path resolves against the process CWD.
+        path = pathlib.Path.cwd() / path
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        # Configured but malformed/unreadable => fail closed.
+        return "governed", "deny"
+    grants = data.get("grants") if isinstance(data, dict) else None
+    if not isinstance(grants, list):
+        return "governed", "deny"
+
+    effect_op = os.environ.get("HOLON_STUB_FS_EFFECT_OP", "fs.edit")
+    target = os.environ.get("HOLON_STUB_TARGET", "")
+    for grant in grants:
+        if not isinstance(grant, dict):
+            continue
+        if grant.get("effectOp") != effect_op:
+            continue
+        resource = grant.get("resource")
+        if resource is not None and resource != target:
+            continue
+        decision = grant.get("decision")
+        if decision == "admit" and grant.get("resultType"):
+            return "governed", "admit"
+        if decision == "deny" and grant.get("reason"):
+            return "governed", "deny"
+        # Matching row but missing its required field => fail closed.
+        return "governed", "deny"
+    # No matching grant row => missing-grant deny.
+    return "governed", "deny"
+
+
 def write_fs_governance(cwd: pathlib.Path, mode: str, decision: str) -> None:
     case_id = os.environ.get("HOLON_STUB_CASE", "smoke")
     target = os.environ.get("HOLON_STUB_TARGET", "")
@@ -169,6 +243,15 @@ def write_fs_governance(cwd: pathlib.Path, mode: str, decision: str) -> None:
 
 def main() -> int:
     cwd = pathlib.Path.cwd()
+    real_mode, real_decision = real_witness_decision()
+    if real_mode is not None:
+        # Real config-surface path: gate read from the on-disk witness file
+        # (HOLON_TAO_FS_WITNESS), exactly as the compiled binary would.
+        if real_decision == "admit":
+            apply_change(cwd)
+        write_fs_governance(cwd, real_mode, real_decision)
+        print(json.dumps({"graph_tool_calls": ["RecallMemory"]}))
+        return 0
     fs_mode, fs_decision = fs_witness_decision()
     if fs_mode is not None:
         # Tao fs EffectOp witness path: the gate decides whether the fs write
