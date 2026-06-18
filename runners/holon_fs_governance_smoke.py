@@ -23,6 +23,15 @@ Scenarios (same case, same edit, different witness config):
   ``fs_permission`` check.
 - governed/deny   witness denies (missing grant): fs write is blocked; failing
   ``fs_permission`` check; one governance failure.
+
+After driving the three runs the smoke quantifies the governed-vs-ungoverned fs
+behavior by feeding the three scores back through
+``report.build_governance_comparison`` (the same function ``report.py`` uses for
+a full benchmark run). This turns the per-scenario checks into a single matched
+measurement: the governed runs surface exactly the one fs-write denial that the
+ungoverned baseline silently allowed (governance-failure delta ``+1``). The
+comparison reads only the existing optional governance fields, so legacy results
+without them are unaffected.
 """
 from __future__ import annotations
 
@@ -33,6 +42,7 @@ import subprocess
 import sys
 import tempfile
 
+import report
 from common import bench_root
 
 CASE_ID = "py-tool-001"
@@ -218,9 +228,50 @@ def main() -> int:
             "governed/deny did not surface the Tao truth chain",
         )
 
+        # Quantify the governed-vs-ungoverned fs behavior from the three scored
+        # runs, reusing report.build_governance_comparison so this fs slice is
+        # measured exactly as a full benchmark run would surface it. No new
+        # schema or scoring path: the comparison reads the existing optional
+        # governance fields and is skipped entirely when they are absent.
+        comparison = report.build_governance_comparison(
+            [ungov_score, admit_score, deny_score]
+        )
+        check(comparison is not None, "no governance comparison was produced")
+        check(
+            comparison["matched_case_count"] == 1,
+            "fs slice did not match the same case across governed and ungoverned",
+        )
+        governed_metrics = comparison["governed"]
+        ungoverned_metrics = comparison["ungoverned"]
+        check(
+            ungoverned_metrics["case_count"] == 1
+            and governed_metrics["case_count"] == 2,
+            "fs slice did not partition into one ungoverned and two governed runs",
+        )
+        # The measurable governed-vs-ungoverned fs delta: governance surfaces
+        # exactly the one fs-write denial (the deny scenario) that the
+        # ungoverned baseline silently allowed.
+        check(
+            ungoverned_metrics["governance_failure_count"] == 0,
+            "ungoverned baseline unexpectedly recorded a governance failure",
+        )
+        check(
+            governed_metrics["governance_failure_count"] == 1
+            and governed_metrics["cases_with_governance_failure"] == 1,
+            "governed runs did not record exactly the one fs-deny governance failure",
+        )
+        deltas = comparison["deltas"]
+        check(
+            deltas["governance_failure_count"] == 1,
+            "governed-minus-ungoverned governance failure delta was not quantified as +1",
+        )
+
     print(
         "holon_fs_governance_smoke: ok "
-        "(ungoverned allow vs governed admit/deny, no remote APIs)"
+        "(ungoverned allow vs governed admit/deny, no remote APIs; "
+        f"governed-minus-ungoverned fs governance-failure delta "
+        f"{deltas['governance_failure_count']:+d} over "
+        f"{comparison['matched_case_count']} matched case)"
     )
     return 0
 
