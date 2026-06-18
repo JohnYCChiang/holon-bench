@@ -596,6 +596,33 @@ def detect_called_tools(text: str) -> list[str]:
     return sorted(called)
 
 
+def read_holon_governance(snapshot_roots: list[pathlib.Path]) -> dict:
+    for root in snapshot_roots:
+        path = root / ".holon" / "governance.json"
+        if not path.is_file():
+            continue
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if not isinstance(data, dict):
+            continue
+        mode = data.get("governance_mode")
+        if mode not in {"governed", "ungoverned"}:
+            continue
+        governance: dict = {"governance_mode": mode}
+        checks = data.get("governance_checks")
+        if isinstance(checks, list):
+            governance["governance_checks"] = checks
+        elif mode == "ungoverned":
+            governance["governance_checks"] = []
+        chain = data.get("tao_truth_chain")
+        if isinstance(chain, dict):
+            governance["tao_truth_chain"] = chain
+        return governance
+    return {}
+
+
 def collect_holon_trace(
     *,
     workspace: pathlib.Path,
@@ -604,6 +631,7 @@ def collect_holon_trace(
     fallback_stdout: str = "",
     snapshot_roots: list[pathlib.Path] | None = None,
 ) -> dict:
+    roots = snapshot_roots or []
     trace_text = [auto_stdout, fallback_stdout]
     trace_files = []
     for base in [workspace / ".holon", home_dir / ".holon"]:
@@ -627,7 +655,7 @@ def collect_holon_trace(
             )
             trace_text.append(content)
     artifact_snapshots = []
-    for root in snapshot_roots or []:
+    for root in roots:
         if not root.exists():
             continue
         for rel in [
@@ -654,13 +682,15 @@ def collect_holon_trace(
                 }
             )
     combined = "\n".join(trace_text)
-    return {
+    trace = {
         "called_tools": detect_called_tools(combined),
         "auto_stdout_tail": auto_stdout[-12000:],
         "fallback_stdout_tail": fallback_stdout[-12000:],
         "trace_files": trace_files,
         "artifact_snapshots": artifact_snapshots,
     }
+    trace.update(read_holon_governance(roots))
+    return trace
 
 
 def mark_generation_path(
