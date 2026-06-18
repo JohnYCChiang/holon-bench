@@ -26,8 +26,8 @@ Holon-Bench measures all five. Before you adopt Codex, Claude, Gemini, or any ot
 
 **What Holon-Bench tells you**:
 - `first_pass` rate on `repair_needed` track — does it even understand broken fixtures?
-- `scope_control` result — will it touch `setup.cfg` when you only asked it to fix a function?
-- `hidden_verifier` result — does it pass your private regression suite, or just the visible CI?
+- `scope_pass` result — will it touch `setup.cfg` when you only asked it to fix a function?
+- `hidden_pass` result — does it pass your private regression suite, or just the visible CI?
 
 **Recommended tracks to run**: `python_tool_engineering`, `repair_needed`
 
@@ -51,7 +51,7 @@ Holon-Bench measures all five. Before you adopt Codex, Claude, Gemini, or any ot
 
 **What Holon-Bench tells you**:
 - `flutter_cross_platform` track fixtures include platform-specific constraints.
-- `scope_control` checks prevent agents from silently modifying shared platform files.
+- `scope_pass` checks prevent agents from silently modifying shared platform files.
 
 **Recommended tracks to run**: `flutter_cross_platform`
 

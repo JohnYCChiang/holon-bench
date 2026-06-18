@@ -218,8 +218,8 @@ eventually token/cost telemetry.
 first_pass      -> initial output trust
 repaired_pass   -> recovery ability
 repair_tax_rate -> governance cost
-scope_control   -> maintainer safety
-hidden_verifier -> regression safety
+scope_pass      -> maintainer safety
+hidden_pass     -> regression safety
 failure_tags    -> diagnostic feedback
 ```
 
