@@ -70,6 +70,10 @@ def build_generation_command(
         args.driver,
         "--generation-timeout-seconds",
         str(args.generation_timeout_seconds),
+        "--temperature",
+        str(args.temperature),
+        "--top-p",
+        str(args.top_p),
         "--holon-max-iterations",
         str(args.holon_max_iterations),
         "--holon-timeout-seconds",
@@ -77,6 +81,12 @@ def build_generation_command(
         "--holon-auto-timeout-seconds",
         str(args.holon_auto_timeout_seconds),
     ]
+    if args.min_p is not None:
+        command += ["--min-p", str(args.min_p)]
+    if args.reasoning_budget is not None:
+        command += ["--reasoning-budget", str(args.reasoning_budget)]
+    if getattr(args, "stream_early_stop", False):
+        command += ["--stream-early-stop", "--repeat-threshold", str(args.repeat_threshold)]
     if args.max_output_tokens is not None:
         command += ["--max-output-tokens", str(args.max_output_tokens)]
     if args.thinking_budget is not None:
@@ -114,6 +124,13 @@ def main() -> int:
         default=None,
         help="Holon workflow field thinking_budget, forwarded to run_model_case.py.",
     )
+    # Sampling-profile controls forwarded to run_model_case.py.
+    parser.add_argument("--temperature", type=float, default=0.1)
+    parser.add_argument("--top-p", type=float, default=0.9)
+    parser.add_argument("--min-p", type=float, default=None)
+    parser.add_argument("--reasoning-budget", type=int, default=None)
+    parser.add_argument("--stream-early-stop", action="store_true")
+    parser.add_argument("--repeat-threshold", type=int, default=4)
     parser.add_argument("--holon-max-iterations", type=int, default=100)
     parser.add_argument("--holon-auto-timeout-seconds", type=float, default=75.0)
     parser.add_argument(

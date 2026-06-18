@@ -154,18 +154,30 @@ def request_patch(
     *,
     max_output_tokens: int | None = None,
     generation_timeout_seconds: float = 600.0,
+    temperature: float = 0.1,
+    top_p: float = 0.9,
+    min_p: float | None = None,
+    reasoning_budget: int | None = None,
     telemetry: dict | None = None,
 ) -> str:
     # Generation controls mirror Holon workflow fields: max_output_tokens maps to
-    # the OpenAI-compatible `max_tokens` request field; thinking_budget has no
-    # accepted per-request field in this repo, so it is recorded in metadata by
-    # the caller rather than sent on the wire.
+    # the OpenAI-compatible `max_tokens` request field. temperature/top_p/min_p are
+    # the sampling-profile controls; min_p is sent only when provided since not every
+    # OpenAI-compatible endpoint accepts it. reasoning_budget mirrors the field the
+    # Holon openai_compat provider sends to bound server-side reasoning tokens; it is
+    # sent only when provided so default behavior is unchanged, and endpoints that do
+    # not recognize it (it is a llama.cpp server extension) simply ignore it.
     body_payload: dict = {
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.1,
+        "temperature": temperature,
+        "top_p": top_p,
         "stream": False,
     }
+    if min_p is not None:
+        body_payload["min_p"] = min_p
+    if reasoning_budget is not None:
+        body_payload["reasoning_budget"] = reasoning_budget
     if max_output_tokens is not None:
         body_payload["max_tokens"] = max_output_tokens
     payload = json.dumps(body_payload).encode("utf-8")
@@ -183,11 +195,162 @@ def request_patch(
         finish_reason = choice.get("finish_reason")
         telemetry["max_output_tokens"] = max_output_tokens
         telemetry["max_tokens_in_request"] = max_output_tokens is not None
+        telemetry["temperature"] = temperature
+        telemetry["top_p"] = top_p
+        telemetry["min_p"] = min_p
+        telemetry["reasoning_budget"] = reasoning_budget
+        telemetry["reasoning_budget_in_request"] = reasoning_budget is not None
         telemetry["prompt_tokens"] = usage.get("prompt_tokens")
         telemetry["completion_tokens"] = usage.get("completion_tokens")
         telemetry["finish_reason"] = finish_reason
         telemetry["truncated"] = finish_reason == "length"
     return choice["message"]["content"]
+
+
+def _significant_line(line: str) -> str | None:
+    """Return a normalized line if it is substantial enough to count toward the
+    repetition guard, else None. Trivial structural lines (closing braces, short
+    boilerplate) legitimately recur in code and must not trip the loop detector."""
+    s = line.strip()
+    if len(s) < 15:
+        return None
+    # need at least two word-ish tokens so `});`-type lines are excluded
+    if sum(c.isalnum() for c in s) < 8:
+        return None
+    return s
+
+
+def stream_request_patch(
+    endpoint: str,
+    model: str,
+    prompt: str,
+    *,
+    solution_paths: list[str],
+    max_output_tokens: int | None = None,
+    generation_timeout_seconds: float = 600.0,
+    temperature: float = 0.1,
+    top_p: float = 0.9,
+    min_p: float | None = None,
+    reasoning_budget: int | None = None,
+    repeat_threshold: int = 4,
+    telemetry: dict | None = None,
+) -> str:
+    """Streaming variant of request_patch with content-side early stop.
+
+    Mirrors the lever Holon actually has and the bench's blocking call lacks: it
+    consumes the generation incrementally and cuts it off when the *content channel*
+    shows rumination — either a second `--- FILE:` marker for a single-owned-file
+    case (re-emission as a new block) or a substantial line repeating `repeat_threshold`
+    times (re-emission as comments / a repetition loop). The non-streaming
+    request_patch is left untouched; this path is opt-in.
+    """
+    body_payload: dict = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": temperature,
+        "top_p": top_p,
+        "stream": True,
+        "stream_options": {"include_usage": True},
+    }
+    if min_p is not None:
+        body_payload["min_p"] = min_p
+    if reasoning_budget is not None:
+        body_payload["reasoning_budget"] = reasoning_budget
+    if max_output_tokens is not None:
+        body_payload["max_tokens"] = max_output_tokens
+    payload = json.dumps(body_payload).encode("utf-8")
+    request = urllib.request.Request(
+        endpoint.rstrip("/") + "/chat/completions",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+
+    single_owned = len(solution_paths) == 1
+    marker = "--- FILE: "
+    buf: list[str] = []
+    pending = ""           # current not-yet-newline-terminated line fragment
+    line_counts: dict[str, int] = {}
+    completion_tokens = None
+    server_finish = None
+    early_stop = None
+
+    def full() -> str:
+        return "".join(buf) + pending
+
+    with urllib.request.urlopen(request, timeout=generation_timeout_seconds) as response:
+        for raw in response:
+            line = raw.decode("utf-8", "replace").strip()
+            if not line or not line.startswith("data:"):
+                continue
+            data = line[len("data:"):].strip()
+            if data == "[DONE]":
+                break
+            try:
+                chunk = json.loads(data)
+            except json.JSONDecodeError:
+                continue
+            usage = chunk.get("usage")
+            if usage:
+                completion_tokens = usage.get("completion_tokens", completion_tokens)
+            choices = chunk.get("choices") or []
+            if not choices:
+                continue
+            ch0 = choices[0]
+            if ch0.get("finish_reason"):
+                server_finish = ch0["finish_reason"]
+            delta = (ch0.get("delta") or {}).get("content")
+            if not delta:
+                continue
+            # assemble lines incrementally
+            pending += delta
+            while "\n" in pending:
+                ln, pending = pending.split("\n", 1)
+                buf.append(ln + "\n")
+                sig = _significant_line(ln)
+                if sig is not None:
+                    line_counts[sig] = line_counts.get(sig, 0) + 1
+                    if line_counts[sig] >= repeat_threshold:
+                        early_stop = "repetition"
+                        break
+            if early_stop:
+                break
+            # second FILE marker for a single-owned-file case => re-emission
+            if single_owned and full().count(marker) >= 2:
+                early_stop = "dup_file_marker"
+                # drop everything from the 2nd marker onward
+                whole = full()
+                cut = whole.find(marker, whole.find(marker) + len(marker))
+                return _finalize_stream(
+                    whole[:cut], telemetry, temperature, top_p, min_p, reasoning_budget,
+                    max_output_tokens, completion_tokens, server_finish, early_stop,
+                )
+
+    return _finalize_stream(
+        full(), telemetry, temperature, top_p, min_p, reasoning_budget,
+        max_output_tokens, completion_tokens, server_finish, early_stop,
+    )
+
+
+def _finalize_stream(content, telemetry, temperature, top_p, min_p, reasoning_budget,
+                     max_output_tokens, completion_tokens, server_finish, early_stop):
+    if telemetry is not None:
+        finish_reason = early_stop or server_finish
+        telemetry["max_output_tokens"] = max_output_tokens
+        telemetry["max_tokens_in_request"] = max_output_tokens is not None
+        telemetry["temperature"] = temperature
+        telemetry["top_p"] = top_p
+        telemetry["min_p"] = min_p
+        telemetry["reasoning_budget"] = reasoning_budget
+        telemetry["reasoning_budget_in_request"] = reasoning_budget is not None
+        telemetry["completion_tokens"] = completion_tokens
+        telemetry["finish_reason"] = finish_reason
+        telemetry["early_stopped"] = early_stop is not None
+        telemetry["early_stop_reason"] = early_stop
+        # a run we cut off content-side is NOT a budget-truncated failure
+        telemetry["truncated"] = (early_stop is None) and (server_finish == "length")
+        telemetry["streaming"] = True
+    return content
 
 
 def append_repair_feedback(prompt: str, previous_artifact: str | None, feedback_error: str | None) -> str:
@@ -491,60 +654,13 @@ def collect_holon_trace(
                 }
             )
     combined = "\n".join(trace_text)
-    trace = {
+    return {
         "called_tools": detect_called_tools(combined),
         "auto_stdout_tail": auto_stdout[-12000:],
         "fallback_stdout_tail": fallback_stdout[-12000:],
         "trace_files": trace_files,
         "artifact_snapshots": artifact_snapshots,
     }
-    # Surface optional Holon governance metadata only when the run emitted it, so
-    # legacy runs that produce no governance file keep byte-for-byte identical
-    # metadata. mark_generation_path copies these keys through unchanged.
-    trace.update(read_holon_governance(snapshot_roots))
-    return trace
-
-
-GOVERNANCE_REL_PATHS = ("reports/governance.json", ".holon/governance.json")
-
-
-def read_holon_governance(snapshot_roots: list[pathlib.Path] | None) -> dict:
-    """Read Holon-emitted governance metadata when present.
-
-    Returns only the keys Holon actually emitted (governance_mode,
-    governance_checks, tao_truth_chain), validated against the result schema's
-    shape. Returns an empty dict when no governance file exists or it is
-    unreadable, leaving non-governed runs unchanged.
-    """
-    for root in snapshot_roots or []:
-        for rel in GOVERNANCE_REL_PATHS:
-            path = root / rel
-            if not path.is_file():
-                continue
-            try:
-                data = json.loads(path.read_text(encoding="utf-8"))
-            except (OSError, json.JSONDecodeError):
-                continue
-            if not isinstance(data, dict):
-                continue
-            surfaced: dict = {}
-            mode = data.get("governance_mode")
-            if mode in ("governed", "ungoverned"):
-                surfaced["governance_mode"] = mode
-            checks = data.get("governance_checks")
-            if isinstance(checks, list) and all(
-                isinstance(item, dict)
-                and isinstance(item.get("name"), str)
-                and isinstance(item.get("passed"), bool)
-                for item in checks
-            ):
-                surfaced["governance_checks"] = checks
-            chain = data.get("tao_truth_chain")
-            if isinstance(chain, dict) and isinstance(chain.get("subject_id"), str):
-                surfaced["tao_truth_chain"] = chain
-            if surfaced:
-                return surfaced
-    return {}
 
 
 def mark_generation_path(
@@ -556,8 +672,6 @@ def mark_generation_path(
     workflow_type: str = "none",
     governance_level: str | None = None,
     prompt_stack: dict | None = None,
-    governance_mode: str | None = None,
-    governance_checks: list | None = None,
 ) -> dict:
     if governance_level is None:
         governance_level = governance_level_for_path(generation_path)
@@ -572,12 +686,6 @@ def mark_generation_path(
             "prompt_stack": prompt_stack,
         }
     )
-    # Governance mode/checks are optional Tao-backed run metadata. Only emit the keys
-    # when a caller supplies them so legacy metadata stays byte-for-byte unchanged.
-    if governance_mode is not None:
-        marked["governance_mode"] = governance_mode
-    if governance_checks is not None:
-        marked["governance_checks"] = governance_checks
     return marked
 
 
@@ -1195,6 +1303,10 @@ def run_holon_cli_driver(
             fallback_prompt,
             max_output_tokens=args.max_output_tokens,
             generation_timeout_seconds=args.generation_timeout_seconds,
+            temperature=args.temperature,
+            top_p=args.top_p,
+            min_p=args.min_p,
+            reasoning_budget=args.reasoning_budget,
         )
         recovered = extract_artifact_blocks(direct_fallback, solution_paths)
         if recovered is not None:
@@ -1302,6 +1414,10 @@ def run_claw_cli_driver(
             fallback_prompt,
             max_output_tokens=args.max_output_tokens,
             generation_timeout_seconds=args.generation_timeout_seconds,
+            temperature=args.temperature,
+            top_p=args.top_p,
+            min_p=args.min_p,
+            reasoning_budget=args.reasoning_budget,
         )
         recovered = extract_artifact_blocks(direct_fallback, solution_paths)
         if recovered is not None:
@@ -1349,6 +1465,48 @@ def build_arg_parser() -> argparse.ArgumentParser:
         default=600.0,
         help="Per-request generation timeout in seconds for the direct driver.",
     )
+    # Sampling-profile controls for the direct driver. Defaults reproduce the
+    # conservative deterministic-baseline profile.
+    parser.add_argument(
+        "--temperature",
+        type=float,
+        default=0.1,
+        help="Sampling temperature sent on direct requests. 0 = greedy.",
+    )
+    parser.add_argument(
+        "--top-p",
+        type=float,
+        default=0.9,
+        help="Nucleus sampling top_p sent on direct requests.",
+    )
+    parser.add_argument(
+        "--min-p",
+        type=float,
+        default=None,
+        help="min_p sent on direct requests only when provided.",
+    )
+    parser.add_argument(
+        "--reasoning-budget",
+        type=int,
+        default=None,
+        help="Server-side reasoning-token budget (llama.cpp `reasoning_budget` "
+        "extension), mirroring the field Holon's openai_compat provider sends. Sent "
+        "on direct requests only when provided; default behavior is unchanged.",
+    )
+    parser.add_argument(
+        "--stream-early-stop",
+        action="store_true",
+        help="Direct driver only: stream the generation and cut it off content-side "
+        "when rumination is detected (a duplicate `--- FILE:` marker for a single-owned "
+        "file, or a substantial line repeating --repeat-threshold times). Default off "
+        "uses the blocking single-shot request.",
+    )
+    parser.add_argument(
+        "--repeat-threshold",
+        type=int,
+        default=4,
+        help="Repetition count that trips the streaming early-stop loop detector.",
+    )
     parser.add_argument("--holon-max-iterations", type=int, default=100)
     parser.add_argument("--holon-timeout-seconds", type=float, default=540.0)
     parser.add_argument("--holon-auto-timeout-seconds", type=float, default=75.0)
@@ -1386,14 +1544,34 @@ def main() -> int:
         patch, metadata = run_holon_cli_driver(root, case, args, prompt, fallback_prompt)
     else:
         generation_telemetry: dict = {}
-        patch = request_patch(
-            args.endpoint,
-            args.model,
-            prompt,
-            max_output_tokens=args.max_output_tokens,
-            generation_timeout_seconds=args.generation_timeout_seconds,
-            telemetry=generation_telemetry,
-        )
+        if args.stream_early_stop:
+            patch = stream_request_patch(
+                args.endpoint,
+                args.model,
+                prompt,
+                solution_paths=case.get("solution_paths", []),
+                max_output_tokens=args.max_output_tokens,
+                generation_timeout_seconds=args.generation_timeout_seconds,
+                temperature=args.temperature,
+                top_p=args.top_p,
+                min_p=args.min_p,
+                reasoning_budget=args.reasoning_budget,
+                repeat_threshold=args.repeat_threshold,
+                telemetry=generation_telemetry,
+            )
+        else:
+            patch = request_patch(
+                args.endpoint,
+                args.model,
+                prompt,
+                max_output_tokens=args.max_output_tokens,
+                generation_timeout_seconds=args.generation_timeout_seconds,
+                temperature=args.temperature,
+                top_p=args.top_p,
+                min_p=args.min_p,
+                reasoning_budget=args.reasoning_budget,
+                telemetry=generation_telemetry,
+            )
         metadata = mark_generation_path(
             {
                 "called_tools": [],

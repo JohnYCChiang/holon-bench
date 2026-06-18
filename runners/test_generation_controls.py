@@ -45,6 +45,18 @@ class ArgParsingTests(unittest.TestCase):
         self.assertIsNone(args.thinking_budget)
         self.assertEqual(args.generation_timeout_seconds, 600.0)
 
+    def test_sampling_flag_defaults(self) -> None:
+        args = self._parse([])
+        self.assertEqual(args.temperature, 0.1)
+        self.assertEqual(args.top_p, 0.9)
+        self.assertIsNone(args.min_p)
+
+    def test_sampling_flags_parse(self) -> None:
+        args = self._parse(["--temperature", "0", "--top-p", "1", "--min-p", "0.05"])
+        self.assertEqual(args.temperature, 0.0)
+        self.assertEqual(args.top_p, 1.0)
+        self.assertEqual(args.min_p, 0.05)
+
     def test_canonical_flags_parse(self) -> None:
         args = self._parse(
             ["--max-output-tokens", "4096", "--thinking-budget", "768", "--generation-timeout-seconds", "120"]
@@ -73,6 +85,7 @@ class RequestPatchTests(unittest.TestCase):
             captured["timeout"] = timeout
             return _FakeResponse(_completion(**kwargs.get("response", {})))
 
+        sampling = {k: kwargs[k] for k in ("temperature", "top_p", "min_p") if k in kwargs}
         with mock.patch.object(run_model_case.urllib.request, "urlopen", side_effect=fake_urlopen):
             run_model_case.request_patch(
                 "http://x/v1",
@@ -81,6 +94,7 @@ class RequestPatchTests(unittest.TestCase):
                 max_output_tokens=kwargs.get("max_output_tokens"),
                 generation_timeout_seconds=kwargs.get("generation_timeout_seconds", 600.0),
                 telemetry=telemetry,
+                **sampling,
             )
         return captured["data"], telemetry, captured["timeout"]
 
@@ -108,6 +122,30 @@ class RequestPatchTests(unittest.TestCase):
         self.assertEqual(telemetry["finish_reason"], "length")
         self.assertTrue(telemetry["truncated"])
 
+    def test_default_sampling_in_payload(self) -> None:
+        data, telemetry, _ = self._run()
+        self.assertEqual(data["temperature"], 0.1)
+        self.assertEqual(data["top_p"], 0.9)
+        self.assertNotIn("min_p", data)
+        self.assertEqual(telemetry["temperature"], 0.1)
+        self.assertEqual(telemetry["top_p"], 0.9)
+        self.assertIsNone(telemetry["min_p"])
+
+    def test_custom_sampling_in_payload(self) -> None:
+        data, telemetry, _ = self._run(temperature=1.5, top_p=0.95, min_p=0.1)
+        self.assertEqual(data["temperature"], 1.5)
+        self.assertEqual(data["top_p"], 0.95)
+        self.assertEqual(data["min_p"], 0.1)
+        self.assertEqual(telemetry["temperature"], 1.5)
+        self.assertEqual(telemetry["top_p"], 0.95)
+        self.assertEqual(telemetry["min_p"], 0.1)
+
+    def test_greedy_min_p_zero_is_sent(self) -> None:
+        # min_p=0.0 is "provided" and must be sent (distinct from None/omitted).
+        data, _, _ = self._run(temperature=0.0, top_p=1.0, min_p=0.0)
+        self.assertEqual(data["temperature"], 0.0)
+        self.assertEqual(data["min_p"], 0.0)
+
 
 class TrackForwardingTests(unittest.TestCase):
     def _args(self, **over: object) -> argparse.Namespace:
@@ -121,6 +159,12 @@ class TrackForwardingTests(unittest.TestCase):
             holon_auto_timeout_seconds=75.0,
             max_output_tokens=None,
             thinking_budget=None,
+            temperature=0.1,
+            top_p=0.9,
+            min_p=None,
+            reasoning_budget=None,
+            stream_early_stop=False,
+            repeat_threshold=4,
         )
         for key, value in over.items():
             setattr(ns, key, value)
@@ -150,6 +194,19 @@ class TrackForwardingTests(unittest.TestCase):
         cmd = self._cmd(self._args())
         self.assertNotIn("--max-output-tokens", cmd)
         self.assertNotIn("--thinking-budget", cmd)
+        self.assertNotIn("--min-p", cmd)
+
+    def test_forwards_sampling_always_and_minp_when_set(self) -> None:
+        cmd = self._cmd(self._args(temperature=1.5, top_p=0.95, min_p=0.1))
+        self.assertEqual(cmd[cmd.index("--temperature") + 1], "1.5")
+        self.assertEqual(cmd[cmd.index("--top-p") + 1], "0.95")
+        self.assertEqual(cmd[cmd.index("--min-p") + 1], "0.1")
+
+    def test_forwards_sampling_defaults_without_minp(self) -> None:
+        cmd = self._cmd(self._args())
+        self.assertIn("--temperature", cmd)
+        self.assertIn("--top-p", cmd)
+        self.assertNotIn("--min-p", cmd)
 
     def test_repair_threads_previous_and_feedback(self) -> None:
         cmd = self._cmd(
