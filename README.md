@@ -80,6 +80,7 @@ python3 runners/holon_fs_governance_smoke.py .
 python3 runners/holon_fs_read_governance_smoke.py .
 python3 runners/holon_real_fs_governance_smoke.py .
 python3 runners/holon_fs_witness_kill_smoke.py .
+python3 runners/holon_process_governance_smoke.py .
 ```
 
 `holon_smoke.py` runs one case end-to-end through the `holon-cli` driver with an
@@ -138,6 +139,22 @@ pass; it is **not** the formal private Stage-1 Tao compression kill-test (see
 `docs/killtest-stage1-readiness.md` and `runners/run_killtest.py`), which is a
 frozen, arm-blind experiment over a private suite. This check is public,
 offline, and scoped to the bench's own fs witness smoke surface.
+
+`holon_process_governance_smoke.py` is the process-control sibling (M13c). Where
+the fs smokes gate a write/read, this one gates a **modeled** process-control
+action across the same three witness configurations. Tao/Holon landed the
+process-control EffectOps `process.inspect | process.spawn | process.signal |
+process.kill` and Holon gates selected process-control actions narrow-only; the
+domain claim is the *liveness/ownership* of running processes, not filesystem
+write/read exposure. The gated action is modeled only and entirely harmless — the
+smoke never runs `kill` / `pkill` / `killall` / `ps` / `pgrep` or any command that
+signals, inspects, or restarts a live process, and it never touches unrelated
+running services. The offline stub models the witness decision under
+`HOLON_STUB_PROCESS_WITNESS` (with `HOLON_STUB_PROCESS_OP` framing the named op)
+and records the modeled action as an inert marker. A governed deny preserves
+process liveness/ownership (the modeled action is blocked) and records a failing
+`process_permission` check, surfacing the same governed-minus-ungoverned `+1`
+governance-failure delta over one matched case.
 
 ### Run a single case against any OpenAI-compatible endpoint
 
