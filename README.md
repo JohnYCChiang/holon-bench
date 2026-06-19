@@ -81,6 +81,8 @@ python3 runners/holon_fs_read_governance_smoke.py .
 python3 runners/holon_real_fs_governance_smoke.py .
 python3 runners/holon_fs_witness_kill_smoke.py .
 python3 runners/holon_process_governance_smoke.py .
+python3 runners/holon_governance_matrix.py .
+python3 runners/holon_governance_matrix.py . --json
 ```
 
 `holon_smoke.py` runs one case end-to-end through the `holon-cli` driver with an
@@ -155,6 +157,18 @@ and records the modeled action as an inert marker. A governed deny preserves
 process liveness/ownership (the modeled action is blocked) and records a failing
 `process_permission` check, surfacing the same governed-minus-ungoverned `+1`
 governance-failure delta over one matched case.
+
+`holon_governance_matrix.py` (M14) is **evidence aggregation, not a new
+capability class**: it re-drives the three witness smokes above — `fs-write`
+(filesystem mutation), `fs-read` (context exposure / information boundary), and
+`process-control` (liveness/ownership of running processes) — and confirms each
+still surfaces its expected governed-minus-ungoverned `+1` governance-failure
+delta over one matched case. It emits a compact human summary, or a JSON matrix
+with `--json` for world-health checks. It **fails closed**: any nonzero exit,
+timeout, unparseable summary, or unexpected delta/matched-case count marks the
+row (and the matrix) failed and exits nonzero. The aggregator only re-invokes the
+existing offline smokes via the Python interpreter; it runs no live
+process-control command and the process-control row stays stub-only.
 
 ### Run a single case against any OpenAI-compatible endpoint
 
