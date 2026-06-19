@@ -22,6 +22,11 @@ so the stub stays case-agnostic:
                              otherwise the marker is prepended to the file
 - ``HOLON_STUB_GOVERNANCE``  ``"1"`` to emit ``.holon/governance.json``
 - ``HOLON_STUB_CASE``        case id recorded in the tao_truth_chain subject id
+- ``HOLON_STUB_FS_KIND``     ``write`` (default) or ``read``: which fs effect the
+                             witness gate frames. ``read`` models context
+                             exposure (tao#18 fs.read/fs.list; holon#11) -- same
+                             admit/deny decision logic, read-framed governance
+                             record, and an fs.read default effectOp.
 
 Tao fs EffectOp witness model (``HOLON_STUB_FS_WITNESS``)
 --------------------------------------------------------
@@ -57,7 +62,13 @@ files it would feed a real ``holon`` binary. The contract mirrored here:
 
 ``HOLON_TAO_FS_WITNESS`` wins over ``HOLON_STUB_FS_WITNESS`` (env-over-model),
 matching Holon's env-over-settings precedence. The matched fs EffectOp defaults
-to ``fs.edit`` and can be overridden with ``HOLON_STUB_FS_EFFECT_OP``.
+to ``fs.edit`` (or ``fs.read`` when ``HOLON_STUB_FS_KIND=read``) and can be
+overridden with ``HOLON_STUB_FS_EFFECT_OP``.
+
+The witness decision (ungoverned / governed-admit / governed-deny) is identical
+for reads and writes; only ``HOLON_STUB_FS_KIND`` changes how the governance
+record is framed. A read deny blocks *context exposure* (no content surfaced)
+rather than a mutation, but flows through the same scoring/comparison path.
 """
 from __future__ import annotations
 
@@ -145,6 +156,18 @@ def fs_witness_decision() -> tuple[str | None, str | None]:
 
 
 FS_EFFECT_OPS = ("fs.create", "fs.overwrite", "fs.edit", "fs.delete")
+# fs-read tiers (tao#18): stat metadata, list a directory, read file contents.
+READ_FS_EFFECT_OPS = ("fs.stat", "fs.list", "fs.read")
+
+
+def fs_kind() -> str:
+    """``"read"`` when ``HOLON_STUB_FS_KIND`` selects the read slice, else ``"write"``."""
+    return "read" if os.environ.get("HOLON_STUB_FS_KIND", "").strip().lower().startswith("read") else "write"
+
+
+def default_effect_op() -> str:
+    """The matched fs EffectOp default, keyed off the configured fs kind."""
+    return "fs.read" if fs_kind() == "read" else "fs.edit"
 
 
 def real_witness_decision() -> tuple[str | None, str | None]:
@@ -177,7 +200,7 @@ def real_witness_decision() -> tuple[str | None, str | None]:
     if not isinstance(grants, list):
         return "governed", "deny"
 
-    effect_op = os.environ.get("HOLON_STUB_FS_EFFECT_OP", "fs.edit")
+    effect_op = os.environ.get("HOLON_STUB_FS_EFFECT_OP", default_effect_op())
     target = os.environ.get("HOLON_STUB_TARGET", "")
     for grant in grants:
         if not isinstance(grant, dict):
@@ -198,34 +221,51 @@ def real_witness_decision() -> tuple[str | None, str | None]:
     return "governed", "deny"
 
 
-def write_fs_governance(cwd: pathlib.Path, mode: str, decision: str) -> None:
+def write_fs_governance(
+    cwd: pathlib.Path, mode: str, decision: str, kind: str | None = None
+) -> None:
     case_id = os.environ.get("HOLON_STUB_CASE", "smoke")
     target = os.environ.get("HOLON_STUB_TARGET", "")
+    kind = kind or fs_kind()
     holon_dir = cwd / ".holon"
     holon_dir.mkdir(exist_ok=True)
     if mode == "ungoverned":
         # Legacy/unconfigured: no Tao EffectOp witness ran, so no governance
-        # checks are recorded. The baseline-allow behavior is proven by the
-        # applied fs edit, not by a check.
+        # checks are recorded. The baseline behavior (write applied / read
+        # exposed) is proven by the artifact, not by a check.
         governance: dict = {
             "governance_mode": "ungoverned",
             "governance_checks": [],
         }
     else:
         admitted = decision == "admit"
+        if kind == "read":
+            # fs-read gate (tao#18 fs.read/fs.list; holon#11): admit grants the
+            # read and exposes the content; deny blocks the context exposure.
+            check_name = "fs_read_permission"
+            detail = (
+                f"Tao EffectOp witness admitted fs read (context exposure) of "
+                f"{target}; granted fs.read/fs.list"
+                if admitted
+                else f"Tao EffectOp witness denied fs read of {target} "
+                "(missing grant); context exposure blocked"
+            )
+        else:
+            check_name = "fs_permission"
+            detail = (
+                f"Tao EffectOp witness admitted fs write to {target}"
+                if admitted
+                else f"Tao EffectOp witness denied fs write to {target} "
+                "(missing grant)"
+            )
         governance = {
             "governance_mode": "governed",
             "governance_checks": [
                 {
-                    "name": "fs_permission",
+                    "name": check_name,
                     "passed": admitted,
                     "tao_fact_id": f"fact-fs-{case_id}",
-                    "detail": (
-                        f"Tao EffectOp witness admitted fs write to {target}"
-                        if admitted
-                        else f"Tao EffectOp witness denied fs write to {target} "
-                        "(missing grant)"
-                    ),
+                    "detail": detail,
                 }
             ],
             "tao_truth_chain": {
