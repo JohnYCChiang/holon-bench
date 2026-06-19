@@ -79,6 +79,7 @@ python3 runners/holon_smoke.py .
 python3 runners/holon_fs_governance_smoke.py .
 python3 runners/holon_fs_read_governance_smoke.py .
 python3 runners/holon_real_fs_governance_smoke.py .
+python3 runners/holon_fs_witness_kill_smoke.py .
 ```
 
 `holon_smoke.py` runs one case end-to-end through the `holon-cli` driver with an
@@ -111,6 +112,20 @@ commit `394a734` or newer. It writes real witness files and drives
 holon#7. With no executable `HOLON_BIN`, it reports `not-run` and exits 0 so
 default CI remains offline. With `HOLON_BIN` and `HOLON_SMOKE_ENDPOINT` set, it
 checks unconfigured, governed-admit, and governed-deny/missing-grant runs.
+
+`holon_fs_witness_kill_smoke.py` is the fs witness governance **kill-readiness**
+check: it stages a throwaway bench root (copying `runners/`, symlinking the rest
+so tracked source is never mutated), injects each of four preregistered textual
+regressions into the governance runtime — read deny still exposing context, the
+read default EffectOp mapping to the wrong tier, write deny still editing, and
+the governance comparison suppressing the failure count — and requires the
+relevant fs governance smoke to *fail* on each. A mutant a smoke fails to catch
+is reported as a survivor (nonzero exit, naming the mutant, target file, and
+command that unexpectedly passed). This proves the smokes can fail, not just
+pass; it is **not** the formal private Stage-1 Tao compression kill-test (see
+`docs/killtest-stage1-readiness.md` and `runners/run_killtest.py`), which is a
+frozen, arm-blind experiment over a private suite. This check is public,
+offline, and scoped to the bench's own fs witness smoke surface.
 
 ### Run a single case against any OpenAI-compatible endpoint
 
