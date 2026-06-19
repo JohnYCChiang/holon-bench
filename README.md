@@ -77,6 +77,7 @@ python3 runners/docs_check.py .
 python3 runners/ci_smoke.py .
 python3 runners/holon_smoke.py .
 python3 runners/holon_fs_governance_smoke.py .
+python3 runners/holon_fs_read_governance_smoke.py .
 python3 runners/holon_real_fs_governance_smoke.py .
 ```
 
@@ -93,6 +94,16 @@ admit, and governed + deny — proving the behavioral difference the Tao
 end-to-end. The witness decision is modeled in the offline stub; see
 `.claude/tasks/holon-tao-witness-gate.md` for what is measured and what remains
 real-CLI wiring.
+
+`holon_fs_read_governance_smoke.py` is the read-side sibling: it gates an fs
+*read* (context exposure / information boundary) instead of a write, across the
+same three witness configurations. tao#18 adds the fs-read tiers
+`fs.stat | fs.list | fs.read` and holon#11 maps `read_file` / `grep_search` to
+`fs.read` and `glob_search` to `fs.list` onto the same `tao.fsWitness` shape. A
+read deny blocks the context exposure (no file contents surfaced) rather than a
+mutation, but flows through the same scoring/comparison path and surfaces the
+same governed-minus-ungoverned `+1` governance-failure delta over one matched
+case.
 
 `holon_real_fs_governance_smoke.py` is the opt-in real-binary version for Holon
 commit `394a734` or newer. It writes real witness files and drives

@@ -23,7 +23,11 @@ Witness file shape::
     { "grants": [ { "effectOp", "resource"?, "decision",
                     "resultType"?, "row"?, "reason"?, "at"? } ] }
 
-- ``effectOp`` is one of ``fs.create | fs.overwrite | fs.edit | fs.delete``.
+- ``effectOp`` is one of the fs-write ops ``fs.create | fs.overwrite | fs.edit |
+  fs.delete`` or the fs-read tiers ``fs.stat | fs.list | fs.read`` (tao#18). The
+  read tiers gate context exposure: holon#11 maps ``read_file`` / ``grep_search``
+  to ``fs.read`` and ``glob_search`` to ``fs.list``, reusing this same witness
+  shape and config surface.
 - ``decision`` is ``admit`` or ``deny``.
 - an ``admit`` grant requires ``resultType``; a ``deny`` grant requires
   ``reason``.
@@ -41,6 +45,11 @@ import pathlib
 from typing import Any
 
 EFFECT_OPS = ("fs.create", "fs.overwrite", "fs.edit", "fs.delete")
+# fs-read tiers (tao#18). Narrowest -> widest exposure: stat metadata, list a
+# directory, read file contents. holon#11 maps read_file/grep_search -> fs.read
+# and glob_search -> fs.list onto these.
+READ_EFFECT_OPS = ("fs.stat", "fs.list", "fs.read")
+ALL_EFFECT_OPS = EFFECT_OPS + READ_EFFECT_OPS
 DECISIONS = ("admit", "deny")
 
 
@@ -63,13 +72,13 @@ def grant(
     Mirrors Holon's own validation so a malformed grant fails *here* (loudly,
     offline) rather than only being rejected fail-closed by the runtime:
 
-    - ``effect_op`` must be a known fs EffectOp.
+    - ``effect_op`` must be a known fs EffectOp (write or read tier).
     - ``decision`` must be ``admit`` or ``deny``.
     - ``admit`` requires ``result_type``; ``deny`` requires ``reason``.
     """
-    if effect_op not in EFFECT_OPS:
+    if effect_op not in ALL_EFFECT_OPS:
         raise WitnessError(
-            f"unknown effectOp {effect_op!r}; expected one of {EFFECT_OPS}"
+            f"unknown effectOp {effect_op!r}; expected one of {ALL_EFFECT_OPS}"
         )
     if decision not in DECISIONS:
         raise WitnessError(
@@ -117,6 +126,25 @@ def admit_grant(effect_op: str, resource: str, *, result_type: str = "Patch") ->
         resource=resource,
         result_type=result_type,
     )
+
+
+def read_admit_grant(
+    effect_op: str, resource: str, *, result_type: str | None = None
+) -> dict:
+    """A grant that admits an fs-read tier op (``fs.stat|fs.list|fs.read``).
+
+    Defaults ``resultType`` to the natural read payload for the tier so callers
+    do not repeat it: ``fs.read`` exposes ``FileContents``, ``fs.list`` a
+    ``DirListing``, ``fs.stat`` a ``FileStat``. Any read tier is accepted; the
+    contract checks (admit requires a resultType) are enforced by ``grant``.
+    """
+    if result_type is None:
+        result_type = {
+            "fs.read": "FileContents",
+            "fs.list": "DirListing",
+            "fs.stat": "FileStat",
+        }.get(effect_op, "FileContents")
+    return grant(effect_op, "admit", resource=resource, result_type=result_type)
 
 
 def deny_grant(effect_op: str, resource: str, *, reason: str | None = None) -> dict:
