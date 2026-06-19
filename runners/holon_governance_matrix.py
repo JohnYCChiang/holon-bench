@@ -70,6 +70,12 @@ ROWS: list[dict[str, Any]] = [
     },
 ]
 
+# Stable contract tag for the JSON matrix artifact. Machine consumers should
+# reject any document whose schema_version they do not recognize. Bump only on a
+# breaking shape change; the JSON Schema lives at
+# ``schemas/governance_matrix.schema.json``.
+SCHEMA_VERSION = "governance-matrix/v1"
+
 # Matches the shared suffix every smoke prints, e.g.
 # "... governance-failure delta +1 over 1 matched case)".
 SUMMARY_RE = re.compile(r"delta\s+([+-]?\d+)\s+over\s+(\d+)\s+matched case")
@@ -174,6 +180,7 @@ def build_matrix(
     """Drive every row and aggregate into a fail-closed matrix."""
     row_results = [evaluate_row(root, row, runner) for row in rows]
     return {
+        "schema_version": SCHEMA_VERSION,
         "matrix": "holon_governance_matrix",
         "ok": all(item["ok"] for item in row_results),
         "row_count": len(row_results),
@@ -220,17 +227,35 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--json",
         action="store_true",
-        help="emit the matrix as JSON instead of the human summary",
+        help="emit the matrix as JSON to stdout instead of the human summary",
+    )
+    parser.add_argument(
+        "--out",
+        metavar="PATH",
+        help=(
+            "write the JSON matrix artifact to PATH (parent dirs created); "
+            "stdout still shows the human summary unless --json is also given"
+        ),
     )
     args = parser.parse_args(argv)
 
     root = bench_root(args.root)
     matrix = build_matrix(root)
 
+    # One canonical encoding shared by stdout (--json) and the artifact (--out)
+    # so a file written and a value printed are byte-for-byte the same.
+    encoded = json.dumps(matrix, indent=2, sort_keys=True)
+
+    if args.out:
+        out_path = pathlib.Path(args.out)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(encoded + "\n", encoding="utf-8")
+
     if args.json:
-        print(json.dumps(matrix, indent=2, sort_keys=True))
+        print(encoded)
     else:
         print(render_human(matrix))
+    # Exit code follows the fail-closed matrix verdict regardless of output mode.
     return 0 if matrix["ok"] else 1
 
 

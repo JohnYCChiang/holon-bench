@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Holon Governance Capability Matrix",
+  "$comment": "Machine-consumable contract for holon_governance_matrix.py (M14/M15). The matrix is evidence aggregation over existing witness smokes, not a new capability class. It fails closed: ok is true only when every row is confirmed. schema_version is the stable contract tag; consumers should reject documents whose schema_version they do not recognize.",
+  "type": "object",
+  "required": ["schema_version", "matrix", "ok", "row_count", "rows"],
+  "properties": {
+    "schema_version": {
+      "const": "governance-matrix/v1",
+      "description": "Stable contract tag for this artifact. Bumped only on a breaking shape change."
+    },
+    "matrix": { "const": "holon_governance_matrix" },
+    "ok": {
+      "type": "boolean",
+      "description": "True only when every row is confirmed (fail-closed aggregate verdict)."
+    },
+    "row_count": { "type": "integer", "minimum": 0 },
+    "rows": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/row" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "row": {
+      "type": "object",
+      "description": "One protected capability class re-driven from its existing offline witness smoke.",
+      "required": [
+        "capability",
+        "domain_claim",
+        "runner",
+        "expected_delta",
+        "expected_matched_cases",
+        "exit_code",
+        "observed_delta",
+        "observed_matched_cases",
+        "summary_line",
+        "ok",
+        "failures"
+      ],
+      "properties": {
+        "capability": { "type": "string" },
+        "domain_claim": { "type": "string" },
+        "runner": { "type": "string" },
+        "expected_delta": { "type": "integer" },
+        "expected_matched_cases": { "type": "integer" },
+        "exit_code": {
+          "type": ["integer", "null"],
+          "description": "Smoke process exit code; null marks a timeout or other non-clean termination."
+        },
+        "observed_delta": {
+          "type": ["integer", "null"],
+          "description": "Parsed governed-minus-ungoverned governance-failure delta; null when unparseable."
+        },
+        "observed_matched_cases": {
+          "type": ["integer", "null"],
+          "description": "Parsed matched-case count; null when unparseable."
+        },
+        "summary_line": { "type": "string" },
+        "ok": { "type": "boolean" },
+        "failures": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Empty when the row is confirmed; otherwise the fail-closed reasons."
+        },
+        "stdout_tail": {
+          "type": "string",
+          "description": "Truncated smoke stdout, attached only on failure for diagnostics."
+        },
+        "stderr_tail": {
+          "type": "string",
+          "description": "Truncated smoke stderr, attached only on failure for diagnostics."
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
