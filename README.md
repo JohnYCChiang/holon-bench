@@ -109,9 +109,21 @@ case.
 `holon_real_fs_governance_smoke.py` is the opt-in real-binary version for Holon
 commit `394a734` or newer. It writes real witness files and drives
 `HOLON_TAO_FS_WITNESS=<path>` through the Holon CLI/settings surface added by
-holon#7. With no executable `HOLON_BIN`, it reports `not-run` and exits 0 so
-default CI remains offline. With `HOLON_BIN` and `HOLON_SMOKE_ENDPOINT` set, it
-checks unconfigured, governed-admit, and governed-deny/missing-grant runs.
+holon#7, checking unconfigured, governed-admit, and governed-deny/missing-grant
+runs. It locates the binary via `HOLON_BIN` (wins), then the world-layout
+`../holon/target/debug/holon`, then the legacy
+`/home/taichi/Migration/holon/target/debug/holon`; diagnostics name every
+candidate checked. With no usable binary **or** no endpoint configured it reports
+`not-run` and exits 0 (use `--require-real` to make a skip nonzero) so default CI
+stays offline. `HOLON_SMOKE_ENDPOINT` (or `--endpoint`) must match the provider
+selected by the Holon smoke model: local OpenAI-compatible providers usually use a
+base ending in one `/v1`, while Anthropic-style providers append `/v1/messages`
+and usually expect a host-level base. A doubled path such as `/v1/v1/messages`
+means the model/provider and base URL do not agree. An explicitly configured but
+unreachable endpoint fails a clear preflight before the three-scenario run.
+`--mock-endpoint` starts an in-process OpenAI-compatible mock so preflight passes
+for deterministic local exercise of the offline stub (it is not guaranteed to
+drive the real binary's fs write).
 
 `holon_fs_witness_kill_smoke.py` is the fs witness governance **kill-readiness**
 check: it stages a throwaway bench root (copying `runners/`, symlinking the rest

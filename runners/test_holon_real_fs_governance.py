@@ -249,9 +249,12 @@ class SmokeSkipTest(unittest.TestCase):
             with mock.patch.dict(
                 real_smoke.os.environ, {"HOLON_BIN": str(shim)}, clear=False
             ):
-                self.assertEqual(real_smoke.resolve_binary(), shim)
+                binary, diag = real_smoke.resolve_binary()
+                self.assertEqual(binary, shim)
+                self.assertTrue(any("HOLON_BIN" in line for line in diag))
 
     def test_resolve_binary_rejects_non_executable(self) -> None:
+        # HOLON_BIN wins: a bad explicit value is None, never a silent fallback.
         with tempfile.TemporaryDirectory() as temp:
             plain = pathlib.Path(temp) / "holon"
             plain.write_text("not executable", encoding="utf-8")
@@ -259,28 +262,114 @@ class SmokeSkipTest(unittest.TestCase):
             with mock.patch.dict(
                 real_smoke.os.environ, {"HOLON_BIN": str(plain)}, clear=False
             ):
-                self.assertIsNone(real_smoke.resolve_binary())
+                binary, diag = real_smoke.resolve_binary()
+                self.assertIsNone(binary)
+                self.assertTrue(any("not executable" in line for line in diag))
+
+    def test_binary_candidates_fall_back_when_holon_bin_unset(self) -> None:
+        env = {k: v for k, v in real_smoke.os.environ.items() if k != "HOLON_BIN"}
+        with mock.patch.dict(real_smoke.os.environ, env, clear=True):
+            labels = [
+                label
+                for label, _ in real_smoke.binary_candidates(REPO_ROOT)
+            ]
+        self.assertEqual(labels, ["world-layout", "legacy"])
 
 
-class SmokeEndToEndTest(unittest.TestCase):
-    """Runs the full smoke against the offline stub as a faithful real binary."""
+class EndpointReadinessTest(unittest.TestCase):
+    def test_no_endpoint_is_not_run(self) -> None:
+        # Binary present (stub shim) but no endpoint configured -> explicit not-run.
+        with tempfile.TemporaryDirectory() as temp:
+            shim = write_shim(pathlib.Path(temp))
+            out = io.StringIO()
+            with mock.patch.dict(
+                real_smoke.os.environ, {"HOLON_BIN": str(shim)}, clear=True
+            ):
+                with mock.patch.object(sys, "argv", ["smoke", str(REPO_ROOT)]):
+                    with contextlib.redirect_stdout(out):
+                        rc = real_smoke.main()
+        self.assertEqual(rc, 0)
+        self.assertIn("not-run", out.getvalue())
+        self.assertIn("endpoint", out.getvalue())
 
-    def test_runs_against_stub_binary(self) -> None:
+    def test_require_real_makes_skip_nonzero(self) -> None:
+        out = io.StringIO()
+        with mock.patch.dict(
+            real_smoke.os.environ, {"HOLON_BIN": "/no/such/holon"}, clear=True
+        ):
+            with mock.patch.object(
+                sys, "argv", ["smoke", str(REPO_ROOT), "--require-real"]
+            ):
+                with contextlib.redirect_stdout(out):
+                    rc = real_smoke.main()
+        self.assertNotEqual(rc, 0)
+        self.assertIn("not-run", out.getvalue())
+
+    def test_unreachable_endpoint_fails_before_scenarios(self) -> None:
+        # Explicitly configured but dead endpoint -> clear preflight failure.
         with tempfile.TemporaryDirectory() as temp:
             shim = write_shim(pathlib.Path(temp))
             out = io.StringIO()
             env = {
                 "HOLON_BIN": str(shim),
-                "HOLON_SMOKE_ENDPOINT": real_smoke.DEFAULT_ENDPOINT,
+                "HOLON_SMOKE_ENDPOINT": "http://127.0.0.1:1/v1",
             }
-            # The dead endpoint is never contacted: the stub honors the witness
-            # file deterministically, so no fallback to the endpoint occurs.
-            with mock.patch.dict(real_smoke.os.environ, env, clear=False):
+            with mock.patch.dict(real_smoke.os.environ, env, clear=True):
                 with mock.patch.object(sys, "argv", ["smoke", str(REPO_ROOT)]):
                     with contextlib.redirect_stdout(out):
                         rc = real_smoke.main()
+        self.assertEqual(rc, 1, out.getvalue())
+        self.assertIn("preflight", out.getvalue())
+
+    def test_resolve_endpoint_explicit_vs_default(self) -> None:
+        with mock.patch.dict(real_smoke.os.environ, {}, clear=True):
+            endpoint, explicit = real_smoke.resolve_endpoint(None)
+            self.assertFalse(explicit)
+            self.assertEqual(endpoint, real_smoke.DEFAULT_ENDPOINT)
+            endpoint, explicit = real_smoke.resolve_endpoint("http://h:8086/v1")
+            self.assertTrue(explicit)
+            self.assertEqual(endpoint, "http://h:8086/v1")
+        with mock.patch.dict(
+            real_smoke.os.environ,
+            {"HOLON_SMOKE_ENDPOINT": "http://env:9/v1"},
+            clear=True,
+        ):
+            endpoint, explicit = real_smoke.resolve_endpoint(None)
+            self.assertTrue(explicit)
+            self.assertEqual(endpoint, "http://env:9/v1")
+
+    def test_endpoint_reachable_detects_dead_port(self) -> None:
+        ok, why = real_smoke.endpoint_reachable("http://127.0.0.1:1/v1", timeout=1.0)
+        self.assertFalse(ok)
+        self.assertIn("unreachable", why)
+
+
+class SmokeEndToEndTest(unittest.TestCase):
+    """Runs the full smoke against the offline stub as a faithful real binary.
+
+    Caveat: ``--mock-endpoint`` only makes binary/endpoint preflight pass and
+    deterministically drives the *offline stub* (which honors the witness file and
+    ignores the endpoint). Its canned response is not guaranteed to drive the
+    *real* binary's fs write; a real binary still wants a live model endpoint.
+    """
+
+    def test_runs_against_stub_binary_with_mock_endpoint(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            shim = write_shim(pathlib.Path(temp))
+            out = io.StringIO()
+            with mock.patch.dict(
+                real_smoke.os.environ, {"HOLON_BIN": str(shim)}, clear=False
+            ):
+                with mock.patch.object(
+                    sys, "argv", ["smoke", str(REPO_ROOT), "--mock-endpoint"]
+                ):
+                    with contextlib.redirect_stdout(out):
+                        rc = real_smoke.main()
             self.assertEqual(rc, 0, out.getvalue())
-            self.assertIn("ok", out.getvalue())
+            if "mock endpoint unavailable" in out.getvalue():
+                self.assertIn("not-run", out.getvalue())
+            else:
+                self.assertIn("ok", out.getvalue())
 
 
 if __name__ == "__main__":

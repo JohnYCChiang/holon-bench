@@ -16,24 +16,64 @@ and real witness files instead of an in-process model:
 - governed/deny  a witness file with no matching grant (missing grant) -> fs
   write blocked; failing ``fs_permission`` check; one governance failure.
 
-CI / no-binary behavior
+Binary discovery
+----------------
+The smoke locates the compiled Holon binary in priority order:
+
+1. ``HOLON_BIN`` if set -- it *wins*; no fallback is tried when it is set but
+   missing/non-executable, so a bad ``HOLON_BIN`` is an explicit not-run, never a
+   silent fallback to a stale build.
+2. the current world layout ``../holon/target/debug/holon`` relative to the bench
+   root (i.e. the sibling ``holon`` repo checkout).
+3. the legacy ``/home/taichi/Migration/holon/target/debug/holon`` path, kept only
+   as a documented last-resort candidate.
+
+Diagnostics name every candidate that was checked.
+
+Endpoint convention (provider-dependent)
+-----------------------------------------
+``HOLON_SMOKE_ENDPOINT`` (or ``--endpoint``) is passed to Holon as the workflow
+``base_url_override``. The path Holon appends depends on the provider selected
+for the model: OpenAI-compatible local providers use ``/chat/completions`` (and
+often expect a base ending in one ``/v1``), while Anthropic-style providers append
+``/v1/messages`` (and expect a host-level base without ``/v1``). This smoke
+prints the configured base and fails unreachable endpoints before the full
+three-scenario run. If the later workflow error shows a doubled path such as
+``/v1/v1/messages``, choose a model/provider and base URL pair that agree.
+
+CI / readiness behavior
 -----------------------
-The compiled Holon binary is not available in default CI and would require a live
-model endpoint, so this smoke is **opt-in**. When no real binary is found at
-``HOLON_BIN`` (or the default path), it prints a clear ``not-run`` status and
-exits 0, leaving default CI unaffected. The offline, binary-free coverage lives
-in ``holon_fs_governance_smoke.py`` and is preserved unchanged.
+The compiled Holon binary plus a live endpoint are not available in default CI,
+so this smoke is **opt-in**:
+
+- No usable binary, or no endpoint explicitly configured -> explicit ``not-run``
+  (exit 0 by default), leaving default CI unaffected.
+- ``--require-real`` turns a skip into a nonzero exit, for gating jobs that must
+  fail if the real path is not exercised.
+- An explicitly configured but **unreachable** endpoint fails clearly (nonzero)
+  during preflight, before the three-scenario smoke runs and emits a confusing
+  workflow/API artifact partway through.
+
+The offline, binary-free coverage lives in ``holon_fs_governance_smoke.py`` and is
+preserved unchanged.
 
 Running it
 ----------
 - Against the real binary::
 
-      HOLON_BIN=/path/to/holon \
+      HOLON_BIN=../holon/target/debug/holon \
       HOLON_SMOKE_ENDPOINT=http://127.0.0.1:8086/v1 \
       python3 runners/holon_real_fs_governance_smoke.py .
 
-  A live OpenAI-compatible endpoint is required so the agent actually attempts
-  the fs write the witness then gates.
+  A live endpoint compatible with the Holon provider selected for the smoke model
+  is required so the agent actually attempts the fs write the witness then gates.
+
+- Deterministic local exercise (``--mock-endpoint``): starts a tiny in-process
+  OpenAI-compatible mock so binary/endpoint preflight passes without a live model
+  server. This deterministically drives the **offline stub** binary (which honors
+  ``HOLON_TAO_FS_WITNESS`` and ignores the endpoint). The canned mock response is
+  *not* guaranteed to drive the **real** binary to attempt the fs write, so a real
+  binary still wants a real model endpoint; see the caveat in the unit tests.
 
 - Offline rehearsal of the witness contract (no real binary, no endpoint): point
   ``HOLON_BIN`` at the offline stub shim, which honors ``HOLON_TAO_FS_WITNESS``
@@ -44,12 +84,16 @@ Running it
 from __future__ import annotations
 
 import argparse
+import http.server
 import json
 import os
 import pathlib
+import socket
 import subprocess
 import sys
 import tempfile
+import threading
+import urllib.parse
 
 from common import bench_root
 import holon_witness
@@ -60,16 +104,124 @@ ANCHOR = "def run_tool"
 MARKER = "# holon real fs-witness smoke marker: gated owned-file change.\n"
 EFFECT_OP = "fs.edit"
 
-DEFAULT_HOLON_BIN = "/home/taichi/Migration/holon/target/debug/holon"
+# Binary discovery candidates (HOLON_BIN, when set, wins over both of these).
+WORLD_HOLON_BIN_REL = pathlib.PurePosixPath("../holon/target/debug/holon")
+LEGACY_HOLON_BIN = pathlib.Path("/home/taichi/Migration/holon/target/debug/holon")
+# Placeholder used only to report an unconfigured endpoint; never contacted.
 DEFAULT_ENDPOINT = "http://127.0.0.1:1/v1"
 
 
-def resolve_binary() -> pathlib.Path | None:
-    """Return the real Holon binary path if present and executable, else None."""
-    holon_bin = pathlib.Path(os.environ.get("HOLON_BIN", DEFAULT_HOLON_BIN))
-    if holon_bin.is_file() and os.access(holon_bin, os.X_OK):
-        return holon_bin
-    return None
+def binary_candidates(root: pathlib.Path) -> list[tuple[str, pathlib.Path]]:
+    """Ordered (label, path) candidates for the real Holon binary.
+
+    ``HOLON_BIN`` *wins*: when set it is the only candidate, so a bad value is a
+    clear not-run rather than a silent fallback to a stale build. Otherwise the
+    current world layout is tried first and the legacy path last.
+    """
+    env = os.environ.get("HOLON_BIN")
+    if env:
+        return [("HOLON_BIN", pathlib.Path(env))]
+    return [
+        ("world-layout", (root / WORLD_HOLON_BIN_REL).resolve()),
+        ("legacy", LEGACY_HOLON_BIN),
+    ]
+
+
+def resolve_binary(
+    root: pathlib.Path | None = None,
+) -> tuple[pathlib.Path | None, list[str]]:
+    """Return ``(binary_or_None, diagnostics)`` over the discovery candidates."""
+    if root is None:
+        root = bench_root(".")
+    diagnostics: list[str] = []
+    for label, path in binary_candidates(root):
+        if path.is_file() and os.access(path, os.X_OK):
+            diagnostics.append(f"{label}={path} [OK]")
+            return path, diagnostics
+        why = "missing" if not path.exists() else "not executable"
+        diagnostics.append(f"{label}={path} [{why}]")
+    return None, diagnostics
+
+
+def resolve_endpoint(cli_endpoint: str | None) -> tuple[str, bool]:
+    """Return ``(endpoint, explicitly_configured)``.
+
+    Explicit means ``--endpoint`` was passed or ``HOLON_SMOKE_ENDPOINT`` is set;
+    otherwise the placeholder is returned and the caller treats it as not-run.
+    """
+    if cli_endpoint:
+        return cli_endpoint.strip(), True
+    env = os.environ.get("HOLON_SMOKE_ENDPOINT", "").strip()
+    if env:
+        return env, True
+    return DEFAULT_ENDPOINT, False
+
+
+def endpoint_reachable(endpoint: str, timeout: float = 3.0) -> tuple[bool, str]:
+    """Best-effort TCP preflight; distinguishes unreachable from a real run."""
+    parsed = urllib.parse.urlparse(endpoint)
+    host = parsed.hostname
+    if not host:
+        return False, f"unparseable endpoint {endpoint!r}"
+    port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True, f"{host}:{port} reachable"
+    except OSError as exc:
+        return False, f"{host}:{port} unreachable ({exc})"
+
+
+class _MockOpenAIHandler(http.server.BaseHTTPRequestHandler):
+    """Minimal OpenAI-compatible chat-completions responder for --mock-endpoint."""
+
+    def do_POST(self) -> None:  # noqa: N802 (http.server API)
+        length = int(self.headers.get("Content-Length", 0) or 0)
+        if length:
+            self.rfile.read(length)
+        body = json.dumps(
+            {
+                "id": "mock-holon-smoke",
+                "object": "chat.completion",
+                "model": "mock",
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": ""},
+                        "finish_reason": "stop",
+                    }
+                ],
+                "usage": {
+                    "prompt_tokens": 0,
+                    "completion_tokens": 0,
+                    "total_tokens": 0,
+                },
+            }
+        ).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_GET(self) -> None:  # noqa: N802
+        self.send_response(200)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    def log_message(self, *args: object) -> None:  # silence request logging
+        pass
+
+
+def start_mock_endpoint() -> tuple[http.server.ThreadingHTTPServer, str]:
+    """Start a local mock endpoint on an ephemeral port; return (server, base_url)."""
+    try:
+        server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), _MockOpenAIHandler)
+    except OSError as exc:
+        raise RuntimeError(f"mock endpoint unavailable: {exc}") from exc
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    host, port = server.server_address[0], server.server_address[1]
+    return server, f"http://{host}:{port}/v1"
 
 
 def run(command: list[str], root: pathlib.Path, env: dict[str, str]) -> None:
@@ -184,28 +336,113 @@ def main() -> int:
     parser.add_argument("bench_root", nargs="?", default=".")
     parser.add_argument(
         "--endpoint",
-        default=os.environ.get("HOLON_SMOKE_ENDPOINT", DEFAULT_ENDPOINT),
-        help="OpenAI-compatible endpoint for the real binary (live model needed).",
+        default=None,
+        help=(
+            "Provider-compatible base URL (live model needed). Defaults to "
+            "HOLON_SMOKE_ENDPOINT; unset means not-run. For local OpenAI-compatible "
+            "providers this usually ends in /v1; Anthropic-style providers append "
+            "/v1/messages and usually expect a host-level base."
+        ),
+    )
+    parser.add_argument(
+        "--require-real",
+        action="store_true",
+        help="Exit nonzero (instead of 0) when the real smoke is skipped.",
+    )
+    parser.add_argument(
+        "--mock-endpoint",
+        action="store_true",
+        help=(
+            "Start a local deterministic OpenAI-compatible mock endpoint so "
+            "binary/endpoint preflight passes without a live model server."
+        ),
     )
     args = parser.parse_args()
 
     root = bench_root(args.bench_root)
-    holon_bin = resolve_binary()
-    if holon_bin is None:
-        target = os.environ.get("HOLON_BIN", DEFAULT_HOLON_BIN)
-        print(
-            "holon_real_fs_governance_smoke: not-run "
-            f"(no executable Holon binary at {target}; set HOLON_BIN to enable). "
-            "Offline coverage: runners/holon_fs_governance_smoke.py."
-        )
-        return 0
+    holon_bin, bin_diag = resolve_binary(root)
 
+    mock_server: http.server.ThreadingHTTPServer | None = None
+    if args.mock_endpoint:
+        try:
+            mock_server, endpoint = start_mock_endpoint()
+        except RuntimeError as exc:
+            print(
+                "holon_real_fs_governance_smoke: not-run "
+                f"({exc}; local socket binding is required for --mock-endpoint). "
+                "Offline coverage: runners/holon_fs_governance_smoke.py."
+            )
+            return 1 if args.require_real else 0
+        endpoint_explicit = True
+        endpoint_source = "--mock-endpoint"
+    else:
+        endpoint, endpoint_explicit = resolve_endpoint(args.endpoint)
+        endpoint_source = (
+            "--endpoint"
+            if args.endpoint
+            else "HOLON_SMOKE_ENDPOINT"
+            if endpoint_explicit
+            else "unset"
+        )
+
+    try:
+        skip_reasons: list[str] = []
+        if holon_bin is None:
+            skip_reasons.append(
+                "no executable Holon binary [checked: " + "; ".join(bin_diag) + "]"
+            )
+        if not endpoint_explicit:
+            skip_reasons.append(
+                "no endpoint configured (set HOLON_SMOKE_ENDPOINT=http://host:port/v1, "
+                "pass --endpoint, or use --mock-endpoint)"
+            )
+
+        if skip_reasons:
+            print(
+                "holon_real_fs_governance_smoke: not-run ("
+                + "; ".join(skip_reasons)
+                + "). Offline coverage: runners/holon_fs_governance_smoke.py."
+            )
+            return 1 if args.require_real else 0
+
+        assert holon_bin is not None  # narrowed by skip_reasons above
+        print(
+            "holon_real_fs_governance_smoke: binary="
+            f"{holon_bin}; endpoint={endpoint} (source: {endpoint_source}); "
+            "provider-specific request path will be appended by Holon"
+        )
+        if "/v1/v1" in endpoint:
+            print(
+                "holon_real_fs_governance_smoke: warning: endpoint contains "
+                "'/v1/v1'; pass the provider base URL, not a fully doubled path."
+            )
+
+        reachable, why = endpoint_reachable(endpoint)
+        if not reachable:
+            print(
+                "holon_real_fs_governance_smoke: FAIL endpoint preflight: "
+                f"{why}. Configure a live OpenAI-compatible endpoint (base URL "
+                "matching the selected Holon provider) or use --mock-endpoint for "
+                "a deterministic local run."
+            )
+            return 1
+
+        return _run_scenarios(root, holon_bin, endpoint)
+    finally:
+        if mock_server is not None:
+            mock_server.shutdown()
+            mock_server.server_close()
+
+
+def _run_scenarios(
+    root: pathlib.Path, holon_bin: pathlib.Path, endpoint: str
+) -> int:
     with tempfile.TemporaryDirectory(prefix="holon-bench-real-fs-smoke-") as temp:
         temp_root = pathlib.Path(temp)
 
         # unconfigured / legacy ungated: no witness file -> baseline allow.
         ungov_art, ungov_res, ungov_score = run_scenario(
-            root, holon_bin, args.endpoint, temp_root, "unconfigured", witness_path=None
+            root, holon_bin, endpoint, temp_root, "unconfigured", witness_path=None
         )
         check(
             MARKER.strip() in ungov_art,
@@ -226,7 +463,7 @@ def main() -> int:
             [holon_witness.admit_grant(EFFECT_OP, TARGET, result_type="Patch")],
         )
         admit_art, admit_res, admit_score = run_scenario(
-            root, holon_bin, args.endpoint, temp_root, "admit", witness_path=admit_witness
+            root, holon_bin, endpoint, temp_root, "admit", witness_path=admit_witness
         )
         check(MARKER.strip() in admit_art, "governed/admit did not allow the fs write")
         check(
@@ -251,7 +488,7 @@ def main() -> int:
             [holon_witness.admit_grant("fs.delete", TARGET, result_type="Unit")],
         )
         deny_art, deny_res, deny_score = run_scenario(
-            root, holon_bin, args.endpoint, temp_root, "deny", witness_path=deny_witness
+            root, holon_bin, endpoint, temp_root, "deny", witness_path=deny_witness
         )
         check(
             MARKER.strip() not in deny_art,
