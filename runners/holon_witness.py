@@ -24,10 +24,13 @@ Witness file shape::
                     "resultType"?, "row"?, "reason"?, "at"? } ] }
 
 - ``effectOp`` is one of the fs-write ops ``fs.create | fs.overwrite | fs.edit |
-  fs.delete`` or the fs-read tiers ``fs.stat | fs.list | fs.read`` (tao#18). The
-  read tiers gate context exposure: holon#11 maps ``read_file`` / ``grep_search``
-  to ``fs.read`` and ``glob_search`` to ``fs.list``, reusing this same witness
-  shape and config surface.
+  fs.delete``, the fs-read tiers ``fs.stat | fs.list | fs.read`` (tao#18), or the
+  process-control ops ``process.inspect | process.spawn | process.signal |
+  process.kill`` (M13c). The read tiers gate context exposure: holon#11 maps
+  ``read_file`` / ``grep_search`` to ``fs.read`` and ``glob_search`` to
+  ``fs.list``, reusing this same witness shape and config surface. The
+  process-control ops gate process liveness/ownership and are modeled only -- the
+  bench never signals or kills a real process.
 - ``decision`` is ``admit`` or ``deny``.
 - an ``admit`` grant requires ``resultType``; a ``deny`` grant requires
   ``reason``.
@@ -49,7 +52,12 @@ EFFECT_OPS = ("fs.create", "fs.overwrite", "fs.edit", "fs.delete")
 # directory, read file contents. holon#11 maps read_file/grep_search -> fs.read
 # and glob_search -> fs.list onto these.
 READ_EFFECT_OPS = ("fs.stat", "fs.list", "fs.read")
-ALL_EFFECT_OPS = EFFECT_OPS + READ_EFFECT_OPS
+# Process-control EffectOps (Tao/Holon, M13c): inspect a process, spawn a new
+# one, signal it, or kill it. Liveness/ownership domain -- gated narrow-only like
+# the fs ops. These are modeled op ids only; the bench never signals or kills a
+# real process. Included here so witness files can carry process grants too.
+PROCESS_EFFECT_OPS = ("process.inspect", "process.spawn", "process.signal", "process.kill")
+ALL_EFFECT_OPS = EFFECT_OPS + READ_EFFECT_OPS + PROCESS_EFFECT_OPS
 DECISIONS = ("admit", "deny")
 
 

@@ -69,6 +69,34 @@ The witness decision (ungoverned / governed-admit / governed-deny) is identical
 for reads and writes; only ``HOLON_STUB_FS_KIND`` changes how the governance
 record is framed. A read deny blocks *context exposure* (no content surfaced)
 rather than a mutation, but flows through the same scoring/comparison path.
+
+Tao process-control EffectOp witness model (``HOLON_STUB_PROCESS_WITNESS``)
+--------------------------------------------------------------------------
+``HOLON_STUB_PROCESS_WITNESS`` is the process-control sibling of the fs witness
+model (M13c). Tao/Holon landed the process-control EffectOps ``process.inspect |
+process.spawn | process.signal | process.kill``; Holon gates selected
+process-control actions narrow-only. The domain claim is the *liveness/ownership*
+of running processes, not filesystem write/read exposure.
+
+The action gated here is **modeled only** and entirely harmless: the stub never
+signals, spawns, inspects, kills, or otherwise touches any real process (no
+``kill`` / ``pkill`` / ``ps`` / ``pgrep`` is ever run). It only decides whether a
+*modeled* process-control action is recorded as an artifact marker, exactly the
+way the fs gate decides whether a modeled fs write is applied:
+
+- unset / ``none`` / ``absent``  -> no witness installed: legacy *ungoverned*
+  baseline allow. The modeled action is recorded and an ``ungoverned`` record
+  (no Tao checks) is emitted so the run is comparable.
+- ``admit`` / ``allow`` / ``grant`` -> witness *admits* the process EffectOp: the
+  modeled action is recorded and a passing ``process_permission`` check is logged.
+- ``deny`` / ``missing`` (or any unknown value, fail-closed) -> witness *denies*
+  (missing grant): the modeled action is blocked (process liveness/ownership
+  preserved) and a failing ``process_permission`` check is logged.
+
+``HOLON_STUB_PROCESS_OP`` selects which modeled EffectOp the record names
+(default ``process.kill``, the liveness-affecting action; ``process.inspect`` for
+the read-like inspection). It frames the governance detail only -- the
+admit/deny decision logic is shared with the fs gate.
 """
 from __future__ import annotations
 
@@ -168,6 +196,100 @@ def fs_kind() -> str:
 def default_effect_op() -> str:
     """The matched fs EffectOp default, keyed off the configured fs kind."""
     return "fs.read" if fs_kind() == "read" else "fs.edit"
+
+
+# Tao/Holon process-control EffectOps (M13c). Liveness/ownership domain, gated
+# narrow-only like the fs ops. Treated only as inert strings here -- the stub
+# never signals, spawns, inspects, or kills any real process.
+PROCESS_EFFECT_OPS = (
+    "process.inspect",
+    "process.spawn",
+    "process.signal",
+    "process.kill",
+)
+
+
+def process_witness_decision() -> tuple[str | None, str | None]:
+    """Resolve the Tao process-control EffectOp witness gate.
+
+    The process-control sibling of :func:`fs_witness_decision`, driven by
+    ``HOLON_STUB_PROCESS_WITNESS``. The gated action is *modeled only* and
+    harmless (no real process is ever touched); the witness only decides whether
+    a modeled process-control action is recorded. Returns ``(mode, decision)``:
+
+    - ``(None, None)``        the var is unset: not in process-witness mode, so
+      the stub's other paths run instead (behavior unchanged).
+    - ``("ungoverned", "admit")``  no witness installed: baseline allow.
+    - ``("governed", "admit")``    witness grants the process EffectOp.
+    - ``("governed", "deny")``     witness denies / missing grant (fail-closed
+      for unknown values; process liveness/ownership preserved).
+    """
+    raw = os.environ.get("HOLON_STUB_PROCESS_WITNESS")
+    if raw is None:
+        return None, None
+    value = raw.strip().lower()
+    if value in ("", "none", "absent", "unconfigured", "legacy"):
+        return "ungoverned", "admit"
+    if value in ("admit", "allow", "grant", "granted"):
+        return "governed", "admit"
+    # deny / missing / missing_grant / denied and anything unrecognized fail closed.
+    return "governed", "deny"
+
+
+def default_process_effect_op() -> str:
+    """The modeled process EffectOp the governance record names.
+
+    Defaults to ``process.kill`` (the liveness-affecting action).
+    ``HOLON_STUB_PROCESS_OP`` overrides it (e.g. ``process.inspect`` for the
+    read-like inspection); an unknown value falls back to ``process.kill``.
+    """
+    op = os.environ.get("HOLON_STUB_PROCESS_OP", "").strip().lower()
+    return op if op in PROCESS_EFFECT_OPS else "process.kill"
+
+
+def write_process_governance(cwd: pathlib.Path, mode: str, decision: str) -> None:
+    case_id = os.environ.get("HOLON_STUB_CASE", "smoke")
+    op = default_process_effect_op()
+    holon_dir = cwd / ".holon"
+    holon_dir.mkdir(exist_ok=True)
+    if mode == "ungoverned":
+        # Legacy/unconfigured: no Tao EffectOp witness ran, so no governance
+        # checks are recorded. The baseline behavior (modeled action recorded)
+        # is proven by the artifact, not by a check.
+        governance: dict = {
+            "governance_mode": "ungoverned",
+            "governance_checks": [],
+        }
+    else:
+        admitted = decision == "admit"
+        detail = (
+            f"Tao EffectOp witness admitted process control ({op}) of the "
+            "modeled process; granted process.inspect/process.kill"
+            if admitted
+            else f"Tao EffectOp witness denied {op} of the modeled process "
+            "(missing grant); process liveness/ownership preserved"
+        )
+        governance = {
+            "governance_mode": "governed",
+            "governance_checks": [
+                {
+                    "name": "process_permission",
+                    "passed": admitted,
+                    "tao_fact_id": f"fact-process-{case_id}",
+                    "detail": detail,
+                }
+            ],
+            "tao_truth_chain": {
+                "subject_id": f"case::{case_id}",
+                "fact_kind": "effect_op_witness",
+                "fact_id": f"fact-process-{case_id}",
+                "artifact_ids": [f"artifact-{case_id}"],
+                "verifier_input_ids": [f"witness-{case_id}"],
+            },
+        }
+    (holon_dir / "governance.json").write_text(
+        json.dumps(governance, indent=2), encoding="utf-8"
+    )
 
 
 def real_witness_decision() -> tuple[str | None, str | None]:
@@ -290,6 +412,16 @@ def main() -> int:
         if real_decision == "admit":
             apply_change(cwd)
         write_fs_governance(cwd, real_mode, real_decision)
+        print(json.dumps({"graph_tool_calls": ["RecallMemory"]}))
+        return 0
+    proc_mode, proc_decision = process_witness_decision()
+    if proc_mode is not None:
+        # Tao process-control EffectOp witness path: the gate decides whether the
+        # modeled (harmless) process-control action is recorded before it happens.
+        # No real process is ever signaled, spawned, inspected, or killed.
+        if proc_decision == "admit":
+            apply_change(cwd)
+        write_process_governance(cwd, proc_mode, proc_decision)
         print(json.dumps({"graph_tool_calls": ["RecallMemory"]}))
         return 0
     fs_mode, fs_decision = fs_witness_decision()
