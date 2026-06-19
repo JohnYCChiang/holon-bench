@@ -83,6 +83,7 @@ python3 runners/holon_fs_witness_kill_smoke.py .
 python3 runners/holon_process_governance_smoke.py .
 python3 runners/holon_governance_matrix.py .
 python3 runners/holon_governance_matrix.py . --json
+python3 runners/holon_governance_matrix.py . --out /tmp/holon-governance-matrix.json
 ```
 
 `holon_smoke.py` runs one case end-to-end through the `holon-cli` driver with an
@@ -164,11 +165,18 @@ capability class**: it re-drives the three witness smokes above — `fs-write`
 `process-control` (liveness/ownership of running processes) — and confirms each
 still surfaces its expected governed-minus-ungoverned `+1` governance-failure
 delta over one matched case. It emits a compact human summary, or a JSON matrix
-with `--json` for world-health checks. It **fails closed**: any nonzero exit,
+with `--json` for world-health checks. The JSON is a stable machine-consumable
+artifact contract carrying `schema_version: "governance-matrix/v1"` and a fixed
+row shape, documented under `schemas/governance_matrix.schema.json`; `--out PATH`
+writes that JSON artifact to a file (creating parent dirs) while leaving the
+default human summary on stdout, and `--json --out PATH` both prints and writes
+the same canonical JSON. It **fails closed**: any nonzero exit,
 timeout, unparseable summary, or unexpected delta/matched-case count marks the
-row (and the matrix) failed and exits nonzero. The aggregator only re-invokes the
-existing offline smokes via the Python interpreter; it runs no live
-process-control command and the process-control row stays stub-only.
+row (and the matrix) failed and exits nonzero — the exit code follows the matrix
+verdict in every output mode, including when an artifact was written. The
+aggregator only re-invokes the existing offline smokes via the Python
+interpreter; it runs no live process-control command and the process-control row
+stays stub-only.
 
 ### Run a single case against any OpenAI-compatible endpoint
 

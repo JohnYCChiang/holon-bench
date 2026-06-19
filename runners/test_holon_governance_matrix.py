@@ -14,6 +14,7 @@ import json
 import pathlib
 import subprocess
 import sys
+import tempfile
 import unittest
 from unittest import mock
 
@@ -50,6 +51,9 @@ def all_pass_responses() -> dict[str, subprocess.CompletedProcess]:
 
 
 ROOT = pathlib.Path("/bench-root")
+
+# The unpatched aggregator, captured before any test swaps build_matrix out.
+ORIG_BUILD_MATRIX = matrix.build_matrix
 
 
 class MatrixRowsTest(unittest.TestCase):
@@ -91,6 +95,113 @@ class MatrixAggregationTest(unittest.TestCase):
         self.assertIn("PASS", text)
         self.assertIn("3/3 capability rows confirmed", text)
         self.assertNotIn("FAIL", text)
+
+
+class ContractTest(unittest.TestCase):
+    """The JSON matrix is a stable machine-consumable artifact contract."""
+
+    # The stable top-level keys every matrix document must carry.
+    EXPECTED_TOP_LEVEL = {"schema_version", "matrix", "ok", "row_count", "rows"}
+    # The stable per-row keys present on every row (pass or fail).
+    EXPECTED_ROW_KEYS = {
+        "capability",
+        "domain_claim",
+        "runner",
+        "expected_delta",
+        "expected_matched_cases",
+        "exit_code",
+        "observed_delta",
+        "observed_matched_cases",
+        "summary_line",
+        "ok",
+        "failures",
+    }
+
+    def test_schema_version_is_stable_tag(self) -> None:
+        result = matrix.build_matrix(ROOT, runner=fake_runner(all_pass_responses()))
+        self.assertEqual(result["schema_version"], "governance-matrix/v1")
+        self.assertEqual(matrix.SCHEMA_VERSION, "governance-matrix/v1")
+
+    def test_top_level_shape_is_stable(self) -> None:
+        result = matrix.build_matrix(ROOT, runner=fake_runner(all_pass_responses()))
+        self.assertEqual(set(result), self.EXPECTED_TOP_LEVEL)
+
+    def test_pass_row_shape_is_stable(self) -> None:
+        result = matrix.build_matrix(ROOT, runner=fake_runner(all_pass_responses()))
+        for row in result["rows"]:
+            # A confirmed row carries exactly the stable keys — no diagnostics.
+            self.assertEqual(set(row), self.EXPECTED_ROW_KEYS)
+
+    def test_schema_document_matches_output(self) -> None:
+        schema_path = (
+            pathlib.Path(__file__).resolve().parent.parent
+            / "schemas"
+            / "governance_matrix.schema.json"
+        )
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        self.assertEqual(schema["properties"]["schema_version"]["const"], "governance-matrix/v1")
+        self.assertEqual(set(schema["required"]), self.EXPECTED_TOP_LEVEL)
+        self.assertEqual(set(schema["$defs"]["row"]["required"]), self.EXPECTED_ROW_KEYS)
+
+
+class MainOutTest(unittest.TestCase):
+    """``--out`` writes the JSON artifact while stdout stays sensible."""
+
+    def setUp(self) -> None:
+        self._patcher = mock.patch.object(
+            matrix, "build_matrix", lambda root: ORIG_BUILD_MATRIX(
+                root, runner=fake_runner(all_pass_responses())
+            )
+        )
+        self._patcher.start()
+        self.addCleanup(self._patcher.stop)
+
+    def test_out_writes_artifact_and_keeps_human_stdout(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            out = pathlib.Path(tmp) / "nested" / "matrix.json"
+            with mock.patch("builtins.print") as printed:
+                code = matrix.main([".", "--out", str(out)])
+            self.assertEqual(code, 0)
+            # Parent dirs are created and the artifact is valid JSON.
+            self.assertTrue(out.is_file())
+            doc = json.loads(out.read_text(encoding="utf-8"))
+            self.assertEqual(doc["schema_version"], "governance-matrix/v1")
+            self.assertTrue(doc["ok"])
+            # Default stdout stays the human summary, not JSON.
+            stdout = "\n".join(str(c.args[0]) for c in printed.call_args_list)
+            self.assertIn("holon_governance_matrix:", stdout)
+            self.assertNotIn("schema_version", stdout)
+
+    def test_json_and_out_print_and_write_same_json(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            out = pathlib.Path(tmp) / "matrix.json"
+            with mock.patch("builtins.print") as printed:
+                code = matrix.main([".", "--json", "--out", str(out)])
+            self.assertEqual(code, 0)
+            printed_text = printed.call_args_list[0].args[0]
+            file_text = out.read_text(encoding="utf-8")
+            # Same canonical JSON printed and written (file has a trailing newline).
+            self.assertEqual(file_text, printed_text + "\n")
+            self.assertEqual(json.loads(printed_text)["schema_version"], "governance-matrix/v1")
+
+    def test_out_exit_code_follows_fail_closed_verdict(self) -> None:
+        responses = all_pass_responses()
+        target = matrix.ROWS[0]["runner"]
+        responses[target] = subprocess.CompletedProcess(
+            ["holon"], returncode=1, stdout="boom\n", stderr=""
+        )
+        with mock.patch.object(
+            matrix, "build_matrix", lambda root: ORIG_BUILD_MATRIX(
+                root, runner=fake_runner(responses)
+            )
+        ):
+            with tempfile.TemporaryDirectory() as tmp:
+                out = pathlib.Path(tmp) / "matrix.json"
+                with mock.patch("builtins.print"):
+                    code = matrix.main([".", "--out", str(out)])
+                # Artifact is still written, but the process exits nonzero.
+                self.assertEqual(code, 1)
+                self.assertFalse(json.loads(out.read_text(encoding="utf-8"))["ok"])
 
 
 class FailClosedTest(unittest.TestCase):
