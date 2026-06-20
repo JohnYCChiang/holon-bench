@@ -57,9 +57,11 @@ ORIG_BUILD_MATRIX = matrix.build_matrix
 
 
 class MatrixRowsTest(unittest.TestCase):
-    def test_rows_cover_three_capability_classes(self) -> None:
+    def test_rows_cover_four_capability_classes(self) -> None:
         caps = [row["capability"] for row in matrix.ROWS]
-        self.assertEqual(caps, ["fs-write", "fs-read", "process-control"])
+        self.assertEqual(
+            caps, ["fs-write", "fs-read", "process-control", "network-egress"]
+        )
 
     def test_rows_point_at_existing_smokes(self) -> None:
         runners_dir = pathlib.Path(__file__).resolve().parent
@@ -77,7 +79,7 @@ class MatrixAggregationTest(unittest.TestCase):
     def test_all_rows_pass(self) -> None:
         result = matrix.build_matrix(ROOT, runner=fake_runner(all_pass_responses()))
         self.assertTrue(result["ok"])
-        self.assertEqual(result["row_count"], 3)
+        self.assertEqual(result["row_count"], 4)
         self.assertTrue(all(row["ok"] for row in result["rows"]))
         for row in result["rows"]:
             self.assertEqual(row["observed_delta"], 1)
@@ -93,7 +95,7 @@ class MatrixAggregationTest(unittest.TestCase):
         result = matrix.build_matrix(ROOT, runner=fake_runner(all_pass_responses()))
         text = matrix.render_human(result)
         self.assertIn("PASS", text)
-        self.assertIn("3/3 capability rows confirmed", text)
+        self.assertIn("4/4 capability rows confirmed", text)
         self.assertNotIn("FAIL", text)
 
 

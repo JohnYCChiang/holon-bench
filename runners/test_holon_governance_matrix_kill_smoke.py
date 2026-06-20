@@ -107,6 +107,7 @@ class PerRowIsolationTest(unittest.TestCase):
     ISOLATION = {
         "evidence-read-deny-exposes-context": "fs-read",
         "evidence-process-deny-records-pass": "process-control",
+        "evidence-net-deny-records-pass": "network-egress",
     }
 
     def test_each_isolation_mutant_fails_only_its_row(self) -> None:

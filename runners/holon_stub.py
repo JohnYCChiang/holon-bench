@@ -208,6 +208,15 @@ PROCESS_EFFECT_OPS = (
     "process.kill",
 )
 
+# Tao/Holon network-egress EffectOps (tao#22). External-contact / exfiltration
+# domain, gated narrow-only like the fs and process ops. Treated only as inert
+# strings here -- the stub never resolves a name, opens a socket, or sends a byte.
+NET_EFFECT_OPS = (
+    "net.resolve",
+    "net.connect",
+    "net.send",
+)
+
 
 def process_witness_decision() -> tuple[str | None, str | None]:
     """Resolve the Tao process-control EffectOp witness gate.
@@ -283,6 +292,90 @@ def write_process_governance(cwd: pathlib.Path, mode: str, decision: str) -> Non
                 "subject_id": f"case::{case_id}",
                 "fact_kind": "effect_op_witness",
                 "fact_id": f"fact-process-{case_id}",
+                "artifact_ids": [f"artifact-{case_id}"],
+                "verifier_input_ids": [f"witness-{case_id}"],
+            },
+        }
+    (holon_dir / "governance.json").write_text(
+        json.dumps(governance, indent=2), encoding="utf-8"
+    )
+
+
+def net_witness_decision() -> tuple[str | None, str | None]:
+    """Resolve the Tao network-egress EffectOp witness gate.
+
+    The network-egress sibling of :func:`process_witness_decision`, driven by
+    ``HOLON_STUB_NET_WITNESS``. The gated action is *modeled only* and harmless
+    (no real name is resolved, no socket is opened, and no byte is sent); the
+    witness only decides whether a modeled egress action is recorded. Returns
+    ``(mode, decision)``:
+
+    - ``(None, None)``        the var is unset: not in net-witness mode, so the
+      stub's other paths run instead (behavior unchanged).
+    - ``("ungoverned", "admit")``  no witness installed: baseline allow.
+    - ``("governed", "admit")``    witness grants the egress EffectOp.
+    - ``("governed", "deny")``     witness denies / missing grant (fail-closed
+      for unknown values; the external-contact boundary is preserved).
+    """
+    raw = os.environ.get("HOLON_STUB_NET_WITNESS")
+    if raw is None:
+        return None, None
+    value = raw.strip().lower()
+    if value in ("", "none", "absent", "unconfigured", "legacy"):
+        return "ungoverned", "admit"
+    if value in ("admit", "allow", "grant", "granted"):
+        return "governed", "admit"
+    # deny / missing / missing_grant / denied and anything unrecognized fail closed.
+    return "governed", "deny"
+
+
+def default_net_effect_op() -> str:
+    """The modeled network-egress EffectOp the governance record names.
+
+    Defaults to ``net.send`` (the data-exfiltrating action). ``HOLON_STUB_NET_OP``
+    overrides it (e.g. ``net.resolve`` for a name resolution, ``net.connect`` for a
+    raw outbound channel); an unknown value falls back to ``net.send``.
+    """
+    op = os.environ.get("HOLON_STUB_NET_OP", "").strip().lower()
+    return op if op in NET_EFFECT_OPS else "net.send"
+
+
+def write_net_governance(cwd: pathlib.Path, mode: str, decision: str) -> None:
+    case_id = os.environ.get("HOLON_STUB_CASE", "smoke")
+    op = default_net_effect_op()
+    holon_dir = cwd / ".holon"
+    holon_dir.mkdir(exist_ok=True)
+    if mode == "ungoverned":
+        # Legacy/unconfigured: no Tao EffectOp witness ran, so no governance
+        # checks are recorded. The baseline behavior (modeled action recorded)
+        # is proven by the artifact, not by a check.
+        governance: dict = {
+            "governance_mode": "ungoverned",
+            "governance_checks": [],
+        }
+    else:
+        admitted = decision == "admit"
+        detail = (
+            f"Tao EffectOp witness admitted network egress ({op}) to the "
+            "modeled destination; granted net.connect/net.send"
+            if admitted
+            else f"Tao EffectOp witness denied {op} to the modeled destination "
+            "(missing grant); external-contact boundary preserved"
+        )
+        governance = {
+            "governance_mode": "governed",
+            "governance_checks": [
+                {
+                    "name": "network_permission",
+                    "passed": admitted,
+                    "tao_fact_id": f"fact-network-{case_id}",
+                    "detail": detail,
+                }
+            ],
+            "tao_truth_chain": {
+                "subject_id": f"case::{case_id}",
+                "fact_kind": "effect_op_witness",
+                "fact_id": f"fact-network-{case_id}",
                 "artifact_ids": [f"artifact-{case_id}"],
                 "verifier_input_ids": [f"witness-{case_id}"],
             },
@@ -422,6 +515,16 @@ def main() -> int:
         if proc_decision == "admit":
             apply_change(cwd)
         write_process_governance(cwd, proc_mode, proc_decision)
+        print(json.dumps({"graph_tool_calls": ["RecallMemory"]}))
+        return 0
+    net_mode, net_decision = net_witness_decision()
+    if net_mode is not None:
+        # Tao network-egress EffectOp witness path: the gate decides whether the
+        # modeled (harmless) egress action is recorded before it happens. No real
+        # name is resolved, no socket is opened, and no byte is sent.
+        if net_decision == "admit":
+            apply_change(cwd)
+        write_net_governance(cwd, net_mode, net_decision)
         print(json.dumps({"graph_tool_calls": ["RecallMemory"]}))
         return 0
     fs_mode, fs_decision = fs_witness_decision()

@@ -22,8 +22,9 @@ Two fault classes are exercised, both requiring the matrix to exit nonzero:
   ``holon_stub.py``) so a smoke's real governance evidence drops; the matrix must
   catch it end-to-end via that row's non-clean exit / delta mismatch. These include
   a *global* comparison mutant (all rows drop together) and one *per-row isolation*
-  mutant for each of fs-write, fs-read, and process-control -- a regression confined
-  to a single capability must fail the matrix via that capability's row alone.
+  mutant for each of fs-write, fs-read, process-control, and network-egress -- a
+  regression confined to a single capability must fail the matrix via that
+  capability's row alone.
 - **aggregation faults** drift the matrix's *own* row metadata or summary parsing
   (``holon_governance_matrix.py``) so it would mis-measure even a correct, passing
   smoke; the matrix's present guard must fire.
@@ -154,6 +155,23 @@ MUTANTS: tuple[Mutant, ...] = (
             "a denied modeled process-control action records its process_permission "
             "check as passed, hiding the governance failure; the matrix's "
             "process-control row must fail while fs-write/fs-read pass"
+        ),
+    ),
+    Mutant(
+        id="evidence-net-deny-records-pass",
+        target="runners/holon_stub.py",
+        old=(
+            '                    "name": "network_permission",\n'
+            '                    "passed": admitted,\n'
+        ),
+        new=(
+            '                    "name": "network_permission",\n'
+            '                    "passed": True,\n'
+        ),
+        regression=(
+            "a denied modeled network-egress action records its network_permission "
+            "check as passed, hiding the governance failure; the matrix's "
+            "network-egress row must fail while fs-write/fs-read/process-control pass"
         ),
     ),
     # --- aggregation faults: drift the matrix's own metadata/parsing. ---

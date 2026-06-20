@@ -81,6 +81,7 @@ python3 runners/holon_fs_read_governance_smoke.py .
 python3 runners/holon_real_fs_governance_smoke.py .
 python3 runners/holon_fs_witness_kill_smoke.py .
 python3 runners/holon_process_governance_smoke.py .
+python3 runners/holon_network_governance_smoke.py .
 python3 runners/holon_governance_matrix.py .
 python3 runners/holon_governance_matrix.py . --json
 python3 runners/holon_governance_matrix.py . --out /tmp/holon-governance-matrix.json
@@ -162,10 +163,26 @@ process liveness/ownership (the modeled action is blocked) and records a failing
 `process_permission` check, surfacing the same governed-minus-ungoverned `+1`
 governance-failure delta over one matched case.
 
+`holon_network_governance_smoke.py` is the network-egress sibling (M19). Where the
+process smoke gates a modeled process-control action, this one gates a **modeled**
+network-egress action across the same three witness configurations. Tao/Holon
+landed the network-egress EffectOps `net.resolve | net.connect | net.send` (tao#22)
+and Holon gates selected outbound commands narrow-only; the domain claim is the
+*external-contact / exfiltration boundary*, not fs write/read exposure or process
+liveness. The gated action is modeled only and entirely harmless — the smoke never
+runs `curl` / `wget` / `nc` / `dig` or any command that resolves a name, opens a
+socket, or sends a byte, and it never touches unrelated network services. The
+offline stub models the witness decision under `HOLON_STUB_NET_WITNESS` (with
+`HOLON_STUB_NET_OP` framing the named op) and records the modeled action as an
+inert marker. A governed deny preserves the external-contact boundary (the modeled
+action is blocked) and records a failing `network_permission` check, surfacing the
+same governed-minus-ungoverned `+1` governance-failure delta over one matched case.
+
 `holon_governance_matrix.py` (M14) is **evidence aggregation, not a new
-capability class**: it re-drives the three witness smokes above — `fs-write`
-(filesystem mutation), `fs-read` (context exposure / information boundary), and
-`process-control` (liveness/ownership of running processes) — and confirms each
+capability class**: it re-drives the four witness smokes above — `fs-write`
+(filesystem mutation), `fs-read` (context exposure / information boundary),
+`process-control` (liveness/ownership of running processes), and `network-egress`
+(external-contact / exfiltration boundary) — and confirms each
 still surfaces its expected governed-minus-ungoverned `+1` governance-failure
 delta over one matched case. It emits a compact human summary, or a JSON matrix
 with `--json` for world-health checks. The JSON is a stable machine-consumable

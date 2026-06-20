@@ -68,6 +68,13 @@ ROWS: list[dict[str, Any]] = [
         "expected_delta": 1,
         "expected_matched_cases": 1,
     },
+    {
+        "capability": "network-egress",
+        "domain_claim": "protects the egress / external-contact boundary",
+        "runner": "holon_network_governance_smoke.py",
+        "expected_delta": 1,
+        "expected_matched_cases": 1,
+    },
 ]
 
 # Stable contract tag for the JSON matrix artifact. Machine consumers should
