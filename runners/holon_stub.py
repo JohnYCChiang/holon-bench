@@ -556,11 +556,21 @@ def main() -> int:
     cwd = pathlib.Path.cwd()
     real_mode, real_decision = real_witness_decision()
     if real_mode is not None:
-        # Real config-surface path: gate read from the on-disk witness file
-        # (HOLON_TAO_FS_WITNESS), exactly as the compiled binary would.
+        # Real config-surface path: the gate decision is read from the on-disk
+        # witness file (HOLON_TAO_FS_WITNESS), exactly as the compiled binary would.
+        # The single witness file gates fs, process-control, and network-egress
+        # alike, so route the governance record by the matched op's class
+        # (HOLON_STUB_FS_EFFECT_OP doubles as the generic matched op). Process/net
+        # actions stay modeled -- no real signal is sent and no socket is opened.
         if real_decision == "admit":
             apply_change(cwd)
-        write_fs_governance(cwd, real_mode, real_decision)
+        op = os.environ.get("HOLON_STUB_FS_EFFECT_OP", default_effect_op())
+        if op.startswith("process."):
+            write_process_governance(cwd, real_mode, real_decision)
+        elif op.startswith("net."):
+            write_net_governance(cwd, real_mode, real_decision)
+        else:
+            write_fs_governance(cwd, real_mode, real_decision)
         print(json.dumps({"graph_tool_calls": ["RecallMemory"]}))
         return 0
     proc_mode, proc_decision = process_witness_decision()

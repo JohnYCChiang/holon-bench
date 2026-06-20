@@ -24,13 +24,16 @@ Witness file shape::
                     "resultType"?, "row"?, "reason"?, "at"? } ] }
 
 - ``effectOp`` is one of the fs-write ops ``fs.create | fs.overwrite | fs.edit |
-  fs.delete``, the fs-read tiers ``fs.stat | fs.list | fs.read`` (tao#18), or the
+  fs.delete``, the fs-read tiers ``fs.stat | fs.list | fs.read`` (tao#18), the
   process-control ops ``process.inspect | process.spawn | process.signal |
-  process.kill`` (M13c). The read tiers gate context exposure: holon#11 maps
+  process.kill`` (M13c), or the network-egress ops ``net.resolve | net.connect |
+  net.send`` (M19). The read tiers gate context exposure: holon#11 maps
   ``read_file`` / ``grep_search`` to ``fs.read`` and ``glob_search`` to
   ``fs.list``, reusing this same witness shape and config surface. The
-  process-control ops gate process liveness/ownership and are modeled only -- the
-  bench never signals or kills a real process.
+  process-control and network-egress ops gate process liveness/ownership and the
+  external-contact boundary respectively, and are modeled only -- the bench never
+  signals or kills a real process, nor resolves a name, opens a socket, or sends a
+  byte.
 - ``decision`` is ``admit`` or ``deny``.
 - an ``admit`` grant requires ``resultType``; a ``deny`` grant requires
   ``reason``.
@@ -57,7 +60,13 @@ READ_EFFECT_OPS = ("fs.stat", "fs.list", "fs.read")
 # the fs ops. These are modeled op ids only; the bench never signals or kills a
 # real process. Included here so witness files can carry process grants too.
 PROCESS_EFFECT_OPS = ("process.inspect", "process.spawn", "process.signal", "process.kill")
-ALL_EFFECT_OPS = EFFECT_OPS + READ_EFFECT_OPS + PROCESS_EFFECT_OPS
+# Network-egress EffectOps (Tao/Holon, M19): resolve a name, open an outbound
+# channel, or send data outward. External-contact / exfiltration domain -- gated
+# narrow-only like the others. Modeled op ids only; the bench never resolves a
+# name, opens a socket, or sends a byte. Included so witness files can carry net
+# grants too (the real binary's single witness file gates fs/process/net alike).
+NET_EFFECT_OPS = ("net.resolve", "net.connect", "net.send")
+ALL_EFFECT_OPS = EFFECT_OPS + READ_EFFECT_OPS + PROCESS_EFFECT_OPS + NET_EFFECT_OPS
 DECISIONS = ("admit", "deny")
 
 
