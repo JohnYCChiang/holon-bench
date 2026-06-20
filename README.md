@@ -85,6 +85,8 @@ python3 runners/holon_governance_matrix.py .
 python3 runners/holon_governance_matrix.py . --json
 python3 runners/holon_governance_matrix.py . --out /tmp/holon-governance-matrix.json
 python3 runners/holon_governance_matrix_kill_smoke.py .
+python3 runners/holon_governance_matrix.py . --out /tmp/holon-governance-matrix.json
+python3 runners/holon_governance_matrix_consume.py /tmp/holon-governance-matrix.json --require-ok
 ```
 
 `holon_smoke.py` runs one case end-to-end through the `holon-cli` driver with an
@@ -193,6 +195,23 @@ is deliberately out of scope here — it produces no observable fault against go
 smokes and is covered instead by the injected-`fake_runner` `FailClosedTest` in
 `runners/test_holon_governance_matrix.py`. Like the fs witness kill smoke it is
 public, offline, stub-only, and **not** the formal private Stage-1 Tao kill-test.
+Its evidence-fault mutants now include a *per-row isolation* mutant for each of
+fs-write, fs-read, and process-control: a regression confined to one capability
+must fail the matrix via that capability's row alone (the other two rows still
+pass), so each row's fail-closed path is proven load-bearing on its own and not
+only by the global comparison mutant.
+
+`holon_governance_matrix_consume.py` (M17) is the reusable consumer that gives the
+M15 contract teeth. M15 froze the matrix output as `schema_version:
+"governance-matrix/v1"` and stated consumers should reject any document whose
+`schema_version` they do not recognize; this guard enforces exactly that. It loads
+an artifact (e.g. one written with `--out`) and **fails closed** on an
+unrecognized `schema_version` or a malformed envelope (missing required keys,
+non-boolean `ok`, or `row_count` disagreeing with the actual rows). By default it
+validates the contract envelope, not the verdict, so a well-formed `ok: false`
+matrix is still a recognized document; `--require-ok` additionally requires `ok ==
+true`, which is the mode world health uses. It is offline and pure — one JSON file
+in, a pass/fail decision out, no smoke or subprocess.
 
 ### Run a single case against any OpenAI-compatible endpoint
 

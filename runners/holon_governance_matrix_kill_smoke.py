@@ -19,8 +19,11 @@ command that unexpectedly passed).
 Two fault classes are exercised, both requiring the matrix to exit nonzero:
 
 - **evidence faults** regress the underlying runtime (``report.py`` /
-  ``holon_stub.py``) so one smoke's real governance evidence drops; the matrix must
-  catch it end-to-end via that row's non-clean exit / delta mismatch.
+  ``holon_stub.py``) so a smoke's real governance evidence drops; the matrix must
+  catch it end-to-end via that row's non-clean exit / delta mismatch. These include
+  a *global* comparison mutant (all rows drop together) and one *per-row isolation*
+  mutant for each of fs-write, fs-read, and process-control -- a regression confined
+  to a single capability must fail the matrix via that capability's row alone.
 - **aggregation faults** drift the matrix's *own* row metadata or summary parsing
   (``holon_governance_matrix.py``) so it would mis-measure even a correct, passing
   smoke; the matrix's present guard must fire.
@@ -118,6 +121,39 @@ MUTANTS: tuple[Mutant, ...] = (
         regression=(
             "fs-write deny still applies the marker/edit, so the fs-write smoke "
             "stops surfacing its denial delta; the matrix's fs-write row must fail"
+        ),
+    ),
+    # Per-row isolation: a regression confined to one capability must fail the
+    # matrix *via that capability's row* while the other two rows still pass --
+    # proving each row's fail-closed path is load-bearing on its own, not only
+    # caught by the global comparison mutant above. (Isolation -- only the named
+    # row failing -- is asserted in test_holon_governance_matrix_kill_smoke.py.)
+    Mutant(
+        id="evidence-read-deny-exposes-context",
+        target="runners/holon_stub.py",
+        old='        if fs_decision == "admit":\n',
+        new='        if fs_decision == "admit" or fs_kind() == "read":\n',
+        regression=(
+            "fs-read deny still applies the change, so the gated read marker "
+            "(context) leaks into the artifact even when the witness denied it; "
+            "the matrix's fs-read row must fail while fs-write/process-control pass"
+        ),
+    ),
+    Mutant(
+        id="evidence-process-deny-records-pass",
+        target="runners/holon_stub.py",
+        old=(
+            '                    "name": "process_permission",\n'
+            '                    "passed": admitted,\n'
+        ),
+        new=(
+            '                    "name": "process_permission",\n'
+            '                    "passed": True,\n'
+        ),
+        regression=(
+            "a denied modeled process-control action records its process_permission "
+            "check as passed, hiding the governance failure; the matrix's "
+            "process-control row must fail while fs-write/fs-read pass"
         ),
     ),
     # --- aggregation faults: drift the matrix's own metadata/parsing. ---
