@@ -84,6 +84,7 @@ python3 runners/holon_process_governance_smoke.py .
 python3 runners/holon_governance_matrix.py .
 python3 runners/holon_governance_matrix.py . --json
 python3 runners/holon_governance_matrix.py . --out /tmp/holon-governance-matrix.json
+python3 runners/holon_governance_matrix_kill_smoke.py .
 ```
 
 `holon_smoke.py` runs one case end-to-end through the `holon-cli` driver with an
@@ -177,6 +178,21 @@ verdict in every output mode, including when an artifact was written. The
 aggregator only re-invokes the existing offline smokes via the Python
 interpreter; it runs no live process-control command and the process-control row
 stays stub-only.
+
+`holon_governance_matrix_kill_smoke.py` (M16) is the matrix **kill-readiness**
+check: the matrix's own tests prove it *passes* when the three smokes pass, but
+not that it can *fail*. This smoke stages a throwaway bench root (copying
+`runners/`, symlinking the rest), injects each of a set of preregistered textual
+regressions, and requires the matrix to *fail* (nonzero) on each — a mutant the
+matrix fails to catch is reported as a survivor. It covers two fault classes:
+**evidence faults** that regress the underlying runtime (`report.py` /
+`holon_stub.py`) so one smoke's real governance evidence drops, and **aggregation
+faults** that drift the matrix's own row metadata or summary parsing
+(`holon_governance_matrix.py`). Guard-*vacuity* (a check made unconditionally true)
+is deliberately out of scope here — it produces no observable fault against good
+smokes and is covered instead by the injected-`fake_runner` `FailClosedTest` in
+`runners/test_holon_governance_matrix.py`. Like the fs witness kill smoke it is
+public, offline, stub-only, and **not** the formal private Stage-1 Tao kill-test.
 
 ### Run a single case against any OpenAI-compatible endpoint
 
