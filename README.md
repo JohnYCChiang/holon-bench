@@ -82,6 +82,7 @@ python3 runners/holon_real_fs_governance_smoke.py .
 python3 runners/holon_fs_witness_kill_smoke.py .
 python3 runners/holon_process_governance_smoke.py .
 python3 runners/holon_network_governance_smoke.py .
+python3 runners/holon_acceptance_record_smoke.py .
 python3 runners/holon_governance_matrix.py .
 python3 runners/holon_governance_matrix.py . --json
 python3 runners/holon_governance_matrix.py . --out /tmp/holon-governance-matrix.json
@@ -177,6 +178,19 @@ offline stub models the witness decision under `HOLON_STUB_NET_WITNESS` (with
 inert marker. A governed deny preserves the external-contact boundary (the modeled
 action is blocked) and records a failing `network_permission` check, surfacing the
 same governed-minus-ungoverned `+1` governance-failure delta over one matched case.
+
+`holon_acceptance_record_smoke.py` proves the governed-effect **acceptance record**
+(tao#24). Where the per-class smokes prove the *gate*, this proves the *record*: an
+admitted **mutation-side** effect produces an id-only `TestResult` acceptance record
+— `fact_kind="TestResult"`, `authority="runner"` (never an agent, NT-07), the
+witness op id, the frozen outcome type — and nothing else does. The stub emits the
+record into `.holon/governance.json` only on a governed admit of a mutation-side op;
+`run_model_case.py` surfaces it and `run_case.py` carries it on the result. The
+smoke asserts an admitted `process.kill` is recorded (id-only, no pid/command/target
+leaked), while a governed **deny** (a denied effect accepts nothing), an
+**ungoverned** baseline (no witness ran), and an **observe-only** `fs.read` (a read
+mutates nothing) each record **nothing**. Modeled only and offline — no process is
+killed and no file is exposed.
 
 `holon_governance_matrix.py` (M14) is **evidence aggregation, not a new
 capability class**: it re-drives the four witness smokes above — `fs-write`

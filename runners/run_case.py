@@ -214,6 +214,7 @@ def main() -> int:
         "governance_checks": generation_trace.get("governance_checks"),
         "prompt_stack": generation_trace.get("prompt_stack"),
         "tao_truth_chain": generation_trace.get("tao_truth_chain"),
+        "acceptance_record": generation_trace.get("acceptance_record"),
         "changed_files": changed,
         "diff_analysis": diff,
         "commands": commands,

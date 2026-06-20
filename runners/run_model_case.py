@@ -619,6 +619,9 @@ def read_holon_governance(snapshot_roots: list[pathlib.Path]) -> dict:
         chain = data.get("tao_truth_chain")
         if isinstance(chain, dict):
             governance["tao_truth_chain"] = chain
+        record = data.get("acceptance_record")
+        if isinstance(record, dict):
+            governance["acceptance_record"] = record
         return governance
     return {}
 

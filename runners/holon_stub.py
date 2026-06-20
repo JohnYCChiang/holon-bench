@@ -296,6 +296,12 @@ def write_process_governance(cwd: pathlib.Path, mode: str, decision: str) -> Non
                 "verifier_input_ids": [f"witness-{case_id}"],
             },
         }
+        # An admitted process-control mutation (spawn/signal/kill) is accepted
+        # (tao#24); process.inspect observes only, so it has nothing to accept.
+        if admitted:
+            record = acceptance_record(case_id, op)
+            if record is not None:
+                governance["acceptance_record"] = record
     (holon_dir / "governance.json").write_text(
         json.dumps(governance, indent=2), encoding="utf-8"
     )
@@ -380,6 +386,12 @@ def write_net_governance(cwd: pathlib.Path, mode: str, decision: str) -> None:
                 "verifier_input_ids": [f"witness-{case_id}"],
             },
         }
+        # An admitted egress mutation (connect/send) is accepted (tao#24);
+        # net.resolve only resolves a name, so it has nothing to accept.
+        if admitted:
+            record = acceptance_record(case_id, op)
+            if record is not None:
+                governance["acceptance_record"] = record
     (holon_dir / "governance.json").write_text(
         json.dumps(governance, indent=2), encoding="utf-8"
     )
@@ -434,6 +446,44 @@ def real_witness_decision() -> tuple[str | None, str | None]:
         return "governed", "deny"
     # No matching grant row => missing-grant deny.
     return "governed", "deny"
+
+
+# Frozen outcome type per mutation-side EffectOp (tao#24). Observe-only ops
+# (fs.read/list/stat, process.inspect, net.resolve) are deliberately absent -- they
+# mutate nothing and have nothing to accept.
+ACCEPTANCE_OUTCOME = {
+    "fs.create": "Created",
+    "fs.overwrite": "Overwritten",
+    "fs.edit": "Edited",
+    "fs.delete": "Deleted",
+    "process.spawn": "Spawned",
+    "process.signal": "Signalled",
+    "process.kill": "Killed",
+    "net.connect": "Connected",
+    "net.send": "Sent",
+}
+
+
+def acceptance_record(case_id: str, op: str) -> dict | None:
+    """Id-only TestResult acceptance record for an admitted mutation-side effect.
+
+    Mirrors the Holon ``acceptance_record_for_admitted`` builder (tao#24): a record
+    is produced only for a mutation-side op; an observe-only op (fs read,
+    ``process.inspect``, ``net.resolve``) returns ``None`` -- nothing to accept. The
+    record is id-only: it names the subject, the witness op id, the recording
+    authority (``runner``, never an agent), and the frozen outcome type -- never a
+    path content, pid, resolved address, or payload.
+    """
+    outcome = ACCEPTANCE_OUTCOME.get(op)
+    if outcome is None:
+        return None
+    return {
+        "fact_kind": "TestResult",
+        "authority": "runner",
+        "subject": f"case::{case_id}",
+        "witness_op": op,
+        "outcome_type": outcome,
+    }
 
 
 def write_fs_governance(
@@ -491,6 +541,12 @@ def write_fs_governance(
                 "verifier_input_ids": [f"witness-{case_id}"],
             },
         }
+        # An admitted mutation-side effect is accepted (tao#24); a read exposes no
+        # mutation, so it has nothing to accept.
+        if admitted:
+            record = acceptance_record(case_id, "fs.read" if kind == "read" else "fs.edit")
+            if record is not None:
+                governance["acceptance_record"] = record
     (holon_dir / "governance.json").write_text(
         json.dumps(governance, indent=2), encoding="utf-8"
     )
