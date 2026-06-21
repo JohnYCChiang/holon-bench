@@ -61,12 +61,17 @@ def resolve_paths(
     bench: pathlib.Path | None = None,
     run_root: str | os.PathLike[str] | None = None,
     private_suite: str | os.PathLike[str] | None = None,
+    pack: "TaskPack | None" = None,
 ) -> Paths:
     b = bench_root(bench)
     workspace = b.parent
     tao_repo = workspace / "tao"
     home = pathlib.Path(os.path.expanduser("~"))
-    priv = pathlib.Path(private_suite) if private_suite else home / "tao-killtest-private"
+    # A task pack selects its own prereg file + private-suite subdir; with no pack
+    # the layout is byte-identical to the frozen v0 default.
+    prereg_name = pack.prereg_filename if pack else "tao-killtest-prereg-v0.md"
+    priv_base = pathlib.Path(private_suite) if private_suite else home / "tao-killtest-private"
+    priv = priv_base / pack.private_subdir if (pack and pack.private_subdir) else priv_base
     runs = pathlib.Path(run_root) if run_root else workspace / "runs" / "tao-killtest"
     return Paths(
         bench=b,
@@ -74,7 +79,7 @@ def resolve_paths(
         tao_repo=tao_repo,
         tao_port=tao_repo / "target" / "debug" / "tao-port",
         registry=tao_repo / "artifacts" / "trusted-toolchain-registry-v0.json",
-        prereg=tao_repo / "docs" / "tao-killtest-prereg-v0.md",
+        prereg=tao_repo / "docs" / prereg_name,
         spike_plan=tao_repo / ".claude" / "tasks" / "tao-stage0-spike-plan.md",
         private_suite=priv.resolve(),
         run_root=runs,
@@ -206,3 +211,102 @@ class Provenance:
             "hash_algo": self.hash_algo,
             **self.extra,
         }
+
+
+# ----------------------------------------------------------------- task packs (v1)
+#
+# A TaskPack bundles every per-task frozen value so a new task (Stage-1) can be
+# added WITHOUT editing the v0 SortedUniqList constants in place. The v0 pack is
+# built FROM the module-level constants above (single source of truth, so v0 stays
+# byte-identical); the stage1 pack carries its own ratified Stage-1 values. Select
+# with the env var KILLTEST_PACK ("v0" default | "stage1").
+
+@dataclass(frozen=True)
+class TaskPack:
+    pack_id: str
+    prereg_version: str
+    prereg_filename: str
+    cap: int
+    operations: tuple[str, ...]
+    laws: tuple[str, ...]
+    n_per_arm: int
+    model_id_pinned: str
+    # Approved model substitutes (prereg v1.1 amendment §5). The checklist accepts
+    # a recorded model_id that matches the pin OR one of these; empty for v0.
+    model_substitutes: tuple[str, ...]
+    private_subdir: str          # subdir under ~/tao-killtest-private ("" = root)
+    mutation_specs: str          # selector consumed by mutation.specs_for()
+    r1_median_factor: float
+    r2_p90_factor: float
+    no_harm_allowance: float
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "pack_id": self.pack_id,
+            "prereg_version": self.prereg_version,
+            "prereg_filename": self.prereg_filename,
+            "cap": self.cap,
+            "operations": list(self.operations),
+            "laws": list(self.laws),
+            "n_per_arm": self.n_per_arm,
+            "model_id_pinned": self.model_id_pinned,
+            "model_substitutes": list(self.model_substitutes),
+            "private_subdir": self.private_subdir,
+            "mutation_specs": self.mutation_specs,
+            "thresholds": {
+                "R1_median_factor": self.r1_median_factor,
+                "R2_p90_factor": self.r2_p90_factor,
+                "no_harm_allowance": self.no_harm_allowance,
+            },
+        }
+
+
+# v0 — frozen SortedUniqList pack, mirrored from the module constants (unchanged).
+V0_PACK = TaskPack(
+    pack_id="v0",
+    prereg_version=PREREG_VERSION,
+    prereg_filename="tao-killtest-prereg-v0.md",
+    cap=CAP,
+    operations=OPERATIONS,
+    laws=LAWS,
+    n_per_arm=N_PER_ARM,
+    model_id_pinned=MODEL_ID_PINNED,
+    model_substitutes=(),
+    private_subdir="",
+    mutation_specs="v0",
+    r1_median_factor=R1_MEDIAN_FACTOR,
+    r2_p90_factor=R2_P90_FACTOR,
+    no_harm_allowance=NO_HARM_ALLOWANCE,
+)
+
+# stage1 — bounded relational mini-store (prereg v1, RATIFIED 2026-06-14). The
+# target edit is `report`; `dashboard` is the A5a verified consumer. Same decision
+# thresholds as v0 (R1 0.7 / R2 0.8 / no-harm 0.10). model_substitutes carries the
+# v1.1 amendment substitute recorded at first run (left empty until ratified; the
+# checklist also accepts a per-run recorded substitute).
+STAGE1_PACK = TaskPack(
+    pack_id="stage1",
+    prereg_version="tao-killtest-prereg-v1-stage1",
+    prereg_filename="tao-killtest-prereg-v1-stage1.md",
+    cap=64,
+    operations=("report", "dashboard"),
+    laws=("L-validonly", "L-join", "L-group", "L-sum-bounded", "L-sortuniq"),
+    n_per_arm=5,
+    model_id_pinned=MODEL_ID_PINNED,
+    model_substitutes=(),
+    private_subdir="stage1",
+    mutation_specs="stage1",
+    r1_median_factor=R1_MEDIAN_FACTOR,
+    r2_p90_factor=R2_P90_FACTOR,
+    no_harm_allowance=NO_HARM_ALLOWANCE,
+)
+
+PACKS: dict[str, TaskPack] = {p.pack_id: p for p in (V0_PACK, STAGE1_PACK)}
+
+
+def active_pack(name: str | None = None) -> TaskPack:
+    """Select the task pack by explicit name, else env KILLTEST_PACK, else v0."""
+    key = name or os.environ.get("KILLTEST_PACK", "v0")
+    if key not in PACKS:
+        raise SystemExit(f"unknown KILLTEST_PACK {key!r} (have: {sorted(PACKS)})")
+    return PACKS[key]

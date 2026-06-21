@@ -12,7 +12,8 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from . import config
-from .tokens import median, percentile
+from .tokens import (median, percentile, cycle_tokens_under_model,
+                     ACCOUNTING_MODELS, CAT_STANDING)
 
 
 @dataclass
@@ -28,7 +29,25 @@ class ArmMetrics:
     m9_recoveries: list[int] = field(default_factory=list)         # per run
     m10_pass_rates: list[float] = field(default_factory=list)      # per run (hidden+mutation)
     m11_critical_defects: int = 0                                  # count across runs
+    # Observational, Tao-only (prereg §3 M6/M7/M8); colour the verdict, never feed it.
+    m6_sig_bytes: list[int] = field(default_factory=list)          # signature thinness
+    m7_sig_fraction: list[float] = field(default_factory=list)     # % bundle sigs vs bodies
+    m8_body_fetches: list[int] = field(default_factory=list)       # body fetch count
+    # Per accepted-edit component breakdowns, kept so M1/M2 can be recomputed under
+    # each accounting model (the 3-row sensitivity table). (by_component, standing).
+    accepted_components: list[dict[str, int]] = field(default_factory=list)
+    accepted_standing: list[int] = field(default_factory=list)
     runs_counted: int = 0
+
+    def model_edit_tokens(self, model_name: str) -> list[float]:
+        """Per accepted-edit token totals recomputed under an accounting model."""
+        n = len(self.accepted_components)
+        return [cycle_tokens_under_model(bc, st, n, model_name)
+                for bc, st in zip(self.accepted_components, self.accepted_standing)]
+
+    def model_m1_m2(self, model_name: str) -> tuple[float | None, float | None]:
+        vals = self.model_edit_tokens(model_name)
+        return median(vals), percentile(vals, 90.0)
 
     @property
     def m1_median(self) -> float | None:
@@ -65,6 +84,10 @@ class ArmMetrics:
             "M10_mean_pass_rate": self.m10_mean_pass_rate,
             "M11_critical_defects": self.m11_critical_defects,
             "accepted_edit_sample_size": len(self.accepted_edit_tokens),
+            # observational (Tao-only); empty on the baseline arm.
+            "M6_signature_bytes": self.m6_sig_bytes,
+            "M7_signature_fraction": self.m7_sig_fraction,
+            "M8_body_fetches": self.m8_body_fetches,
         }
 
 
@@ -108,6 +131,9 @@ def metrics_from_runlog(records: list[dict[str, Any]], arm: str) -> ArmMetrics:
         for cyc in b["cycles"]:
             if cyc.get("accepted") and cyc.get("survived", True):
                 am.accepted_edit_tokens.append(int(cyc.get("tokens_total", 0)))
+                bc = dict(cyc.get("tokens_by_component", {}))
+                am.accepted_components.append(bc)
+                am.accepted_standing.append(int(bc.get(CAT_STANDING, 0)))
         # M3 edits-to-green: accepted edits up to first green; if never green,
         # use total accepted edits as the observed (worst) count.
         score = b.get("score") or {}
@@ -123,6 +149,13 @@ def metrics_from_runlog(records: list[dict[str, Any]], arm: str) -> ArmMetrics:
             am.m9_recoveries.append(int(score["recoveries"]))
         if score.get("m10_pass_rate") is not None:
             am.m10_pass_rates.append(float(score["m10_pass_rate"]))
+        # observational M6/M7/M8 (Tao-only): recorded in the score when present.
+        if score.get("m6_signature_bytes") is not None:
+            am.m6_sig_bytes.append(int(score["m6_signature_bytes"]))
+        if score.get("m7_signature_fraction") is not None:
+            am.m7_sig_fraction.append(float(score["m7_signature_fraction"]))
+        if score.get("m8_body_fetches") is not None:
+            am.m8_body_fetches.append(int(score["m8_body_fetches"]))
         for d in b.get("defects", []) or []:
             if d.get("severity") in ("logic-error-escaping-tests", "invariant-violation"):
                 am.m11_critical_defects += 1
@@ -221,3 +254,25 @@ def decide(tao: ArmMetrics, baseline: ArmMetrics) -> dict[str, Any]:
         },
         "prereg_version": config.PREREG_VERSION,
     }
+
+
+def accounting_table(tao: ArmMetrics, baseline: ArmMetrics, *,
+                     r1_factor: float = config.R1_MEDIAN_FACTOR,
+                     r2_factor: float = config.R2_P90_FACTOR) -> dict[str, Any]:
+    """The token rules R1/R2 recomputed under EVERY accounting model — the
+    3-row sensitivity table the Stage-1 verdict must report (run all three, do
+    not cherry-pick). Observational framing only; the binding verdict stays the
+    single prereg accounting in ``decide``."""
+    rows = []
+    for name in ACCOUNTING_MODELS:
+        t1, t2 = tao.model_m1_m2(name)
+        b1, b2 = baseline.model_m1_m2(name)
+        r1_ok, r1_d = _ratio_ok(t1, b1, r1_factor)
+        r2_ok, r2_d = _ratio_ok(t2, b2, r2_factor)
+        rows.append({
+            "accounting_model": name,
+            "standing": ACCOUNTING_MODELS[name]["standing"],
+            "M1_tao": t1, "M1_baseline": b1, "R1_pass": r1_ok, "R1_detail": r1_d,
+            "M2_tao": t2, "M2_baseline": b2, "R2_pass": r2_ok, "R2_detail": r2_d,
+        })
+    return {"r1_factor": r1_factor, "r2_factor": r2_factor, "rows": rows}

@@ -10,7 +10,7 @@ from __future__ import annotations
 import tempfile
 import pathlib
 
-from . import metrics, mutation, schedule, suites, templates, tokens
+from . import config, metrics, mutation, schedule, suites, templates, tokens
 from .metrics import ArmMetrics
 
 
@@ -136,6 +136,63 @@ def run() -> bool:
         _check("m5-blind-package",
                blind_name_hides_arm and resolved["arm"] == "baseline"
                and resolved["minutes"] == 4.5, results)
+
+    # ledger: a finely-tagged context entry surfaces under tokens_by_component and
+    # falls back to its category when untagged (the arm path passes component=...).
+    led2 = tokens.TokenLedger()
+    cyc = led2.open_cycle("read")
+    cyc.add(tokens.CAT_CONTEXT, "bundle", "x", tokens=20, component=tokens.COMP_DEP_LAWS)
+    cyc.add(tokens.CAT_CONTEXT, "more", "y", tokens=7)  # untagged -> "context"
+    bd = cyc.breakdown_by_component()
+    _check("ledger-component-tag",
+           bd.get(tokens.COMP_DEP_LAWS) == 20 and bd.get(tokens.CAT_CONTEXT) == 7
+           and "tokens_by_component" in cyc.to_dict(), results)
+
+    # task packs: v0 pack mirrors the frozen constants byte-for-byte (no drift).
+    v0 = config.active_pack("v0")
+    _check("pack-v0-frozen",
+           v0.cap == config.CAP and v0.operations == config.OPERATIONS
+           and v0.laws == config.LAWS and v0.n_per_arm == config.N_PER_ARM
+           and v0.model_id_pinned == config.MODEL_ID_PINNED
+           and v0.prereg_version == config.PREREG_VERSION
+           and v0.mutation_specs == "v0" and v0.private_subdir == "", results)
+    s1 = config.active_pack("stage1")
+    _check("pack-stage1",
+           s1.pack_id == "stage1" and s1.n_per_arm == 5
+           and s1.private_subdir == "stage1" and s1.mutation_specs == "stage1"
+           and s1.prereg_filename == "tao-killtest-prereg-v1-stage1.md"
+           and s1.r1_median_factor == config.R1_MEDIAN_FACTOR, results)
+
+    # mutation pack selection + stage1 join key-flip.
+    _check("mutation-specs-v0", mutation.specs_for("v0") is mutation.DEFAULT_SPECS, results)
+    s1_specs = mutation.specs_for("stage1")
+    join = next(m for m in s1_specs if m.id == "S1-JOIN")
+    jm, japplied = mutation.apply_rust("if items[je].id == ok { go(); }", join.rust)
+    _check("mutation-stage1-join", len(s1_specs) == 4 and japplied and ".id != " in jm, results)
+
+    # accounting models: faithful excludes the full sig index; both_full_index adds
+    # it; amortized spreads standing across accepted edits.
+    bc = {tokens.CAT_STANDING: 100, tokens.COMP_DEP_SIGS: 20, tokens.COMP_DEP_LAWS: 10,
+          tokens.COMP_FULL_SIG_INDEX: 50, tokens.CAT_DIAGNOSTIC: 5}
+    faithful = tokens.cycle_tokens_under_model(bc, 100, 4, "faithful")
+    both = tokens.cycle_tokens_under_model(bc, 100, 4, "both_full_index")
+    amort = tokens.cycle_tokens_under_model(bc, 100, 4, "amortized")
+    _check("accounting-models",
+           faithful == 135 and both == 185 and amort == 60, results)
+
+    # accounting_table: 3 rows, R1 computed per model from tagged ledger cycles.
+    def arm_with(component_tok, n):
+        am = ArmMetrics("x")
+        for _ in range(n):
+            am.accepted_components.append(dict(component_tok))
+            am.accepted_standing.append(component_tok.get(tokens.CAT_STANDING, 0))
+        return am
+    tao_am = arm_with({tokens.CAT_STANDING: 50, tokens.COMP_DEP_SIGS: 10, tokens.COMP_DEP_LAWS: 10}, 3)
+    base_am = arm_with({tokens.CAT_STANDING: 50, tokens.COMP_DEP_SIGS: 10, tokens.COMP_DEP_BODIES: 90}, 3)
+    table = metrics.accounting_table(tao_am, base_am)
+    _check("accounting-table",
+           len(table["rows"]) == 3
+           and all(set(r) >= {"accounting_model", "R1_pass", "R2_pass"} for r in table["rows"]), results)
 
     # leak scan: catches a planted fingerprint.
     with tempfile.TemporaryDirectory() as tmp:

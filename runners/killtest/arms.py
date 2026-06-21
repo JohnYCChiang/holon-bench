@@ -154,8 +154,14 @@ class ArmSession:
     # the accounting core ------------------------------------------------------
 
     def record(self, argv: list[str], *, exit_code: int, stdout: str, stderr: str,
-               category: str, accepted: bool, is_diagnostic: bool) -> None:
-        """Account one command into the token ledger + run log."""
+               category: str, accepted: bool, is_diagnostic: bool,
+               component: str = "") -> None:
+        """Account one command into the token ledger + run log.
+
+        ``component`` finely tags a context fetch (dep_sigs / dep_laws / dep_bodies
+        / full_sig_index / survey) so M1/M2 can be recomputed under each accounting
+        model. Empty ⇒ untagged (folds into the coarse category; counts under every
+        model). Diagnostics are never finely tagged."""
         if not self.recording:
             return
         label = " ".join(argv[:2]) if argv else category
@@ -173,7 +179,8 @@ class ArmSession:
             self._last_edit_failed = not accepted
             # the diagnostic the agent reads back from its own edit attempt.
             cyc.add(CAT_DIAGNOSTIC if is_diagnostic else CAT_CONTEXT,
-                    f"edit:{label}", stdout + stderr)
+                    f"edit:{label}", stdout + stderr,
+                    component="" if is_diagnostic else component)
             if is_diagnostic:
                 self.roundtrips += 1
                 self.log.roundtrip(self.header.run_id, self.header.arm,
@@ -186,7 +193,8 @@ class ArmSession:
             cyc = self.ledger.open_cycle("read")
             self._open_cycle_index = cyc.index
         cat = CAT_CONTEXT if category == "context" else CAT_DIAGNOSTIC
-        cyc.add(cat, f"{category}:{label}", stdout + stderr)
+        cyc.add(cat, f"{category}:{label}", stdout + stderr,
+                component="" if cat == CAT_DIAGNOSTIC else component)
         if is_diagnostic:
             self.roundtrips += 1
             self.log.roundtrip(self.header.run_id, self.header.arm,
@@ -195,35 +203,37 @@ class ArmSession:
     # live tao-port instrumentation -------------------------------------------
 
     def run_tao(self, paths: config.Paths, store: pathlib.Path, argv: list[str],
-                stdin_text: str | None = None) -> CommandResult:
+                stdin_text: str | None = None, *, component: str = "") -> CommandResult:
         cmd = [str(paths.tao_port), argv[0], "--store", str(store), *argv[1:]]
         proc = subprocess.run(cmd, input=stdin_text, text=True, capture_output=True, check=False)
         category = classify_tao(argv)
         is_diag = proc.returncode in TAO_DIAG_EXITS and category in ("edit", "verifier")
         accepted = (category == "edit" and proc.returncode == 0)
         self.record(argv, exit_code=proc.returncode, stdout=proc.stdout, stderr=proc.stderr,
-                    category=category, accepted=accepted, is_diagnostic=is_diag)
+                    category=category, accepted=accepted, is_diagnostic=is_diag,
+                    component=component)
         return CommandResult(argv, proc.returncode, proc.stdout, proc.stderr,
                              category, accepted, is_diag)
 
     # baseline (git/cargo/file) instrumentation -------------------------------
 
     def run_baseline(self, workdir: pathlib.Path, command: str, *,
-                     category: str) -> CommandResult:
+                     category: str, component: str = "") -> CommandResult:
         proc = subprocess.run(command, cwd=str(workdir), shell=True, text=True,
                               capture_output=True, check=False)
         is_diag = (category == "verifier" and proc.returncode != 0)
         accepted = (category == "edit" and proc.returncode == 0)
         argv = command.split()
         self.record(argv, exit_code=proc.returncode, stdout=proc.stdout, stderr=proc.stderr,
-                    category=category, accepted=accepted, is_diagnostic=is_diag)
+                    category=category, accepted=accepted, is_diagnostic=is_diag,
+                    component=component)
         return CommandResult(argv, proc.returncode, proc.stdout, proc.stderr,
                              category, accepted, is_diag)
 
-    def record_file_write(self, rel_path: str, content: str) -> None:
+    def record_file_write(self, rel_path: str, content: str, *, component: str = "") -> None:
         """A baseline file edit: the written content is what enters context."""
         self.record(["file_write", rel_path], exit_code=0, stdout=content, stderr="",
-                    category="edit", accepted=True, is_diagnostic=False)
+                    category="edit", accepted=True, is_diagnostic=False, component=component)
 
 
 # ledger (de)serialisation ----------------------------------------------------

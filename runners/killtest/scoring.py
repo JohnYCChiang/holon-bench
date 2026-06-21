@@ -216,7 +216,8 @@ def tao_acceptance_detail(session: ArmSession, paths: config.Paths, store: pathl
 
 
 def tao_score(session: ArmSession, paths: config.Paths, store: pathlib.Path,
-              mount: pathlib.Path) -> dict[str, Any]:
+              mount: pathlib.Path,
+              specs: tuple[mutation.MutationSpec, ...] = mutation.DEFAULT_SPECS) -> dict[str, Any]:
     session.recording = False  # scorer commands are not agent activity
     manifest = tao_manifest(paths, store)
     solution = templates.load_solution(mount)
@@ -247,7 +248,7 @@ def tao_score(session: ArmSession, paths: config.Paths, store: pathlib.Path,
         return runner
 
     mut_report = mutation.MutationReport(arm="tao")
-    for spec in mutation.DEFAULT_SPECS:
+    for spec in specs:
         # fetch a target def to mutate (insert op AST) — best-effort by solution.
         target_id = solution.get("insert")
         node = _tao_node(paths, store, target_id) if target_id else None
@@ -274,7 +275,8 @@ def _tao_node(paths: config.Paths, store: pathlib.Path, node_id: str | None) -> 
 # ----------------------------------------------------------------------- baseline
 
 def baseline_score(session: ArmSession, paths: config.Paths, crate: pathlib.Path,
-                   *, hidden_rendition: pathlib.Path, impl_rel: str = "src/lib.rs") -> dict[str, Any]:
+                   *, hidden_rendition: pathlib.Path, impl_rel: str = "src/lib.rs",
+                   specs: tuple[mutation.MutationSpec, ...] = mutation.DEFAULT_SPECS) -> dict[str, Any]:
     """Compile + run acceptance (in the mount) and hidden (in a scoring copy)."""
     session.recording = False  # scorer commands are not agent activity
     acc_res = _cargo_test(session, crate, category="verifier")
@@ -304,7 +306,7 @@ def baseline_score(session: ArmSession, paths: config.Paths, crate: pathlib.Path
         return {"passed": 1 if r["ok"] else 0, "failed": 0 if r["ok"] else 1}
 
     mut_report = mutation.MutationReport(arm="baseline")
-    for spec in mutation.DEFAULT_SPECS:
+    for spec in specs:
         outcome = mutation.run_mutant(spec, "baseline", original, manifest=None,
                                       suite_runner=baseline_suite_runner)
         mut_report.outcomes.append(outcome)

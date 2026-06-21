@@ -40,7 +40,7 @@ import sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 from killtest import (  # noqa: E402
-    arms, checklist, config, decoy, metrics, schedule, scoring, suites, tokens,
+    arms, checklist, config, decoy, metrics, mutation, schedule, scoring, suites, tokens,
 )
 from killtest.arms import ArmSession, now_ts  # noqa: E402
 from killtest.runlog import RunLog, RunHeader  # noqa: E402
@@ -53,10 +53,15 @@ def _emit(obj) -> None:
     print(json.dumps(obj, indent=2, default=str, sort_keys=True))
 
 
+def _pack(args) -> config.TaskPack:
+    return config.active_pack(getattr(args, "pack", None))
+
+
 def _paths(args) -> config.Paths:
     return config.resolve_paths(
         run_root=getattr(args, "run_root", None),
-        private_suite=getattr(args, "private_suite", None))
+        private_suite=getattr(args, "private_suite", None),
+        pack=_pack(args))
 
 
 def _experiment_log(paths: config.Paths, args) -> pathlib.Path:
@@ -75,17 +80,23 @@ def cmd_hashes(args) -> int:
 
 def cmd_init_experiment(args) -> int:
     paths = _paths(args)
+    pack = _pack(args)
     log = RunLog(_experiment_log(paths, args))
     prov = config.Provenance.capture(paths)
-    log.experiment_init(
-        model_id=args.model_id, provenance=prov.to_dict(),
-        params={"n_per_arm": config.N_PER_ARM, "cap": config.CAP,
-                "reviewer": config.M5_REVIEWER, "arms": list(config.ARMS),
-                "tokenizer": tokens.TOKENIZER_NAME,
-                "metrics": [m.id for m in config.METRICS]},
-        ts=now_ts())
+    prov.extra["prereg_version"] = pack.prereg_version
+    prov.prereg_version = pack.prereg_version
+    params = {"n_per_arm": pack.n_per_arm, "cap": pack.cap,
+              "reviewer": config.M5_REVIEWER, "arms": list(config.ARMS),
+              "tokenizer": tokens.TOKENIZER_NAME, "pack": pack.pack_id,
+              "metrics": [m.id for m in config.METRICS]}
+    # record an approved model substitute (prereg v1.1 §5) so the checklist accepts
+    # a non-pinned model_id while keeping both arms identical.
+    if getattr(args, "substitute", None):
+        params["approved_substitute"] = args.substitute
+    log.experiment_init(model_id=args.model_id, provenance=prov.to_dict(),
+                        params=params, ts=now_ts())
     _emit({"experiment_log": str(_experiment_log(paths, args)),
-           "provenance": prov.to_dict(), "model_id": args.model_id})
+           "provenance": prov.to_dict(), "model_id": args.model_id, "pack": pack.pack_id})
     return 0
 
 
@@ -136,11 +147,15 @@ def cmd_schedule(args) -> int:
 
 def cmd_checklist(args) -> int:
     paths = _paths(args)
+    pack = _pack(args)
     exp_log = _experiment_log(paths, args)
     # leak scan over all arm mounts + the experiment log.
     roots = [pathlib.Path(p) for p in (args.mounts or [])] + [exp_log]
     leak = suites.scan_for_leak(roots, suites.hidden_fingerprints(paths))
-    result = checklist.run_checklist(paths, exp_log, leak.clean)
+    result = checklist.run_checklist(paths, exp_log, leak.clean,
+                                     n_per_arm=pack.n_per_arm,
+                                     model_id_pinned=pack.model_id_pinned,
+                                     model_substitutes=pack.model_substitutes)
     RunLog(exp_log).checklist(result["items"], gate_pass=result["gate_pass"], ts=now_ts())
     _emit(result)
     return 0 if result["gate_pass"] else 1
@@ -274,16 +289,17 @@ def cmd_verify_acceptance(args) -> int:
 
 def cmd_score(args) -> int:
     paths = _paths(args)
+    specs = mutation.specs_for(_pack(args).mutation_specs)
     run_dir = pathlib.Path(args.run_dir)
     session = ArmSession.load(run_dir)
     if args.arm == "tao":
         store = pathlib.Path(args.store) if args.store else run_dir / ".tao"
         mount = pathlib.Path(args.mount or run_dir)
-        score = scoring.tao_score(session, paths, store, mount)
+        score = scoring.tao_score(session, paths, store, mount, specs=specs)
     else:
         crate = pathlib.Path(args.crate or (run_dir / "crate"))
         hidden = paths.hidden_dir / "rust"
-        score = scoring.baseline_score(session, paths, crate, hidden_rendition=hidden)
+        score = scoring.baseline_score(session, paths, crate, hidden_rendition=hidden, specs=specs)
     session.log.score(session.header.run_id, args.arm, score, now_ts())
     session.save()
     _emit(score)
@@ -338,6 +354,10 @@ def cmd_report(args) -> int:
     base = metrics.metrics_from_runlog(records, "baseline")
     verdict = metrics.decide(tao, base)
     verdict["runs_counted"] = {"tao": tao.runs_counted, "baseline": base.runs_counted}
+    # 3-row sensitivity table: R1/R2 under every accounting model (report all
+    # three, don't cherry-pick). Observational; the binding verdict is `decide`.
+    verdict["accounting_sensitivity"] = metrics.accounting_table(tao, base)
+    verdict["pack"] = _pack(args).pack_id
     _emit(verdict)
     return 0
 
@@ -362,12 +382,16 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--run-root", help="root for run artifacts (default ../runs/tao-killtest)")
     p.add_argument("--private-suite", help="path to the private suite (default ~/tao-killtest-private)")
     p.add_argument("--experiment-log", help="experiment JSONL path")
+    p.add_argument("--pack", choices=sorted(config.PACKS), default=None,
+                   help="task pack (default: env KILLTEST_PACK or v0)")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("hashes", help="compute suite hashes").set_defaults(func=cmd_hashes)
 
     s = sub.add_parser("init-experiment", help="stamp provenance + params")
     s.add_argument("--model-id", default=config.MODEL_ID_PINNED)
+    s.add_argument("--substitute", default=None,
+                   help="approved model substitute recorded for this run (prereg v1.1 §5)")
     s.set_defaults(func=cmd_init_experiment)
 
     s = sub.add_parser("commit-suites", help="G3 witness: commit suite hashes")

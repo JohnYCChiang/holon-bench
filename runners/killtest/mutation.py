@@ -74,6 +74,54 @@ DEFAULT_SPECS: tuple[MutationSpec, ...] = (
 )
 
 
+# Stage-1 mutations (prereg v1 A.4, relational mini-store). Each MUST be caught by
+# a correct `report` solution's laws/tests. Rust patterns target canonical sites in
+# the assembled rendition (join key equality, saturating add, the partition sort,
+# the bound clamp) and are tunable per run; the Tao operators are AST node swaps on
+# the submitted def nodes. Same applied=False => not_applicable discipline as v0.
+STAGE1_SPECS: tuple[MutationSpec, ...] = (
+    MutationSpec(
+        id="S1-JOIN", name="join-key-flip", caught_by=["L-join"],
+        # inner-join key equality `.id == ` -> `.id != ` (one site)
+        rust={"op": "regex_sub", "pattern": r"\.id == ", "repl": ".id != ", "count": 1},
+        tao={"op": "swap_def", "from_prim": "intEq", "to_prim": "intLt"},
+    ),
+    MutationSpec(
+        id="S1-SUM", name="agg-identity-break", caught_by=["L-sum-bounded", "CAP"],
+        # bounded accumulation: saturating_add -> saturating_sub
+        rust={"op": "regex_sub", "pattern": r"saturating_add", "repl": "saturating_sub", "count": 1},
+        tao={"op": "swap_def", "from_prim": "intAdd", "to_prim": "intEq"},
+    ),
+    MutationSpec(
+        id="S1-GROUP", name="group-partition-drop", caught_by=["L-group"],
+        # drop the dedup that makes groups distinct-by-cat
+        rust={"op": "regex_sub", "pattern": r"\bcs\.dedup\(\);", "repl": "", "count": 1},
+        tao={"op": "json_swap", "find_marker": "group-dedup-guard"},
+    ),
+    MutationSpec(
+        id="S1-BOUND", name="bound-clamp-drop", caught_by=["L-sum-bounded", "L-sortuniq"],
+        # drop the per-row clamp into [0, cap]
+        rust={"op": "regex_sub", "pattern": r"row::clamp_total\(x\.total, cap\)",
+              "repl": "x.total", "count": 1},
+        tao={"op": "json_swap", "find_marker": "bound-clamp-guard"},
+    ),
+)
+
+
+# pack_id -> mutation spec set. Keep DEFAULT_SPECS as the v0 default.
+_SPECS_BY_PACK: dict[str, tuple[MutationSpec, ...]] = {
+    "v0": DEFAULT_SPECS,
+    "stage1": STAGE1_SPECS,
+}
+
+
+def specs_for(pack: str = "v0") -> tuple[MutationSpec, ...]:
+    """Return the mutation spec set for a task pack ('v0' | 'stage1')."""
+    if pack not in _SPECS_BY_PACK:
+        raise ValueError(f"unknown mutation pack {pack!r} (have: {sorted(_SPECS_BY_PACK)})")
+    return _SPECS_BY_PACK[pack]
+
+
 # --------------------------------------------------------------------- rust mutator
 
 @dataclass

@@ -40,7 +40,9 @@ class CheckItem:
 
 
 def run_checklist(paths: config.Paths, experiment_log: pathlib.Path,
-                  leak_clean: bool, *, n_per_arm: int = config.N_PER_ARM) -> dict[str, Any]:
+                  leak_clean: bool, *, n_per_arm: int = config.N_PER_ARM,
+                  model_id_pinned: str = config.MODEL_ID_PINNED,
+                  model_substitutes: tuple[str, ...] = ()) -> dict[str, Any]:
     log = RunLog(experiment_log)
     records = log.read()
     commits = [r for r in records if r.get("event") == EV_SUITE_COMMIT]
@@ -60,11 +62,17 @@ def run_checklist(paths: config.Paths, experiment_log: pathlib.Path,
                            "harness_version_sha256 stamped" if hv
                            else "experiment_init missing harness version hash"))
 
-    # 3. model id recorded + matches the pinned line.
-    model_ok = bool(inits and inits[0].get("model_id", "").startswith(config.MODEL_ID_PINNED))
+    # 3. model id recorded + matches the pinned line OR an approved substitute
+    #    (prereg v1.1 §5: an explicitly-recorded substitute, both arms identical).
+    #    A per-run recorded "approved_substitute" is also honoured.
+    recorded_model = inits[0].get("model_id", "") if inits else ""
+    run_sub = inits[0].get("params", {}).get("approved_substitute") if inits else None
+    allowed = [model_id_pinned, *model_substitutes] + ([run_sub] if run_sub else [])
+    model_ok = bool(recorded_model) and any(
+        recorded_model.startswith(a) for a in allowed if a)
     items.append(CheckItem("model_id_recorded", model_ok,
-                           f"model_id starts with {config.MODEL_ID_PINNED}" if model_ok
-                           else f"model_id absent or not pinned to {config.MODEL_ID_PINNED}"))
+                           f"model_id '{recorded_model}' matches pin/substitute {allowed}" if model_ok
+                           else f"model_id absent or not in allowed {allowed}"))
 
     # 4. N per arm declared.
     params = inits[0].get("params", {}) if inits else {}
