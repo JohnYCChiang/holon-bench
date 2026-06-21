@@ -11,3 +11,7 @@ reports/*
 !reports/per_track.json
 !reports/routing_recommendation.json
 !reports/baseline_summary.md
+
+# Stray tao stores from local authoring (absolute store lives in /tmp or ~/tao-killtest-private)
+.tao/
+**/.tao/
