@@ -172,10 +172,14 @@ def cmd_start_run(args) -> int:
         harness_version_hash=prov.harness_version_sha256,
         toolchain_set_hash=prov.registry_sha256, suite_hashes=hashes)
     session = ArmSession(run_dir=run_dir, header=header)
-    # standing context = task brief + arm mechanics doc (token-counted).
-    brief = (ASSET_DIR / "task_brief.md").read_text(encoding="utf-8")
+    # standing context = task brief + arm mechanics doc (token-counted). Pack-aware:
+    # a pack's assets live under assets/<pack_id>/ (v0 keeps them at the assets root).
+    adir = ASSET_DIR / _pack(args).pack_id
+    if not adir.exists():
+        adir = ASSET_DIR
+    brief = (adir / "task_brief.md").read_text(encoding="utf-8")
     mech_file = "tao_mechanics.md" if args.arm == "tao" else "baseline_mechanics.md"
-    mech = (ASSET_DIR / mech_file).read_text(encoding="utf-8")
+    mech = (adir / mech_file).read_text(encoding="utf-8")
     session.set_standing(brief, mech)
     session.log.run_start(header, now_ts())
     session.save()
