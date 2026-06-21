@@ -23,7 +23,6 @@ from typing import Any
 
 
 _PRIM = re.compile(r"^\{prim:([A-Za-z0-9_]+)\}$")
-_DEF_KEYS = ("EMPTY", "INSERT", "MEMBER", "SIZE", "EID")
 
 # the agent's solution declaration that names its submitted def ids.
 SOLUTION_FILE = "solution.json"
@@ -44,15 +43,17 @@ def build_mapping(world_manifest: dict[str, Any], solution: dict[str, Any]) -> d
 
     sol = {k.lower(): v for k, v in solution.items()}
     # {EID} is the VocabEntry id; the agent declares it as "entry" (preferred) or "eid".
+    # Pack-agnostic: v0 authors empty/insert/member/size/entry; stage1 authors report
+    # (and optionally dashboard). A placeholder is mapped iff its source def is present;
+    # a suite that references an absent placeholder fails at instantiate() (use-site),
+    # which is the real completeness check.
     sources = {"EMPTY": ("empty",), "INSERT": ("insert",), "MEMBER": ("member",),
-               "SIZE": ("size",), "EID": ("entry", "eid")}
-    for key in _DEF_KEYS:
-        val = next((sol[name] for name in sources[key] if sol.get(name)), None)
-        if not val:
-            raise SubstitutionError(
-                f"solution.json missing required def id for '{key}' "
-                f"(expected one of {sources[key]})")
-        mapping[f"{{{key}}}"] = val
+               "SIZE": ("size",), "EID": ("entry", "eid"),
+               "REPORT": ("report",), "DASHBOARD": ("dashboard",)}
+    for key, names in sources.items():
+        val = next((sol[name] for name in names if sol.get(name)), None)
+        if val:
+            mapping[f"{{{key}}}"] = val
     return mapping
 
 
