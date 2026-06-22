@@ -20,9 +20,11 @@ the existing module functions.
 
 Every interaction goes through one wrapped command so your work is recorded:
 
-- **Inspect the code** — read files normally in `<DIR>/crate/` to recover behaviour.
-- **Save your implementation edit** (write the file, then record it):
-  `run_killtest.py wrap --run-dir <DIR> --arm baseline --category edit --file src/lib.rs`
+- **Inspect the code** — read files normally in `<DIR>/crate/src/lib.rs` to recover
+  each dependency's behaviour.
+- **Save your implementation edit** (write the file, then record it). You author
+  `report` in `src/report_impl.rs` — the ONLY file you edit:
+  `run_killtest.py wrap --run-dir <DIR> --arm baseline --category edit --file src/report_impl.rs`
 - **Run the acceptance suite:**
   `run_killtest.py wrap --run-dir <DIR> --arm baseline --category verifier -- cargo test`
 

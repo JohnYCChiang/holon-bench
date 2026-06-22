@@ -194,10 +194,20 @@ def _no_harm_ok(t: float | None, b: float | None) -> tuple[bool | None, str]:
                           f"={allowed:.2f}? (baseline={b:.2f})")
 
 
-def decide(tao: ArmMetrics, baseline: ArmMetrics) -> dict[str, Any]:
-    """Apply R1-R5 and emit the §4 verdict. Mechanical; no judgement calls."""
-    r1_ok, r1_d = _ratio_ok(tao.m1_median, baseline.m1_median, config.R1_MEDIAN_FACTOR)
-    r2_ok, r2_d = _ratio_ok(tao.m2_p90, baseline.m2_p90, config.R2_P90_FACTOR)
+def decide(tao: ArmMetrics, baseline: ArmMetrics, *,
+           baseline_m1_supplement: float = 0.0,
+           baseline_m2_supplement: float = 0.0) -> dict[str, Any]:
+    """Apply R1-R5 and emit the §4 verdict. Mechanical; no judgement calls.
+
+    ``baseline_m{1,2}_supplement`` add the baseline arm's body-read cost (the tokens
+    it spends reading dependency bodies to recover behaviour — absent from the wrapped
+    ledger, see B3) to baseline M1/M2 before the R1/R2 ratio. Stage1 runs the verdict
+    under two standards: measured-M8 and conservative-full-survey (binding). v0 passes
+    0 (no separate body-read cost), so its behaviour is unchanged."""
+    b_m1 = baseline.m1_median + baseline_m1_supplement if baseline.m1_median is not None else None
+    b_m2 = baseline.m2_p90 + baseline_m2_supplement if baseline.m2_p90 is not None else None
+    r1_ok, r1_d = _ratio_ok(tao.m1_median, b_m1, config.R1_MEDIAN_FACTOR)
+    r2_ok, r2_d = _ratio_ok(tao.m2_p90, b_m2, config.R2_P90_FACTOR)
     r3_ok, r3_d = _no_harm_ok(tao.m3_median, baseline.m3_median)
 
     # R4: final correctness (M10 pass rate not worse; zero critical M11 defects).
@@ -254,6 +264,35 @@ def decide(tao: ArmMetrics, baseline: ArmMetrics) -> dict[str, Any]:
         },
         "prereg_version": config.PREREG_VERSION,
     }
+
+
+def body_read_sensitivity(tao: ArmMetrics, baseline: ArmMetrics, *,
+                          m8_measured: float, survey_const: float) -> dict[str, Any]:
+    """Stage1 fork-C: the R1/R2 verdict under TWO body-read standards added to the
+    baseline's M1/M2 (the cost it spends reading dependency bodies — see B3):
+      * measured_M8           — what the real executor actually read (transcript).
+      * conservative_full_survey — the full library body survey (BINDING; an
+                                   undocumented library is realistically surveyed).
+    The tao arm carries laws in its standing context, so no body-read term is added."""
+    standards = [("measured_M8", m8_measured),
+                 ("conservative_full_survey", survey_const)]
+    rows = []
+    for name, supp in standards:
+        v = decide(tao, baseline, baseline_m1_supplement=supp, baseline_m2_supplement=supp)
+        by_rule = {r["rule"]: r for r in v["rules"]}
+        rows.append({
+            "standard": name, "baseline_body_read_tokens": supp,
+            "M1_tao": tao.m1_median,
+            "M1_baseline_with_reads": (baseline.m1_median + supp)
+                if baseline.m1_median is not None else None,
+            "R1_pass": by_rule["R1"]["passed"], "R1_detail": by_rule["R1"]["detail"],
+            "R2_pass": by_rule["R2"]["passed"], "R2_detail": by_rule["R2"]["detail"],
+            "verdict": v["verdict"],
+        })
+    return {"binding_standard": "conservative_full_survey",
+            "note": "M1_baseline = wrapped-ledger M1 + body-read cost; tao laws are in "
+                    "standing (no body-read term). See B3.",
+            "standards": rows}
 
 
 def accounting_table(tao: ArmMetrics, baseline: ArmMetrics, *,

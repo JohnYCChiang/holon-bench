@@ -43,6 +43,11 @@ class MutationSpec:
     caught_by: list[str]                 # laws/properties expected to catch it
     rust: dict[str, Any]                 # baseline source-patch operator
     tao: dict[str, Any]                  # Tao AST node-swap operator
+    #: an EQUIVALENT mutant — proven to leave the deliverable's observable output
+    #: unchanged on all inputs, so it is unkillable BY CONSTRUCTION (not a suite
+    #: gap). Excluded from kill-rate + critical-defects (standard mutation-testing
+    #: practice). Set only with a recorded differential-equivalence proof.
+    equivalent: bool = False
 
 
 # Default operators. Patterns are deliberately tunable per run (a real solution's
@@ -92,15 +97,24 @@ STAGE1_SPECS: tuple[MutationSpec, ...] = (
         rust={"op": "regex_sub", "pattern": r"saturating_add", "repl": "saturating_sub", "count": 1},
         tao={"op": "swap_def", "from_prim": "intAdd", "to_prim": "intEq"},
     ),
+    # S1-GROUP / S1-BOUND are EQUIVALENT mutants for this task's `report` composition,
+    # PROVEN by a 20k-input differential test (identical output signature; see
+    # runs/tao-killtest-stage1/B2-baseline-mutation-equivalence.md):
+    #  * S1-GROUP's `cs.dedup();` site is in `distinct_cats`, which `report` never
+    #    calls (group_values uses index-sort grouping, no dedup) — off report's path.
+    #  * S1-BOUND drops a clamp on `x.total` that `agg_sum_bounded` already bounds into
+    #    [0,cap], and report inserts each cat once (no merge path) — redundant.
+    # report's robust `sorted_unique_insert` (re-merge by cat + clamp) masks both
+    # fault classes; the distinguishable faults are join-key (S1-JOIN) and sum-identity
+    # (S1-SUM), both killed. Excluded from kill-rate/critical-defects, not silently.
     MutationSpec(
-        id="S1-GROUP", name="group-partition-drop", caught_by=["L-group"],
-        # drop the dedup that makes groups distinct-by-cat
+        id="S1-GROUP", name="group-partition-drop", caught_by=["L-group"], equivalent=True,
         rust={"op": "regex_sub", "pattern": r"\bcs\.dedup\(\);", "repl": "", "count": 1},
         tao={"op": "json_swap", "find_marker": "group-dedup-guard"},
     ),
     MutationSpec(
         id="S1-BOUND", name="bound-clamp-drop", caught_by=["L-sum-bounded", "L-sortuniq"],
-        # drop the per-row clamp into [0, cap]
+        equivalent=True,
         rust={"op": "regex_sub", "pattern": r"row::clamp_total\(x\.total, cap\)",
               "repl": "x.total", "count": 1},
         tao={"op": "json_swap", "find_marker": "bound-clamp-guard"},
@@ -133,17 +147,20 @@ class MutationOutcome:
     failed_tests: int = 0
     passed_tests: int = 0
     detail: str = ""
+    equivalent: bool = False     # proven-equivalent mutant: excluded from scoring
 
     @property
     def status(self) -> str:
         if not self.applied:
             return "not_applicable"
+        if self.equivalent:
+            return "equivalent"
         return "killed" if self.killed else "survived"
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "spec_id": self.spec_id, "name": self.name, "applied": self.applied,
-            "status": self.status, "killed": self.killed,
+            "status": self.status, "killed": self.killed, "equivalent": self.equivalent,
             "failed_tests": self.failed_tests, "passed_tests": self.passed_tests,
             "detail": self.detail,
         }
@@ -265,6 +282,14 @@ def run_mutant(spec: MutationSpec, arm: str, solution: Any, *,
                                detail="mutation site not found in final solution")
     res = suite_runner(mutated)
     failed = int(res.get("failed", 0))
+    if spec.equivalent:
+        # proven-equivalent mutant: it leaves observable output unchanged, so a
+        # "survival" is expected and is NOT a suite gap. Recorded transparently and
+        # excluded from kill-rate/critical-defects by the scorer.
+        return MutationOutcome(
+            spec.id, spec.name, applied=True, killed=failed > 0, equivalent=True,
+            failed_tests=failed, passed_tests=int(res.get("passed", 0)),
+            detail="EQUIVALENT mutant (proven; excluded) — output unchanged by construction")
     return MutationOutcome(
         spec.id, spec.name, applied=True, killed=failed > 0,
         failed_tests=failed, passed_tests=int(res.get("passed", 0)),

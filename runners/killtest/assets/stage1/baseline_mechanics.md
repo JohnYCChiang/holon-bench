@@ -34,5 +34,8 @@ To compose `report` correctly you must **read the bodies** of the dependencies y
 use and recover their behaviour yourself. (Types are free, behaviour is not — the
 realistic maintainer situation.)
 
-Author `report` as the smallest correct composition; run `cargo test` against the
-acceptance suite before finalising.
+You author `report` in **`src/report_impl.rs`** (the only file you edit) — it is
+pre-stubbed with `todo!`; `lib.rs` already wires it in and `dashboard` consumes it.
+Read the dependency bodies in `src/lib.rs` to recover their behaviour, but edit only
+`report_impl.rs`. Author the smallest correct composition; run `cargo test` against
+the acceptance suite before finalising.

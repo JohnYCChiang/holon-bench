@@ -180,7 +180,15 @@ def cmd_start_run(args) -> int:
     brief = (adir / "task_brief.md").read_text(encoding="utf-8")
     mech_file = "tao_mechanics.md" if args.arm == "tao" else "baseline_mechanics.md"
     mech = (adir / mech_file).read_text(encoding="utf-8")
-    session.set_standing(brief, mech)
+    # the provisioner writes a per-arm library index into the run dir (token-counted
+    # standing context): tao = names+sigs+LAWS (bodies excluded); baseline = names+
+    # sigs only (behaviour recovered by reading bodies). This is the full-survey
+    # standing basis; the accounting models re-weight to faithful/amortized at report.
+    extra: list[str] = []
+    idx = run_dir / "library_index.md"
+    if idx.exists():
+        extra.append(idx.read_text(encoding="utf-8"))
+    session.set_standing(brief, mech, *extra)
     session.log.run_start(header, now_ts())
     session.save()
     _emit({"run_id": args.run_id, "arm": args.arm, "run_dir": str(run_dir),
@@ -273,8 +281,14 @@ def cmd_verify_acceptance(args) -> int:
     solution = json.loads(sol_path.read_text(encoding="utf-8"))
     was = session.recording
     session.recording = False  # internal instantiation = mechanics, not agent edits
+    # prefer the mount's own VISIBLE acceptance copy so the self-check works while
+    # the private suite tree is relocated during the run window (integrity). Falls
+    # back to the private suite (scoring time, post-restore).
+    mount_acc = run_dir / "acceptance" / "tao"
+    acc_dir = mount_acc if mount_acc.exists() else None
     try:
-        detail = scoring.tao_acceptance_detail(session, paths, store, solution)
+        detail = scoring.tao_acceptance_detail(session, paths, store, solution,
+                                               acceptance_dir=acc_dir)
     finally:
         session.recording = was
     green = detail["failed"] == 0 and detail["passed"] > 0
@@ -356,14 +370,105 @@ def cmd_report(args) -> int:
             records.extend(RunLog(rj).read())
     tao = metrics.metrics_from_runlog(records, "tao")
     base = metrics.metrics_from_runlog(records, "baseline")
-    verdict = metrics.decide(tao, base)
+    pack = _pack(args)
+    # Stage1: the baseline's body-read cost (B3 / fork C) is added to baseline M1/M2
+    # under two standards (measured-M8, conservative-full-survey). The BINDING verdict
+    # uses the conservative survey. v0 has no separate body-read cost (supplement 0).
+    survey_const = m8_measured = 0.0
+    body_sens = None
+    if pack.pack_id == "stage1":
+        survey_const = _stage1_body_survey(paths)
+        m8_measured = _stage1_m8_median(paths)
+        body_sens = metrics.body_read_sensitivity(
+            tao, base, m8_measured=m8_measured, survey_const=survey_const)
+    verdict = metrics.decide(tao, base, baseline_m1_supplement=survey_const,
+                             baseline_m2_supplement=survey_const)
     verdict["runs_counted"] = {"tao": tao.runs_counted, "baseline": base.runs_counted}
+    if body_sens is not None:
+        verdict["body_read_costs"] = {"conservative_full_survey": survey_const,
+                                      "measured_M8_median": m8_measured}
+        # The per-accepted-edit body-read sensitivity is ASYMMETRIC (it adds the
+        # baseline's pre-edit body reads to M1 but not the tao arm's much larger
+        # pre-edit grammar exploration + rejected-typecheck mass). Kept for reference
+        # but DEMOTED — the binding token comparison is symmetric total-tokens below.
+        body_sens["WARNING"] = ("asymmetric: adds baseline body-reads but not tao "
+                                "exploration/iteration; use symmetric_total_tokens")
+        verdict["body_read_sensitivity_reference_only"] = body_sens
+        verdict["symmetric_total_tokens"] = _stage1_total_tokens(paths, m8_measured)
     # 3-row sensitivity table: R1/R2 under every accounting model (report all
     # three, don't cherry-pick). Observational; the binding verdict is `decide`.
     verdict["accounting_sensitivity"] = metrics.accounting_table(tao, base)
-    verdict["pack"] = _pack(args).pack_id
+    verdict["pack"] = pack.pack_id
     _emit(verdict)
     return 0
+
+
+def _stage1_body_survey(paths: config.Paths) -> float:
+    """Conservative full-library body survey = count_tokens of the dependency module
+    bodies the baseline must read (doc-comments stripped, as provisioned). Computed
+    from the frozen reference lib.rs so it is grounded, not a magic constant."""
+    import re
+    lib_path = paths.private_suite / "rust" / "src" / "lib.rs"
+    if not lib_path.exists():
+        return 0.0
+    text = lib_path.read_text(encoding="utf-8")
+    text = "\n".join(ln for ln in text.splitlines() if not re.match(r"\s*//[/!]", ln))
+    bodies = "\n".join(re.findall(r"pub mod \w+ \{.*?\n\}", text, re.S))
+    return float(tokens.count_tokens(bodies))
+
+
+def _stage1_total_tokens(paths: config.Paths, m8_measured: float) -> dict:
+    """Symmetric total-tokens comparison: EVERYTHING each arm consumed to reach the
+    accepted solution. tao = its wrapped-ledger total (standing + all reads + all
+    iteration); baseline = its ledger total + the unwrapped body-read M8. This is the
+    fair binding token comparison (both arms' pre-edit reads counted), unlike the
+    per-accepted-edit M1 which drops them asymmetrically."""
+    import statistics
+
+    def totals(arm: str, supplement: float = 0.0) -> list[float]:
+        out = []
+        for rd in sorted(paths.run_root.glob(f"run-*-{arm}")):
+            sj = rd / "session.json"
+            if not sj.exists():
+                continue
+            led = json.loads(sj.read_text())["ledger"]
+            tot = led["standing_tokens"] + sum(
+                e["tokens"] for c in led["cycles"] for e in c["entries"]
+                if "standing" not in e["label"])
+            out.append(tot + supplement)
+        return out
+    tao_t = totals("tao")
+    base_t = totals("baseline", m8_measured)
+    if not tao_t or not base_t:
+        return {"insufficient_data": True}
+    tao_m, base_m = statistics.median(tao_t), statistics.median(base_t)
+    r1 = tao_m <= config.R1_MEDIAN_FACTOR * base_m
+    return {
+        "tao_total_median": tao_m, "baseline_total_median": base_m,
+        "ratio_tao_over_baseline": round(tao_m / base_m, 3) if base_m else None,
+        "tao_cheaper": tao_m < base_m,
+        "R1_token_rule_pass": r1,
+        "tao_range": [min(tao_t), max(tao_t)], "baseline_range": [min(base_t), max(base_t)],
+        "note": "binding token comparison; baseline includes measured body-read M8",
+    }
+
+
+def _stage1_m8_median(paths: config.Paths) -> float:
+    """Median measured body-read tokens across baseline runs (m8.json sidecars written
+    by the orchestration from each executor transcript). 0 if none recorded yet."""
+    vals = []
+    for run_dir in sorted(paths.run_root.glob("run-*-baseline")):
+        m8f = run_dir / "m8.json"
+        if m8f.exists():
+            try:
+                vals.append(float(json.loads(m8f.read_text())["m8_tokens"]))
+            except Exception:
+                pass
+    if not vals:
+        return 0.0
+    vals.sort()
+    n = len(vals)
+    return vals[n // 2] if n % 2 else (vals[n // 2 - 1] + vals[n // 2]) / 2.0
 
 
 def cmd_decoy(args) -> int:

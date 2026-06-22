@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import re
 import shutil
 import subprocess
 from typing import Any, Callable
@@ -195,17 +196,24 @@ def tao_run_suite(session: ArmSession, paths: config.Paths, store: pathlib.Path,
 
 
 def tao_acceptance_detail(session: ArmSession, paths: config.Paths, store: pathlib.Path,
-                          solution: dict[str, Any]) -> dict[str, Any]:
+                          solution: dict[str, Any],
+                          acceptance_dir: pathlib.Path | None = None) -> dict[str, Any]:
     """Instantiate + run ONLY the acceptance suite against the agent's solution,
     returning per-test pass/fail. Shares the scorer's instantiation path
     (entry-marker + deep-subtree lifting) so the agent's black-box acceptance
     verifier (`verify-acceptance`) is identical to what scoring does — and so the
     agent never needs to know those mechanics. Touches the acceptance suite only;
-    the hidden suite is never read here (no leak surface)."""
+    the hidden suite is never read here (no leak surface).
+
+    ``acceptance_dir`` overrides where the (arm-VISIBLE) acceptance laws are read
+    from — the live self-check points it at the mount's own copy so it works while
+    the private suite tree is relocated for run-window integrity. Defaults to the
+    private ``paths.acceptance_dir / 'tao'`` (used at scoring time, post-restore)."""
     manifest = tao_manifest(paths, store)
     mapping = templates.build_mapping(manifest, solution)
     eid = mapping.get("{EID}")
-    acc = templates.render_suite_dir(paths.acceptance_dir / "tao", mapping)
+    acc_dir = acceptance_dir if acceptance_dir is not None else paths.acceptance_dir / "tao"
+    acc = templates.render_suite_dir(acc_dir, mapping)
     results: list[dict[str, Any]] = []
     for item in acc:
         law_id = tao_insert_law(session, paths, store, item["law"], entry_id=eid)
@@ -240,8 +248,14 @@ def tao_score(session: ArmSession, paths: config.Paths, store: pathlib.Path,
             if term is None:
                 return {"passed": 0, "failed": 0}
             mut_id = _insert_deep_term(session, paths, store, term)
-            mmap = dict(mapping)
-            mmap["{INSERT}"] = mut_id
+            # Re-point EVERY placeholder that referenced the original mutated
+            # deliverable at the mutant id, so the laws actually test the mutant.
+            # Pack-agnostic: rebinds {REPORT} for stage1 (whose laws key on it) and
+            # {INSERT} for v0. The prior code set only {INSERT}, so stage1 laws (keyed
+            # on {REPORT}) kept testing the ORIGINAL report and every mutant falsely
+            # "survived" (see runs/tao-killtest-stage1/B1-tao-mutation-gap.md).
+            target_orig = solution.get("insert")
+            mmap = {k: (mut_id if v == target_orig else v) for k, v in mapping.items()}
             acc_m = templates.render_suite_dir(paths.acceptance_dir / "tao", mmap)
             hid_m = templates.render_suite_dir(paths.hidden_dir / "tao", mmap)
             return tao_run_suite(session, paths, store, acc_m + hid_m, entry_id=eid)
@@ -286,21 +300,26 @@ def baseline_score(session: ArmSession, paths: config.Paths, crate: pathlib.Path
     if scoring_copy.exists():
         shutil.rmtree(scoring_copy)
     shutil.copytree(crate, scoring_copy)
-    _install_hidden_tests(scoring_copy, hidden_rendition)
-    hid = _cargo_test_raw(scoring_copy)
+    hidden_filter = _install_hidden_tests(scoring_copy, hidden_rendition)
+    # hidden run is HIDDEN-ONLY (the filter excludes the acceptance target) so the
+    # held-out pass rate mirrors the tao arm's hidden-only count, not acc+hidden.
+    hid = _cargo_test_raw(scoring_copy, hidden_filter)
     hid_res = _parse_cargo(hid["stdout"] + hid["stderr"], 0 if hid["ok"] else 1)
     if hid_res["passed"] + hid_res["failed"] == 0:
         # compile failure or no parse: count as one failed run, honestly
         hid_res = {"passed": 0, "failed": 1}
 
-    # mutation: source-patch the impl, re-run acceptance.
-    impl_path = crate / impl_rel
+    # mutation: source-patch the impl in the SCORING COPY (which has the hidden suite
+    # installed) and re-run, so a mutant is checked against acceptance + hidden —
+    # symmetric to the tao arm (acc_m + hid_m). Patching the bare mount would only
+    # exercise the visible acceptance suite, under-killing baseline mutants.
+    impl_path = scoring_copy / impl_rel
     original = impl_path.read_text(encoding="utf-8")
 
     def baseline_suite_runner(mutated_source: str) -> dict[str, int]:
         impl_path.write_text(mutated_source, encoding="utf-8")
         try:
-            r = _cargo_test_raw(crate)
+            r = _cargo_test_raw(scoring_copy)
         finally:
             impl_path.write_text(original, encoding="utf-8")
         return {"passed": 1 if r["ok"] else 0, "failed": 0 if r["ok"] else 1}
@@ -322,48 +341,57 @@ def _cargo_test(session: ArmSession, crate: pathlib.Path, *, category: str) -> d
     return _parse_cargo(res.stdout + res.stderr, res.exit_code)
 
 
-def _cargo_test_raw(crate: pathlib.Path) -> dict[str, Any]:
-    proc = subprocess.run("cargo test --quiet", cwd=str(crate), shell=True, text=True,
+def _cargo_test_raw(crate: pathlib.Path, extra: list[str] | None = None) -> dict[str, Any]:
+    cmd = "cargo test --quiet" + ("" if not extra else " " + " ".join(extra))
+    proc = subprocess.run(cmd, cwd=str(crate), shell=True, text=True,
                           capture_output=True, check=False)
     return {"ok": proc.returncode == 0, "stdout": proc.stdout, "stderr": proc.stderr}
 
 
 def _parse_cargo(output: str, exit_code: int) -> dict[str, int]:
     passed = failed = 0
+    saw_result = False
     for line in output.splitlines():
         line = line.strip()
         if line.startswith("test result:"):
-            # e.g. "test result: ok. 10 passed; 0 failed; ..."
-            for token, label in (("passed", "passed"), ("failed", "failed")):
-                try:
-                    idx = line.split(";")
-                    for part in idx:
-                        part = part.strip()
-                        if part.endswith(label):
-                            n = int(part.split()[0])
-                            if label == "passed":
-                                passed += n
-                            else:
-                                failed += n
-                except (ValueError, IndexError):
-                    pass
-    if passed == 0 and failed == 0:
-        # could not parse; fall back to exit code.
+            # e.g. "test result: ok. 10 passed; 0 failed; ...". Parse the count
+            # immediately preceding each label (the prior `split()[0]` grabbed the
+            # "test result:" prefix token and silently dropped the passed count).
+            saw_result = True
+            mp = re.search(r"(\d+)\s+passed", line)
+            mf = re.search(r"(\d+)\s+failed", line)
+            if mp:
+                passed += int(mp.group(1))
+            if mf:
+                failed += int(mf.group(1))
+    if not saw_result:
+        # could not parse any result line; fall back to exit code.
         return {"passed": 1 if exit_code == 0 else 0, "failed": 0 if exit_code == 0 else 1}
     return {"passed": passed, "failed": failed}
 
 
-def _install_hidden_tests(crate: pathlib.Path, hidden_rendition: pathlib.Path) -> None:
-    # P6 shakedown finding: the rendition is written as an in-crate module
-    # (super:: paths), so install it next to the implementation like the
-    # acceptance suite — an integration-test install fails to compile.
+def _install_hidden_tests(crate: pathlib.Path, hidden_rendition: pathlib.Path) -> list[str]:
+    # Style-detect the rendition (v0 vs stage1 differ):
+    #  * internal-style (`use super::`/`crate::`, v0): install as a src module next to
+    #    the implementation (P6 finding — an integration install fails to compile it).
+    #  * integration-style (`use <crate>::`, stage1): install under tests/ like the
+    #    visible acceptance suite (an internal `mod` can't `use <crate>::` itself).
+    # Returns the cargo args that select the HIDDEN tests only (so the held-out pass
+    # rate isn't conflated with the acceptance suite the scoring copy also carries).
     src = hidden_rendition / "tests.rs"
-    if src.exists():
+    if not src.exists():
+        return []
+    body = src.read_text(encoding="utf-8")
+    if re.search(r"^\s*use\s+(?:super|crate)::", body, re.M):
         shutil.copy2(src, crate / "src" / "hidden_suite.rs")
         lib = crate / "src" / "lib.rs"
         text = lib.read_text(encoding="utf-8")
         if "mod hidden_suite;" not in text:
             lib.write_text(text + "\n#[cfg(test)]\nmod hidden_suite;\n", encoding="utf-8")
+        return ["hidden_suite::"]              # filter by module path (unit-test build)
+    (crate / "tests").mkdir(exist_ok=True)
+    shutil.copy2(src, crate / "tests" / "hidden_suite.rs")
+    return ["--test", "hidden_suite"]          # the integration test target only
 
 
 # ----------------------------------------------------------------------- assembly
@@ -372,9 +400,11 @@ def _assemble_score(arm: str, acc: dict[str, int], hidden: dict[str, int],
                     mut: mutation.MutationReport, *, accepted_edits: int,
                     recoveries: int) -> dict[str, Any]:
     green = acc["failed"] == 0 and acc["passed"] > 0
-    # M10: pass rate on held-out (hidden) + mutation tests.
+    # M10: pass rate on held-out (hidden) + mutation tests. Proven-equivalent mutants
+    # are unkillable BY CONSTRUCTION (output unchanged) and are excluded from both
+    # numerator and denominator (standard mutation-testing practice).
     hidden_total = hidden["passed"] + hidden["failed"]
-    applied_muts = [o for o in mut.outcomes if o.applied]
+    applied_muts = [o for o in mut.outcomes if o.applied and not o.equivalent]
     mut_killed = sum(1 for o in applied_muts if o.killed)
     m10_num = hidden["passed"] + mut_killed
     m10_den = hidden_total + len(applied_muts)
@@ -382,8 +412,8 @@ def _assemble_score(arm: str, acc: dict[str, int], hidden: dict[str, int],
 
     critical: list[dict[str, Any]] = []
     for o in mut.outcomes:
-        if o.applied and not o.killed:
-            # a surviving mutation = a logic error escaping the tests (M11 critical).
+        if o.applied and not o.killed and not o.equivalent:
+            # a surviving NON-equivalent mutation = a logic error escaping the tests.
             critical.append({"mutation": o.spec_id, "name": o.name,
                              "severity": "logic-error-escaping-tests"})
     return {
