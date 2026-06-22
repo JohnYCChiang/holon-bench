@@ -177,7 +177,10 @@ def cmd_start_run(args) -> int:
     adir = ASSET_DIR / _pack(args).pack_id
     if not adir.exists():
         adir = ASSET_DIR
-    brief = (adir / "task_brief.md").read_text(encoding="utf-8")
+    # prefer a mount-local task_brief.md (Stage-3 graded deliverables ship their own
+    # brief into the run dir); fall back to the pack's standing brief.
+    mount_brief = run_dir / "task_brief.md"
+    brief = (mount_brief if mount_brief.exists() else adir / "task_brief.md").read_text(encoding="utf-8")
     mech_file = "tao_mechanics.md" if args.arm == "tao" else "baseline_mechanics.md"
     mech = (adir / mech_file).read_text(encoding="utf-8")
     # the provisioner writes a per-arm library index into the run dir (token-counted
