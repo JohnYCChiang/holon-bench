@@ -81,6 +81,10 @@ class ArmSession:
     recoveries: int = 0
     _last_edit_failed: bool = False
     _open_cycle_index: int | None = None
+    #: (subcommand:target) read keys already fetched — a repeated ctx/node read is
+    #: served from cache (charged ~0), modelling a system that remembers fetched
+    #: contracts rather than re-streaming them into context (Stage-2 intervention).
+    _read_cache: set = field(default_factory=set)
 
     # persistence --------------------------------------------------------------
 
@@ -102,6 +106,7 @@ class ArmSession:
             "recoveries": self.recoveries,
             "_last_edit_failed": self._last_edit_failed,
             "_open_cycle_index": self._open_cycle_index,
+            "_read_cache": sorted(self._read_cache),
         }
         self.session_path.write_text(json.dumps(data, indent=2, sort_keys=True), encoding="utf-8")
 
@@ -125,6 +130,7 @@ class ArmSession:
         s.recoveries = data["recoveries"]
         s._last_edit_failed = data["_last_edit_failed"]
         s._open_cycle_index = data["_open_cycle_index"]
+        s._read_cache = set(data.get("_read_cache", []))
         return s
 
     # lifecycle ----------------------------------------------------------------
@@ -204,8 +210,22 @@ class ArmSession:
 
     def run_tao(self, paths: config.Paths, store: pathlib.Path, argv: list[str],
                 stdin_text: str | None = None, *, component: str = "") -> CommandResult:
+        # read-dedup cache (Stage-2): a repeated `ctx`/`node` of the same target is
+        # served as a short cached stub (charged ~0) — the agent already has that
+        # output in context, so a real system would not re-stream it. First fetch
+        # runs + caches; repeats are near-free.
+        sub = argv[0] if argv else ""
+        cache_key = f"{sub}:{argv[1]}" if sub in ("ctx", "node") and len(argv) > 1 else None
+        if cache_key and cache_key in self._read_cache:
+            stub = ('{"cached": true, "note": "already fetched ' + argv[1][:16]
+                    + ' earlier in this session; reuse that output (not re-charged)"}')
+            self.record(argv, exit_code=0, stdout=stub, stderr="", category="context",
+                        accepted=False, is_diagnostic=False, component=component)
+            return CommandResult(argv, 0, stub, "", "context", False, False)
         cmd = [str(paths.tao_port), argv[0], "--store", str(store), *argv[1:]]
         proc = subprocess.run(cmd, input=stdin_text, text=True, capture_output=True, check=False)
+        if cache_key and proc.returncode == 0:
+            self._read_cache.add(cache_key)
         category = classify_tao(argv)
         is_diag = proc.returncode in TAO_DIAG_EXITS and category in ("edit", "verifier")
         accepted = (category == "edit" and proc.returncode == 0)
