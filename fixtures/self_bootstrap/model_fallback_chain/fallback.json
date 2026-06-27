@@ -1,0 +1,6 @@
+{
+  "start": "gpt-primary",
+  "fallback": {
+    "gpt-primary": "gpt-mini"
+  }
+}

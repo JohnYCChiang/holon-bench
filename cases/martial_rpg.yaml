@@ -551,3 +551,286 @@ cases:
       hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
       soft_metrics: [functional_correctness, contract_compliance, test_quality]
     failure_tags: [behavior_not_equivalent, golden_output_mismatch, wrong_edge_case, mutation_verifier_failed]
+  - id: martial-rpg-019
+    track: martial_rpg
+    language: rust
+    difficulty: easy
+    task_type: shield_regen_delay
+    fixture: fixtures/martial_rpg/shield_regen
+    user_request: >
+      Shield in src/lib.rs lets take_damage underflow below 0 and tick regenerate
+      during the post-damage delay window and past max. Make it authoritative:
+      damage saturates at 0 and restarts the regen delay, and tick regenerates by
+      regen_rate (capped at max) only after the delay has counted down. Keep the
+      Shield API.
+    constraints:
+      - take_damage saturates current at 0 and resets delay_remaining to regen_delay.
+      - While delay_remaining is non-zero, tick counts it down and does not regen.
+      - Regenerated current never exceeds max.
+      - Do not edit Cargo.toml or the provided test.
+    allowed_paths: [src/**]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/shield.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test shield]
+      hidden_commands: ["sh -c 'cp hidden/shield_hidden.rs tests/shield_hidden.rs; trap \"rm -f tests/shield_hidden.rs\" EXIT; cargo test --test shield_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/shield_mutation.rs tests/shield_mutation.rs; trap \"rm -f tests/shield_mutation.rs\" EXIT; cargo test --test shield_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [domain_rule_violation, wrong_edge_case, mutation_verifier_failed]
+
+  - id: martial-rpg-020
+    track: martial_rpg
+    language: go
+    difficulty: medium
+    task_type: dodge_iframe_window
+    fixture: fixtures/martial_rpg/dodge_iframe
+    user_request: >
+      ResolveHit in internal/dodge/dodge.go trusts the client's invulnerability
+      flag and ignores the i-frame window, driving HP negative. Make it
+      authoritative: a hit at hitTick is negated iff DodgeTick <= hitTick <
+      DodgeTick+IFrames, otherwise damage applies (negative damage never heals)
+      and HP clamps at 0, ignoring ClientInvulnerable. Keep the ResolveHit
+      signature.
+    constraints:
+      - The i-frame window is half-open [DodgeTick, DodgeTick+IFrames).
+      - Never trust ClientInvulnerable; compute invulnerability from server state.
+      - Negative damage grants no healing; HP never goes negative.
+      - Do not edit go.mod or the provided test.
+    allowed_paths: [internal/**]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/dodge/dodge_test.go, hidden/**]
+    solution_paths: [internal/dodge/dodge.go]
+    verifier:
+      commands: [go test ./internal/dodge -count=1]
+      hidden_commands: ["sh -c 'cp hidden/dodge_hidden_test.go internal/dodge/dodge_hidden_test.go; trap \"rm -f internal/dodge/dodge_hidden_test.go\" EXIT; go test ./internal/dodge -run Hidden -count=1'"]
+      mutation_commands: ["sh -c 'cp hidden/dodge_mutation_test.go internal/dodge/dodge_mutation_test.go; trap \"rm -f internal/dodge/dodge_mutation_test.go\" EXIT; go test ./internal/dodge -run Mutation -count=1'"]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, test_quality]
+    failure_tags: [domain_rule_violation, state_sync_corruption, wrong_edge_case, mutation_verifier_failed]
+
+  - id: martial-rpg-021
+    track: martial_rpg
+    language: rust
+    difficulty: medium
+    task_type: knockback_vector_clamp
+    fixture: fixtures/martial_rpg/knockback_clamp
+    user_request: >
+      apply_knockback in src/lib.rs returns the raw displaced position, letting a
+      client be flung anywhere. Make it authoritative: clamp each impulse axis to
+      [-max_impulse, max_impulse] (a negative max_impulse means no knockback), add
+      it to pos, then clamp the result to [0, width] x [0, height]. Keep the
+      apply_knockback/Arena API.
+    constraints:
+      - Each impulse axis is clamped to [-max_impulse, max_impulse].
+      - A negative max_impulse is treated as 0 (no knockback).
+      - The returned position is clamped within the arena bounds.
+      - Do not edit Cargo.toml or the provided test.
+    allowed_paths: [src/**]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/knockback.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test knockback]
+      hidden_commands: ["sh -c 'cp hidden/knockback_hidden.rs tests/knockback_hidden.rs; trap \"rm -f tests/knockback_hidden.rs\" EXIT; cargo test --test knockback_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/knockback_mutation.rs tests/knockback_mutation.rs; trap \"rm -f tests/knockback_mutation.rs\" EXIT; cargo test --test knockback_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, test_quality]
+    failure_tags: [domain_rule_violation, wrong_edge_case, state_sync_corruption, mutation_verifier_failed]
+
+  - id: martial-rpg-022
+    track: martial_rpg
+    language: go
+    difficulty: hard
+    task_type: mmr_matchmaking_queue
+    fixture: fixtures/martial_rpg/mmr_matchmaking
+    user_request: >
+      FindOpponent in internal/matchmaking/matchmaking.go returns the first
+      in-range ticket in slice order using a non-absolute MMR gap. Make it
+      authoritative and deterministic: among tickets other than the seeker with
+      |MMR-seeker.MMR| <= maxSpread, pick the smallest gap, breaking ties by the
+      longest wait (lowest EnqueueTick) then lowest PlayerID, returning -1 when
+      none qualify and never mutating pool. Keep the FindOpponent signature.
+    constraints:
+      - Use the absolute MMR gap; reject candidates beyond maxSpread.
+      - Tie-break by smallest gap, then lowest EnqueueTick, then lowest PlayerID.
+      - The result is order-independent and pool is never mutated; none returns -1.
+      - Do not edit go.mod or the provided test.
+    allowed_paths: [internal/**]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/matchmaking/matchmaking_test.go, hidden/**]
+    solution_paths: [internal/matchmaking/matchmaking.go]
+    verifier:
+      commands: [go test ./internal/matchmaking -count=1]
+      hidden_commands: ["sh -c 'cp hidden/matchmaking_hidden_test.go internal/matchmaking/matchmaking_hidden_test.go; trap \"rm -f internal/matchmaking/matchmaking_hidden_test.go\" EXIT; go test ./internal/matchmaking -run Hidden -count=1'"]
+      mutation_commands: ["sh -c 'cp hidden/matchmaking_mutation_test.go internal/matchmaking/matchmaking_mutation_test.go; trap \"rm -f internal/matchmaking/matchmaking_mutation_test.go\" EXIT; go test ./internal/matchmaking -run Mutation -count=1'"]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [domain_rule_violation, wrong_edge_case, state_sync_corruption, mutation_verifier_failed]
+
+  - id: martial-rpg-023
+    track: martial_rpg
+    language: rust
+    difficulty: hard
+    task_type: buff_expiry_sweep
+    fixture: fixtures/martial_rpg/buff_expiry
+    user_request: >
+      sweep in src/lib.rs keeps buffs that expire exactly on now and preserves
+      insertion order. Make it authoritative: drop every buff whose expires_at is
+      at or before now, and return the survivors sorted by ascending expires_at
+      with ties broken by ascending id, so the result is identical regardless of
+      input order. Keep the sweep/Buff API.
+    constraints:
+      - A buff with expires_at <= now is removed (boundary is inclusive removal).
+      - Survivors are sorted by ascending expires_at, ties by ascending id.
+      - The result is independent of input order; survivors are never lost or duplicated.
+      - Do not edit Cargo.toml or the provided test.
+    allowed_paths: [src/**]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/buff.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test buff]
+      hidden_commands: ["sh -c 'cp hidden/buff_hidden.rs tests/buff_hidden.rs; trap \"rm -f tests/buff_hidden.rs\" EXIT; cargo test --test buff_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/buff_mutation.rs tests/buff_mutation.rs; trap \"rm -f tests/buff_mutation.rs\" EXIT; cargo test --test buff_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [domain_rule_violation, wrong_edge_case, golden_output_mismatch, mutation_verifier_failed]
+
+  - id: martial-rpg-024
+    track: martial_rpg
+    language: go
+    difficulty: medium
+    task_type: gold_transaction_authority
+    fixture: fixtures/martial_rpg/gold_transaction
+    user_request: >
+      Apply in internal/economy/economy.go returns ClientBalance plus the amount,
+      trusting the client and skipping all bounds. Make it authoritative: compute
+      from the server balance, apply a debit only when affordable (balance would
+      not go negative), cap a credit at MaxGold, and ignore ClientBalance. Keep the
+      Apply signature.
+    constraints:
+      - Never trust ClientBalance; compute from the server-held balance.
+      - A debit applies only if the balance would not go negative; else no change.
+      - A credit is capped at MaxGold; balance never negative, never above MaxGold.
+      - Do not edit go.mod or the provided test.
+    allowed_paths: [internal/**]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/economy/economy_test.go, hidden/**]
+    solution_paths: [internal/economy/economy.go]
+    verifier:
+      commands: [go test ./internal/economy -count=1]
+      hidden_commands: ["sh -c 'cp hidden/economy_hidden_test.go internal/economy/economy_hidden_test.go; trap \"rm -f internal/economy/economy_hidden_test.go\" EXIT; go test ./internal/economy -run Hidden -count=1'"]
+      mutation_commands: ["sh -c 'cp hidden/economy_mutation_test.go internal/economy/economy_mutation_test.go; trap \"rm -f internal/economy/economy_mutation_test.go\" EXIT; go test ./internal/economy -run Mutation -count=1'"]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, test_quality]
+    failure_tags: [domain_rule_violation, state_sync_corruption, wrong_edge_case, mutation_verifier_failed]
+
+  - id: martial-rpg-025
+    track: martial_rpg
+    language: rust
+    difficulty: medium
+    task_type: charge_release_scaling
+    fixture: fixtures/martial_rpg/charge_release
+    user_request: >
+      release in src/lib.rs scales the bonus by the raw charge ticks, ignoring the
+      min/max charge clamps and overflowing. Make it authoritative: below
+      min_charge release at base, between min_charge and max_charge scale the bonus
+      linearly from 0 to max_bonus (capping past max_charge), treat
+      max_charge <= min_charge as full bonus at min, and saturate. Keep the release
+      signature.
+    constraints:
+      - Charging below min_charge yields base with no bonus.
+      - Bonus scales linearly in [min_charge, max_charge] and caps at max_bonus.
+      - max_charge <= min_charge grants the full bonus at min without dividing by zero; result saturates.
+      - Do not edit Cargo.toml or the provided test.
+    allowed_paths: [src/**]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/charge.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test charge]
+      hidden_commands: ["sh -c 'cp hidden/charge_hidden.rs tests/charge_hidden.rs; trap \"rm -f tests/charge_hidden.rs\" EXIT; cargo test --test charge_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/charge_mutation.rs tests/charge_mutation.rs; trap \"rm -f tests/charge_mutation.rs\" EXIT; cargo test --test charge_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [domain_rule_violation, wrong_edge_case, missing_requirement, mutation_verifier_failed]
+
+  - id: martial-rpg-026
+    track: martial_rpg
+    language: go
+    difficulty: hard
+    task_type: capture_point_progress
+    fixture: fixtures/martial_rpg/capture_point
+    user_request: >
+      Advance in internal/capture/capture.go returns ClientProgress plus the raw
+      attacker-defender net, trusting the client and ignoring the rate cap and
+      bounds. Make it authoritative: net is (attackers-defenders) clamped to
+      [-rate, rate] (negative rate is 0), an equal contest locks the point, and the
+      new progress is clamped to [0, 100], ignoring ClientProgress. Keep the
+      Advance signature.
+    constraints:
+      - net = attackers-defenders, clamped to [-rate, rate]; a negative rate is 0.
+      - An equal contest (net 0) leaves progress unchanged.
+      - Progress is clamped to [0, 100]; ClientProgress is never trusted.
+      - Do not edit go.mod or the provided test.
+    allowed_paths: [internal/**]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/capture/capture_test.go, hidden/**]
+    solution_paths: [internal/capture/capture.go]
+    verifier:
+      commands: [go test ./internal/capture -count=1]
+      hidden_commands: ["sh -c 'cp hidden/capture_hidden_test.go internal/capture/capture_hidden_test.go; trap \"rm -f internal/capture/capture_hidden_test.go\" EXIT; go test ./internal/capture -run Hidden -count=1'"]
+      mutation_commands: ["sh -c 'cp hidden/capture_mutation_test.go internal/capture/capture_mutation_test.go; trap \"rm -f internal/capture/capture_mutation_test.go\" EXIT; go test ./internal/capture -run Mutation -count=1'"]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [domain_rule_violation, state_sync_corruption, wrong_edge_case, mutation_verifier_failed]
+
+  - id: martial-rpg-027
+    track: martial_rpg
+    language: rust
+    difficulty: expert
+    task_type: deterministic_crit_roll
+    fixture: fixtures/martial_rpg/crit_roll
+    user_request: >
+      CritRoller::is_crit in src/lib.rs threads a mutable internal state, so a
+      crit depends on how many rolls came before and replays processed in a
+      different order diverge. Make is_crit a pure function of (seed, attacker_id,
+      tick, crit_chance_pct) with good avalanche, clamping the chance to [0,100]
+      (0 never crits, 100 always), preserving the is_crit(&mut self, ...)
+      signature.
+    constraints:
+      - is_crit depends only on (seed, attacker_id, tick, chance), never on call order.
+      - chance is clamped to [0,100]; 0 never crits and 100 always crits.
+      - The crit fraction over many distinct coordinates approximates the configured chance.
+      - Do not edit Cargo.toml or the provided test.
+    allowed_paths: [src/**]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/crit.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test crit]
+      hidden_commands: ["sh -c 'cp hidden/crit_hidden.rs tests/crit_hidden.rs; trap \"rm -f tests/crit_hidden.rs\" EXIT; cargo test --test crit_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/crit_mutation.rs tests/crit_mutation.rs; trap \"rm -f tests/crit_mutation.rs\" EXIT; cargo test --test crit_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, test_quality]
+    failure_tags: [behavior_not_equivalent, golden_output_mismatch, wrong_edge_case, mutation_verifier_failed]

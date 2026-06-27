@@ -546,3 +546,371 @@ cases:
       hard_gates: [patch_applies, tests_pass, scope_pass]
       soft_metrics: [functional_correctness, maintainability, observability]
     failure_tags: [missing_requirement, wrong_edge_case, domain_rule_violation, mutation_verifier_failed]
+
+  - id: self-boot-019
+    track: self_bootstrap
+    language: python
+    difficulty: easy
+    task_type: env_var_allowlist
+    fixture: fixtures/self_bootstrap/env_var_allowlist
+    user_request: >
+      The build profile's env-var allowlist in env_allow.json does not expose CI,
+      so CI-aware build steps misbehave. Add CI to the build allowlist without
+      introducing a catch-all wildcard and without exposing secrets such as
+      AWS_SECRET_KEY. Edit only env_allow.json.
+    constraints:
+      - is_allowed(build, CI) must be True.
+      - Secrets like AWS_SECRET_KEY must stay hidden.
+      - Do not add a bare '*' wildcard or a prefix pattern that leaks secrets.
+      - Do not edit engine.py or any test.
+    allowed_paths: [env_allow.json]
+    forbidden_paths: [README.md]
+    protected_paths: [engine.py, tests/**, hidden/**]
+    solution_paths: [env_allow.json]
+    verifier:
+      commands: [python3 -m unittest tests.test_env]
+      hidden_commands: [python3 hidden/verify_env.py]
+      mutation_commands: [python3 hidden/verify_env_mutation.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [contract_compliance, minimality, observability]
+    failure_tags: [missing_requirement, over_refactor, backward_incompatibility, fake_success]
+
+  - id: self-boot-020
+    track: self_bootstrap
+    language: python
+    difficulty: easy
+    task_type: label_tag_taxonomy
+    fixture: fixtures/self_bootstrap/label_tag_taxonomy
+    user_request: >
+      The new 'regression' label is unclassified, so it falls through to
+      uncategorized. Add regression to the 'bug' category in taxonomy.json without
+      reclassifying existing tags and without listing it under more than one
+      category. Edit only taxonomy.json.
+    constraints:
+      - category_of(regression) must equal 'bug'.
+      - Existing tags must keep their categories.
+      - No tag may appear in two categories.
+      - Do not edit engine.py or any test.
+    allowed_paths: [taxonomy.json]
+    forbidden_paths: [README.md]
+    protected_paths: [engine.py, tests/**, hidden/**]
+    solution_paths: [taxonomy.json]
+    verifier:
+      commands: [python3 -m unittest tests.test_taxonomy]
+      hidden_commands: [python3 hidden/verify_taxonomy.py]
+      mutation_commands: [python3 hidden/verify_taxonomy_mutation.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [contract_compliance, minimality, observability]
+    failure_tags: [missing_requirement, over_refactor, backward_incompatibility, fake_success]
+
+  - id: self-boot-021
+    track: self_bootstrap
+    language: python
+    difficulty: medium
+    task_type: mount_path_access
+    fixture: fixtures/self_bootstrap/mount_path_access
+    user_request: >
+      The sandbox profile has no mount rule for /data/cache, so jobs cannot read
+      it. Add a read mount for /data/cache in mounts.json without granting a broad
+      mount (such as /data or /) and without granting write. Existing mounts must
+      be preserved and /etc must stay denied. Edit only mounts.json.
+    constraints:
+      - access(sandbox, /data/cache/...) must be 'read'.
+      - access(sandbox, /etc/...) must stay 'none'.
+      - No broad/root mount may be added; existing mounts must be preserved.
+      - Do not edit engine.py or any test.
+    allowed_paths: [mounts.json]
+    forbidden_paths: [README.md]
+    protected_paths: [engine.py, tests/**, hidden/**]
+    solution_paths: [mounts.json]
+    verifier:
+      commands: [python3 -m unittest tests.test_mounts]
+      hidden_commands: [python3 hidden/verify_mounts.py]
+      mutation_commands: [python3 hidden/verify_mounts_mutation.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [contract_compliance, minimality, observability]
+    failure_tags: [missing_requirement, domain_rule_violation, over_refactor, mutation_verifier_failed]
+
+  - id: self-boot-022
+    track: self_bootstrap
+    language: python
+    difficulty: medium
+    task_type: webhook_subscription_map
+    fixture: fixtures/self_bootstrap/webhook_subscription_map
+    user_request: >
+      The deployments service must receive release.published webhooks but is not
+      subscribed. Subscribe deployments to release.published in subscriptions.json
+      without adding it to the global '*' fan-out and without subscribing it to
+      unrelated events such as user.deleted. Preserve existing subscribers. Edit
+      only subscriptions.json.
+    constraints:
+      - delivers(release.published, deployments) must be True.
+      - delivers(user.deleted, deployments) must be False.
+      - deployments must not be a global wildcard subscriber; existing subscribers preserved.
+      - Do not edit engine.py or any test.
+    allowed_paths: [subscriptions.json]
+    forbidden_paths: [README.md]
+    protected_paths: [engine.py, tests/**, hidden/**]
+    solution_paths: [subscriptions.json]
+    verifier:
+      commands: [python3 -m unittest tests.test_subscriptions]
+      hidden_commands: [python3 hidden/verify_subscriptions.py]
+      mutation_commands: [python3 hidden/verify_subscriptions_mutation.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [contract_compliance, minimality, observability]
+    failure_tags: [missing_requirement, over_refactor, backward_incompatibility, fake_success]
+
+  - id: self-boot-023
+    track: self_bootstrap
+    language: python
+    difficulty: medium
+    task_type: deprecation_sunset_policy
+    fixture: fixtures/self_bootstrap/deprecation_sunset_policy
+    user_request: >
+      API version v1 must enter the deprecation window now but must not be removed
+      until a future sunset date; it currently has no entry and reads as active.
+      Add a v1 rule to sunset.json with a past/now deprecated_on and a future
+      sunset_on, without changing the already-removed v0 entry. Edit only
+      sunset.json.
+    constraints:
+      - status(v1, today) must be 'deprecated' (deprecated_on <= today < sunset_on).
+      - v1 must become 'removed' only after its sunset_on.
+      - sunset_on must be after deprecated_on; v0 must be unchanged.
+      - Do not edit engine.py or any test.
+    allowed_paths: [sunset.json]
+    forbidden_paths: [README.md]
+    protected_paths: [engine.py, tests/**, hidden/**]
+    solution_paths: [sunset.json]
+    verifier:
+      commands: [python3 -m unittest tests.test_sunset]
+      hidden_commands: [python3 hidden/verify_sunset.py]
+      mutation_commands: [python3 hidden/verify_sunset_mutation.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [contract_compliance, maintainability, observability]
+    failure_tags: [missing_requirement, wrong_edge_case, backward_incompatibility, mutation_verifier_failed]
+
+  - id: self-boot-024
+    track: self_bootstrap
+    language: python
+    difficulty: medium
+    task_type: priority_lane_assign
+    fixture: fixtures/self_bootstrap/priority_lane_assign
+    user_request: >
+      The incident_response job falls through to the default standard lane instead
+      of the express lane. Assign incident_response to express in lanes.json
+      without reordering lane_order, changing the default, or moving other jobs.
+      Edit only lanes.json.
+    constraints:
+      - lane_of(incident_response) must equal 'express'.
+      - express must remain the top-priority lane; lane_order must be unchanged.
+      - Existing assignments and the default lane must be preserved.
+      - Do not edit engine.py or any test.
+    allowed_paths: [lanes.json]
+    forbidden_paths: [README.md]
+    protected_paths: [engine.py, tests/**, hidden/**]
+    solution_paths: [lanes.json]
+    verifier:
+      commands: [python3 -m unittest tests.test_lanes]
+      hidden_commands: [python3 hidden/verify_lanes.py]
+      mutation_commands: [python3 hidden/verify_lanes_mutation.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [contract_compliance, minimality, observability]
+    failure_tags: [missing_requirement, over_refactor, backward_incompatibility, fake_success]
+
+  - id: self-boot-025
+    track: self_bootstrap
+    language: python
+    difficulty: hard
+    task_type: model_fallback_chain
+    fixture: fixtures/self_bootstrap/model_fallback_chain
+    user_request: >
+      The model fallback chain dead-ends at gpt-mini, so there is no final local
+      backstop. Extend fallback.json so gpt-mini falls back to local-llama, giving
+      the chain gpt-primary -> gpt-mini -> local-llama. Do not add a shortcut that
+      bypasses gpt-mini, do not repoint the start, and do not introduce a cycle.
+      Edit only fallback.json.
+    constraints:
+      - resolve_chain() must equal [gpt-primary, gpt-mini, local-llama].
+      - The start and the gpt-primary -> gpt-mini edge must be preserved.
+      - local-llama must be terminal; the chain must stay acyclic (no raise).
+      - Do not edit engine.py or any test.
+    allowed_paths: [fallback.json]
+    forbidden_paths: [README.md]
+    protected_paths: [engine.py, tests/**, hidden/**]
+    solution_paths: [fallback.json]
+    verifier:
+      commands: [python3 -m unittest tests.test_fallback]
+      hidden_commands: [python3 hidden/verify_fallback.py]
+      mutation_commands: [python3 hidden/verify_fallback_mutation.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, observability]
+    failure_tags: [missing_requirement, domain_rule_violation, over_refactor, mutation_verifier_failed]
+
+  - id: self-boot-026
+    track: self_bootstrap
+    language: python
+    difficulty: hard
+    task_type: secret_rotation_schedule
+    fixture: fixtures/self_bootstrap/secret_rotation_schedule
+    user_request: >
+      A recorded audit (failed_run.json) flagged db_password as expired because
+      rotation.json sets its interval_days too short for the secret's real rotation
+      cadence. Raise the interval just enough that the recorded audit no longer
+      flags it, while keeping the interval finite so a genuinely stale secret still
+      expires. Do not change rotated_on. Edit only rotation.json.
+    constraints:
+      - The recorded audit must no longer report db_password expired.
+      - The interval must stay finite; a long-stale secret must still expire.
+      - rotated_on must be unchanged.
+      - Do not edit engine.py, failed_run.json, or any test.
+    allowed_paths: [rotation.json]
+    forbidden_paths: [README.md, failed_run.json]
+    protected_paths: [engine.py, tests/**, hidden/**]
+    solution_paths: [rotation.json]
+    verifier:
+      commands: [python3 -m unittest tests.test_rotation]
+      hidden_commands: [python3 hidden/verify_rotation.py]
+      mutation_commands: [python3 hidden/verify_rotation_mutation.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, observability]
+    failure_tags: [missing_requirement, over_refactor, fake_success, mutation_verifier_failed]
+
+  - id: self-boot-027
+    track: self_bootstrap
+    language: python
+    difficulty: hard
+    task_type: backup_retention_tiers
+    fixture: fixtures/self_bootstrap/backup_retention_tiers
+    user_request: >
+      Snapshots older than the weekly tier (30 days) are dropped because
+      retention.json has no tier covering them. Add a finite monthly tier so a
+      60-day snapshot is retained (kept every 30 days, up to 365 days), without
+      changing the daily/weekly tiers and without keeping snapshots forever
+      (anything past the last tier must still be dropped). Edit only retention.json.
+    constraints:
+      - keep_interval(60) must equal 30 (retained monthly).
+      - The daily and weekly tiers must be unchanged; up_to_days stay strictly increasing.
+      - The longest tier must stay finite; keep_interval(400) must be None.
+      - Do not edit engine.py or any test.
+    allowed_paths: [retention.json]
+    forbidden_paths: [README.md]
+    protected_paths: [engine.py, tests/**, hidden/**]
+    solution_paths: [retention.json]
+    verifier:
+      commands: [python3 -m unittest tests.test_retention]
+      hidden_commands: [python3 hidden/verify_retention.py]
+      mutation_commands: [python3 hidden/verify_retention_mutation.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, observability]
+    failure_tags: [missing_requirement, wrong_edge_case, domain_rule_violation, mutation_verifier_failed]
+
+  - id: self-boot-028
+    track: self_bootstrap
+    language: python
+    difficulty: hard
+    task_type: idempotency_key_window
+    fixture: fixtures/self_bootstrap/idempotency_key_window
+    user_request: >
+      A recorded retry (failed_run.json) was double-processed because
+      idempotency.json sets window_seconds too small to dedup a 5-second retry.
+      Widen the window so the recorded retry is treated as a duplicate, while
+      keeping it finite so a legitimate re-use long after the window is still
+      accepted. Edit only idempotency.json.
+    constraints:
+      - The recorded retry's second event must be 'duplicate'.
+      - Distinct keys must both be accepted.
+      - The window must stay finite; a far-later same-key re-use must be accepted.
+      - Do not edit engine.py, failed_run.json, or any test.
+    allowed_paths: [idempotency.json]
+    forbidden_paths: [README.md, failed_run.json]
+    protected_paths: [engine.py, tests/**, hidden/**]
+    solution_paths: [idempotency.json]
+    verifier:
+      commands: [python3 -m unittest tests.test_idempotency]
+      hidden_commands: [python3 hidden/verify_idempotency.py]
+      mutation_commands: [python3 hidden/verify_idempotency_mutation.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, observability]
+    failure_tags: [missing_requirement, over_refactor, fake_success, mutation_verifier_failed]
+
+  - id: self-boot-029
+    track: self_bootstrap
+    language: python
+    difficulty: expert
+    task_type: dependency_conflict_resolve
+    fixture: fixtures/self_bootstrap/dependency_conflict_resolve
+    user_request: >
+      The lockfile in deps.json is inconsistent: the selected libcore 1.0 satisfies
+      service_a (>=1.0,<2.0) but violates service_b (>=1.1). Re-pin selected libcore
+      to an available version that satisfies BOTH services, without weakening either
+      service's requirement constraint and without altering the available set. Edit
+      only deps.json.
+    constraints:
+      - is_consistent(cfg) must become True.
+      - The selected version must be in available and satisfy both service_a and service_b.
+      - Neither requirement constraint may be weakened; the available set is fixed.
+      - Do not edit engine.py or any test.
+    allowed_paths: [deps.json]
+    forbidden_paths: [README.md]
+    protected_paths: [engine.py, tests/**, hidden/**]
+    solution_paths: [deps.json]
+    verifier:
+      commands: [python3 -m unittest tests.test_deps]
+      hidden_commands: [python3 hidden/verify_deps.py]
+      mutation_commands: [python3 hidden/verify_deps_mutation.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, observability]
+    failure_tags: [missing_requirement, domain_rule_violation, backward_incompatibility, mutation_verifier_failed]
+
+  - id: self-boot-030
+    track: self_bootstrap
+    language: python
+    difficulty: expert
+    task_type: concurrency_limit_pool
+    fixture: fixtures/self_bootstrap/concurrency_limit_pool
+    user_request: >
+      The realtime task class has no dedicated worker pool, so it falls back to
+      default. Add a 'priority' pool (at least 2 workers) and route realtime to it
+      in pools.json. The plan must stay valid: the total_workers budget is fixed,
+      and default/batch already sit at their minimums so they cannot be raided —
+      the new pool must come from spare headroom. Edit only pools.json.
+    constraints:
+      - pool_for(realtime) must equal 'priority' with capacity >= 2.
+      - is_valid(cfg) must be True (sum of pools <= total_workers; each pool >= its min).
+      - total_workers and the default/batch capacities must be unchanged.
+      - Do not edit engine.py or any test.
+    allowed_paths: [pools.json]
+    forbidden_paths: [README.md]
+    protected_paths: [engine.py, tests/**, hidden/**]
+    solution_paths: [pools.json]
+    verifier:
+      commands: [python3 -m unittest tests.test_pools]
+      hidden_commands: [python3 hidden/verify_pools.py]
+      mutation_commands: [python3 hidden/verify_pools_mutation.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, observability]
+    failure_tags: [missing_requirement, domain_rule_violation, wrong_edge_case, mutation_verifier_failed]

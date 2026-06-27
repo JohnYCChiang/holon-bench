@@ -534,3 +534,276 @@ cases:
       hard_gates: [patch_applies, tests_pass, scope_pass]
       soft_metrics: [functional_correctness, contract_compliance, test_quality]
     failure_tags: [domain_rule_violation, missing_requirement, state_sync_corruption, mutation_verifier_failed]
+
+  - id: ddd-first-019
+    track: ddd_first
+    language: python
+    difficulty: easy
+    task_type: gift_card_balance_ledger
+    fixture: fixtures/ddd_first/gift_card_balance
+    user_request: >
+      Implement GiftCard in src/giftcard.py so a stored-value card loads and
+      redeems within a bounded maximum balance, rejected commands leave the
+      balance unchanged, and each accepted command records an event. Follow
+      DOMAIN.md.
+    constraints:
+      - load and redeem amounts must be positive integers (ValueError otherwise).
+      - balance + load may never exceed max_balance; redeem may never overdraw the balance.
+      - A rejected command must not mutate balance or events; available() returns max_balance - balance.
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/giftcard.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_giftcard_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_giftcard_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [domain_rule_violation, missing_requirement, wrong_edge_case, over_refactor]
+
+  - id: ddd-first-020
+    track: ddd_first
+    language: python
+    difficulty: easy
+    task_type: password_policy_value_object
+    fixture: fixtures/ddd_first/password_policy
+    user_request: >
+      Implement the Credentials domain in src/password.py: an immutable
+      PasswordPolicy value object that reports rule violations in a fixed order,
+      and a Credential aggregate that enforces the policy and forbids password
+      reuse without mutating state on rejection. Follow DOMAIN.md.
+    constraints:
+      - PasswordPolicy is immutable, compares by value, and validates min_length as a positive integer.
+      - violations returns only active-rule codes in the fixed order too_short, missing_digit, missing_symbol.
+      - set_password rejects policy-violating or reused passwords without mutating password, history, or events.
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/password.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_password_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_password_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [domain_rule_violation, missing_requirement, wrong_edge_case, mutation_verifier_failed]
+
+  - id: ddd-first-021
+    track: ddd_first
+    language: python
+    difficulty: medium
+    task_type: parking_slot_allocation
+    fixture: fixtures/ddd_first/parking_lot
+    user_request: >
+      Implement ParkingLot in src/parking.py so vehicles are allocated bounded
+      small/large slots: a small car overflows into a large slot when no small
+      slot is free, a large vehicle requires a large slot, leaving frees the
+      right slot type, and rejected commands leave state unchanged. Follow
+      DOMAIN.md.
+    constraints:
+      - park rejects unknown sizes, empty plates, and already-parked vehicles without mutating state.
+      - A small vehicle takes a small slot first then a large slot; a large vehicle requires a large slot.
+      - leave frees the occupied slot type; free counts and occupancy stay consistent across commands.
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/parking.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_parking_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_parking_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, minimality]
+    failure_tags: [domain_rule_violation, missing_requirement, state_sync_corruption, mutation_verifier_failed]
+
+  - id: ddd-first-022
+    track: ddd_first
+    language: python
+    difficulty: medium
+    task_type: loan_limit_aggregate
+    fixture: fixtures/ddd_first/library_loans
+    user_request: >
+      Implement Library in src/library.py so copies are lent to patrons under a
+      per-patron loan limit, a borrowed copy cannot be lent twice, returns free
+      the copy and decrement the holder, and rejected commands leave state
+      unchanged. Follow DOMAIN.md.
+    constraints:
+      - borrow rejects unknown or unavailable copies, empty patrons, and patrons at the loan limit without mutating state.
+      - return_copy rejects unknown or not-on-loan copies; a returned copy can be borrowed again.
+      - loan counts and availability stay consistent across borrow/return sequences.
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/library.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_library_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_library_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [domain_rule_violation, missing_requirement, wrong_edge_case, state_sync_corruption]
+
+  - id: ddd-first-023
+    track: ddd_first
+    language: python
+    difficulty: medium
+    task_type: bom_scaling_value_object
+    fixture: fixtures/ddd_first/recipe_scaling
+    user_request: >
+      Implement the Recipe domain in src/recipe.py: an immutable Recipe value
+      object that scales ingredient quantities by servings only when they divide
+      evenly, and a BatchPlan aggregate that records scaled batches and rejects
+      fractional scalings without mutating state. Follow DOMAIN.md.
+    constraints:
+      - Recipe is immutable, compares by value, and validates positive servings, non-empty unique ingredients, and positive quantities.
+      - scale_to returns a new Recipe and raises ValueError when any scaled quantity is not a whole number, leaving the original unchanged.
+      - add_batch records scaled batches; a rejected scaling does not mutate batches or events.
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/recipe.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_recipe_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_recipe_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [domain_rule_violation, missing_requirement, wrong_edge_case, mutation_verifier_failed]
+
+  - id: ddd-first-024
+    track: ddd_first
+    language: python
+    difficulty: hard
+    task_type: warranty_eligibility_policy
+    fixture: fixtures/ddd_first/warranty_claims
+    user_request: >
+      Implement Warranty in src/warranty.py so claims are approved only within
+      the coverage window, in non-decreasing day order, up to a claim limit, on a
+      monotonic logical day clock, and rejected claims leave state unchanged.
+      Follow DOMAIN.md.
+    constraints:
+      - file_claim rejects non-positive amounts, claims before purchase, and claims after purchase_day + term_days (inclusive bound allowed).
+      - Claims must be filed in non-decreasing day order and may not exceed max_claims; rejected claims do not mutate claims or events.
+      - is_active and total_claimed reflect only approved claims; the coverage boundary day is inclusive.
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/warranty.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_warranty_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_warranty_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, minimality]
+    failure_tags: [domain_rule_violation, missing_requirement, wrong_edge_case, state_sync_corruption]
+
+  - id: ddd-first-025
+    track: ddd_first
+    language: python
+    difficulty: hard
+    task_type: tax_bracket_value_object
+    fixture: fixtures/ddd_first/tax_brackets
+    user_request: >
+      Implement the Taxation domain in src/tax.py: an immutable progressive
+      TaxSchedule value object that validates its brackets and computes
+      band-by-band tax, and a TaxReturn aggregate that accumulates income, files
+      exactly once, and rejects post-filing commands without mutating state.
+      Follow DOMAIN.md.
+    constraints:
+      - TaxSchedule is immutable, compares by value, validates ascending bounds, only-trailing open-ended bracket, and rates in 0..100.
+      - tax_for rejects negative income and taxes each band's portion at its rate, flooring per band.
+      - add_income rejects non-positive amounts and post-filing additions; file is one-shot and returns the liability.
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/tax.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_tax_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_tax_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, test_quality]
+    failure_tags: [domain_rule_violation, missing_requirement, wrong_edge_case, mutation_verifier_failed]
+
+  - id: ddd-first-026
+    track: ddd_first
+    language: python
+    difficulty: hard
+    task_type: bid_increment_policy
+    fixture: fixtures/ddd_first/auction_bids
+    user_request: >
+      Implement Auction in src/auction.py so bids must clear a minimum increment
+      over the current high bid, the leading bidder cannot raise their own bid,
+      bids after close are rejected, closing emits a win event and names the
+      winner, and rejected commands leave state unchanged. Follow DOMAIN.md.
+    constraints:
+      - The first bid must be at least start_price; later bids must be at least highest_bid + min_increment.
+      - The current highest bidder may not outbid themselves, and bids on a closed auction are rejected without mutating state.
+      - close is one-shot, emits AuctionWon only when a bid exists, and winner is available only after close.
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/auction.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_auction_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_auction_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, minimality]
+    failure_tags: [domain_rule_violation, missing_requirement, state_sync_corruption, mutation_verifier_failed]
+
+  - id: ddd-first-027
+    track: ddd_first
+    language: python
+    difficulty: expert
+    task_type: retry_budget_aggregate
+    fixture: fixtures/ddd_first/retry_budget
+    user_request: >
+      Implement RetryBudget in src/retry.py as an authoritative circuit breaker
+      on a monotonic logical clock: failures trip it open, it half-opens after a
+      cooldown, a trial success closes it and a trial failure reopens it, the
+      right events fire, and rejected commands leave state unchanged. Follow
+      DOMAIN.md.
+    constraints:
+      - record_success/record_failure reject non-monotonic clocks and calls while the breaker is open before cooldown, without mutating state.
+      - After cooldown a record lazily half-opens (emitting HalfOpened); a success Closes and a failure Opens with deterministic events.
+      - allow is a pure query that never mutates state or events.
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/retry.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_retry_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_retry_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, test_quality]
+    failure_tags: [domain_rule_violation, missing_requirement, state_sync_corruption, mutation_verifier_failed]

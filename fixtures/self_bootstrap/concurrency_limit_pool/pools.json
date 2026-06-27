@@ -1,0 +1,15 @@
+{
+  "total_workers": 20,
+  "pools": {
+    "default": 12,
+    "batch": 6
+  },
+  "min_workers": {
+    "default": 10,
+    "batch": 4
+  },
+  "class_to_pool": {
+    "web": "default",
+    "etl": "batch"
+  }
+}

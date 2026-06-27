@@ -543,3 +543,274 @@ cases:
       hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
       soft_metrics: [functional_correctness, minimality, maintainability]
     failure_tags: [wrong_edge_case, missing_requirement, over_refactor, mutation_verifier_failed]
+
+  - id: oss-maint-019
+    track: oss_maintenance
+    language: python
+    difficulty: easy
+    task_type: interval_merge_repair
+    fixture: fixtures/oss_maintenance/interval_merge
+    user_request: >
+      A user reports (see BUG.md) that merge(intervals) leaves touching
+      intervals split: [[1,2],[2,3]] comes back unchanged instead of [[1,3]].
+      The merge condition uses a strict comparison, so intervals that share an
+      endpoint never collapse. Reproduce, fix the boundary minimally, and leave
+      behind a regression test that pins the touching-merge behavior.
+    constraints:
+      - Preserve merge(intervals) as the public API and its list-of-[start,end] return shape.
+      - Overlapping or touching intervals (end == next start) merge into one; output sorted by start.
+      - An interval with start > end raises ValueError; do not mutate the input.
+      - Add a regression test at exactly tests/test_regression.py that catches this bug.
+    allowed_paths: [src/**, tests/**]
+    forbidden_paths: [BUG.md]
+    protected_paths: [tests/test_acceptance.py, hidden/**]
+    solution_paths: [src/intervals.py, tests/test_regression.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_acceptance]
+      hidden_commands: [python3 -m unittest hidden.test_intervals_hidden]
+      mutation_commands: [python3 hidden/check_regression.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, test_quality]
+    failure_tags: [missing_test, wrong_edge_case, over_refactor, hidden_verifier_failed]
+
+  - id: oss-maint-020
+    track: oss_maintenance
+    language: python
+    difficulty: medium
+    task_type: money_rounding_repair
+    fixture: fixtures/oss_maintenance/money_rounding
+    user_request: >
+      A user reports (see BUG.md) that round_half_up rounds exact halves with
+      banker's rounding (ties to even), so "2.5" -> "2" and "0.125" -> "0.12",
+      understating invoice totals. Reproduce, fix the rounding mode minimally so
+      ties round away from zero, and leave behind a regression test.
+    constraints:
+      - Preserve round_half_up(amount, ndigits) as the public API returning a string.
+      - Ties round away from zero for positive and negative amounts; result keeps exactly ndigits decimals.
+      - Do not switch to float arithmetic; ndigits < 0 still raises ValueError.
+      - Add a regression test at exactly tests/test_regression.py that catches this bug.
+    allowed_paths: [src/**, tests/**]
+    forbidden_paths: [BUG.md]
+    protected_paths: [tests/test_acceptance.py, hidden/**]
+    solution_paths: [src/money.py, tests/test_regression.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_acceptance]
+      hidden_commands: [python3 -m unittest hidden.test_money_hidden]
+      mutation_commands: [python3 hidden/check_regression.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, test_quality]
+    failure_tags: [missing_test, wrong_edge_case, domain_rule_violation, mutation_verifier_failed]
+
+  - id: oss-maint-021
+    track: oss_maintenance
+    language: python
+    difficulty: hard
+    task_type: percentile_interpolation_repair
+    fixture: fixtures/oss_maintenance/percentile_interp
+    user_request: >
+      A user reports (see BUG.md) that percentile(data, p) computes the rank as
+      p/100*n and truncates to an integer index with no interpolation, so the
+      median of [1,2,3,4] comes back 3.0 instead of 2.5. Reproduce, fix the rank
+      and interpolation minimally, and leave behind a regression test.
+    constraints:
+      - Preserve percentile(data, p) as the public API returning a float.
+      - Use rank = p/100*(n-1) and linear interpolation; p=0 returns the min and p=100 the max.
+      - Empty data or p outside [0,100] raises ValueError; do not mutate the input.
+      - Add a regression test at exactly tests/test_regression.py that catches this bug.
+    allowed_paths: [src/**, tests/**]
+    forbidden_paths: [BUG.md]
+    protected_paths: [tests/test_acceptance.py, hidden/**]
+    solution_paths: [src/stats.py, tests/test_regression.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_acceptance]
+      hidden_commands: [python3 -m unittest hidden.test_stats_hidden]
+      mutation_commands: [python3 hidden/check_regression.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [missing_test, wrong_edge_case, over_refactor, mutation_verifier_failed]
+
+  - id: oss-maint-022
+    track: oss_maintenance
+    language: go
+    difficulty: medium
+    task_type: semver_compare_repair
+    fixture: fixtures/oss_maintenance/go_semver_compare
+    user_request: >
+      A user reports (see BUG.md) that semver.Compare orders fields lexically, so
+      Compare("1.10.0","1.9.0") returns -1 (treating "10" < "9"). Reproduce, fix
+      the comparison so each field is compared numerically, and leave behind a
+      regression test.
+    constraints:
+      - Preserve the Compare(a, b) (int, error) signature and ErrInvalid behavior.
+      - Fields compare numerically; 1.10.0 > 1.9.0 and 1.01.0 == 1.1.0.
+      - A version that is not three non-negative integers returns a non-nil error.
+      - Do not change go.mod or the provided acceptance test.
+    allowed_paths: [internal/**]
+    forbidden_paths: [BUG.md, go.mod]
+    protected_paths: [internal/semver/semver_test.go, hidden/**]
+    solution_paths: [internal/semver/semver.go]
+    verifier:
+      commands: [go test ./internal/semver -count=1]
+      hidden_commands: ["sh -c 'cp hidden/semver_hidden_test.go internal/semver/semver_hidden_test.go; trap \"rm -f internal/semver/semver_hidden_test.go\" EXIT; go test ./internal/semver -run Hidden -count=1'"]
+      mutation_commands: ["sh -c 'cp hidden/semver_mutation_test.go internal/semver/semver_mutation_test.go; trap \"rm -f internal/semver/semver_mutation_test.go\" EXIT; go test ./internal/semver -run Mutation -count=1'"]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, test_quality]
+    failure_tags: [wrong_edge_case, domain_rule_violation, missing_test, mutation_verifier_failed]
+
+  - id: oss-maint-023
+    track: oss_maintenance
+    language: go
+    difficulty: easy
+    task_type: set_difference_repair
+    fixture: fixtures/oss_maintenance/go_set_difference
+    user_request: >
+      A user reports (see BUG.md) that setops.Difference returns the wrong set:
+      the membership test is inverted, so Difference(["a","b","c"],["b"]) yields
+      ["b"] instead of ["a","c"]. Reproduce, fix the condition minimally, and
+      leave behind a regression test.
+    constraints:
+      - Preserve the Difference(a, b []string) []string signature and order/dedup contract.
+      - Keep a's elements not in b, in first-seen order, with duplicates collapsed.
+      - When nothing remains return a non-nil empty slice; do not mutate the inputs.
+      - Do not change go.mod or the provided acceptance test.
+    allowed_paths: [internal/**]
+    forbidden_paths: [BUG.md, go.mod]
+    protected_paths: [internal/setops/setops_test.go, hidden/**]
+    solution_paths: [internal/setops/setops.go]
+    verifier:
+      commands: [go test ./internal/setops -count=1]
+      hidden_commands: ["sh -c 'cp hidden/setops_hidden_test.go internal/setops/setops_hidden_test.go; trap \"rm -f internal/setops/setops_hidden_test.go\" EXIT; go test ./internal/setops -run Hidden -count=1'"]
+      mutation_commands: ["sh -c 'cp hidden/setops_mutation_test.go internal/setops/setops_mutation_test.go; trap \"rm -f internal/setops/setops_mutation_test.go\" EXIT; go test ./internal/setops -run Mutation -count=1'"]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, test_quality]
+    failure_tags: [wrong_edge_case, missing_requirement, missing_test, mutation_verifier_failed]
+
+  - id: oss-maint-024
+    track: oss_maintenance
+    language: go
+    difficulty: hard
+    task_type: backoff_cap_repair
+    fixture: fixtures/oss_maintenance/go_backoff_cap
+    user_request: >
+      A service owner reports (see BUG.md) that backoff.Delay never caps the
+      exponential growth, so Delay(5) returns 1600 past a max of 1000 and large
+      attempts overflow int64 to a negative value. Reproduce, fix the capping and
+      overflow minimally, and leave behind a regression test.
+    constraints:
+      - Preserve the New(base, max) / Delay(attempt) API.
+      - Delay returns min(base*2^(attempt-1), max), never exceeds max, never overflows, and is non-decreasing.
+      - Delay(1) == base and attempt < 1 is treated as the first attempt (returns base).
+      - Do not change go.mod or the provided acceptance test.
+    allowed_paths: [internal/**]
+    forbidden_paths: [BUG.md, go.mod]
+    protected_paths: [internal/backoff/backoff_test.go, hidden/**]
+    solution_paths: [internal/backoff/backoff.go]
+    verifier:
+      commands: [go test ./internal/backoff -count=1]
+      hidden_commands: ["sh -c 'cp hidden/backoff_hidden_test.go internal/backoff/backoff_hidden_test.go; trap \"rm -f internal/backoff/backoff_hidden_test.go\" EXIT; go test ./internal/backoff -run Hidden -count=1'"]
+      mutation_commands: ["sh -c 'cp hidden/backoff_mutation_test.go internal/backoff/backoff_mutation_test.go; trap \"rm -f internal/backoff/backoff_mutation_test.go\" EXIT; go test ./internal/backoff -run Mutation -count=1'"]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [wrong_edge_case, domain_rule_violation, missing_test, mutation_verifier_failed]
+
+  - id: oss-maint-025
+    track: oss_maintenance
+    language: rust
+    difficulty: medium
+    task_type: radix_parse_repair
+    fixture: fixtures/oss_maintenance/rust_radix_parse
+    user_request: >
+      A user reports a panic (see BUG.md): parse_radix unwraps to_digit, so a
+      leading sign or any non-digit aborts, the sign is ignored, and the running
+      total can overflow i64. Reproduce, fix the root cause minimally so malformed
+      input becomes a ParseError (never a panic), and leave behind a regression test.
+    constraints:
+      - Preserve the parse_radix(&str, u32) -> Result<i64, ParseError> signature and the ParseError variants.
+      - Honor a leading +/-; a non-digit returns Err(InvalidDigit(c)); empty or sign-only returns Err(Empty).
+      - radix outside 2..=36 returns Err(BadRadix); an out-of-range value returns Err(Overflow); never panic.
+      - Do not edit Cargo.toml or the provided acceptance test.
+    allowed_paths: [src/**]
+    forbidden_paths: [BUG.md, Cargo.toml]
+    protected_paths: [tests/parse.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test parse]
+      hidden_commands: ["sh -c 'cp hidden/parse_hidden.rs tests/parse_hidden.rs; trap \"rm -f tests/parse_hidden.rs\" EXIT; cargo test --test parse_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/parse_mutation.rs tests/parse_mutation.rs; trap \"rm -f tests/parse_mutation.rs\" EXIT; cargo test --test parse_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, test_quality]
+    failure_tags: [unstructured_error, wrong_edge_case, missing_test, mutation_verifier_failed]
+
+  - id: oss-maint-026
+    track: oss_maintenance
+    language: rust
+    difficulty: hard
+    task_type: matrix_transpose_repair
+    fixture: fixtures/oss_maintenance/rust_matrix_transpose
+    user_request: >
+      A user reports a panic (see BUG.md): transpose allocates an R x R square
+      using the row count for both dimensions, so a matrix with more rows than
+      columns indexes out of bounds and a wider matrix is truncated. Reproduce,
+      fix the shape handling minimally, and leave behind a regression test.
+    constraints:
+      - Preserve the transpose(&Vec<Vec<i64>>) -> Result<Vec<Vec<i64>>, MatrixError> signature and MatrixError::Ragged.
+      - An R x C matrix transposes to C x R; values are preserved (transpose of transpose is identity).
+      - Rows of unequal length return Err(Ragged); an empty matrix returns Ok(vec![]); never panic.
+      - Do not edit Cargo.toml or the provided acceptance test.
+    allowed_paths: [src/**]
+    forbidden_paths: [BUG.md, Cargo.toml]
+    protected_paths: [tests/transpose.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test transpose]
+      hidden_commands: ["sh -c 'cp hidden/transpose_hidden.rs tests/transpose_hidden.rs; trap \"rm -f tests/transpose_hidden.rs\" EXIT; cargo test --test transpose_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/transpose_mutation.rs tests/transpose_mutation.rs; trap \"rm -f tests/transpose_mutation.rs\" EXIT; cargo test --test transpose_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement, missing_test, mutation_verifier_failed]
+
+  - id: oss-maint-027
+    track: oss_maintenance
+    language: rust
+    difficulty: expert
+    task_type: priority_tiebreak_repair
+    fixture: fixtures/oss_maintenance/rust_priority_queue
+    user_request: >
+      A service owner reports (see BUG.md) that PriorityQueue breaks priority ties
+      LIFO: the scan keeps the later insertion, so equal-priority values come out
+      newest-first instead of in insertion order. Reproduce, fix the tie
+      comparison minimally so ties are FIFO, and leave behind a regression test.
+    constraints:
+      - Preserve the new/push/pop/len/is_empty API and the highest-priority-first contract.
+      - Equal priorities are served in insertion order (FIFO); pop on an empty queue returns None.
+      - Do not reorder across priorities or rely on unstable sorting.
+      - Do not edit Cargo.toml or the provided acceptance test.
+    allowed_paths: [src/**]
+    forbidden_paths: [BUG.md, Cargo.toml]
+    protected_paths: [tests/queue.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test queue]
+      hidden_commands: ["sh -c 'cp hidden/queue_hidden.rs tests/queue_hidden.rs; trap \"rm -f tests/queue_hidden.rs\" EXIT; cargo test --test queue_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/queue_mutation.rs tests/queue_mutation.rs; trap \"rm -f tests/queue_mutation.rs\" EXIT; cargo test --test queue_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement, over_refactor, mutation_verifier_failed]

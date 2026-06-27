@@ -1,0 +1,14 @@
+{
+  "tiers": [
+    {
+      "name": "daily",
+      "up_to_days": 7,
+      "every_days": 1
+    },
+    {
+      "name": "weekly",
+      "up_to_days": 30,
+      "every_days": 7
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "categories": {
+    "bug": [
+      "crash",
+      "hang"
+    ],
+    "feature": [
+      "enhancement"
+    ],
+    "chore": [
+      "cleanup"
+    ]
+  }
+}

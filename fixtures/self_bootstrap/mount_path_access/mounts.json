@@ -1,0 +1,12 @@
+{
+  "sandbox": [
+    {
+      "path": "/data/in",
+      "mode": "read"
+    },
+    {
+      "path": "/data/out",
+      "mode": "write"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "release.published": [
+    "audit_log"
+  ],
+  "user.deleted": [
+    "audit_log",
+    "mailer"
+  ]
+}

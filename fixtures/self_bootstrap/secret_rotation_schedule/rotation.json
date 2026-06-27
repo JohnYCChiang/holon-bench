@@ -1,0 +1,6 @@
+{
+  "db_password": {
+    "rotated_on": "2026-06-01",
+    "interval_days": 10
+  }
+}

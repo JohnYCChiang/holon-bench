@@ -1,0 +1,12 @@
+{
+  "lane_order": [
+    "express",
+    "standard",
+    "batch"
+  ],
+  "assignments": {
+    "deploy": "standard",
+    "cleanup": "batch"
+  },
+  "default": "standard"
+}
