@@ -17,6 +17,8 @@ cases:
     solution_paths: [lib/domain/registration_validator.dart, lib/widgets/form_view.dart]
     verifier:
       commands: [flutter test test/domain test/widget/form_view_test.dart]
+      hidden_commands: [sh -c 'cp hidden/registration_validator_hidden_test.dart test/domain/registration_validator_hidden_test.dart; trap "rm -f test/domain/registration_validator_hidden_test.dart" EXIT; flutter test test/domain/registration_validator_hidden_test.dart']
+      mutation_commands: [sh -c 'cp hidden/registration_validator_mutation_test.dart test/widget/registration_validator_mutation_test.dart; trap "rm -f test/widget/registration_validator_mutation_test.dart" EXIT; flutter test test/widget/registration_validator_mutation_test.dart']
       timeout_seconds: 120
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
@@ -39,6 +41,8 @@ cases:
     solution_paths: [lib/widgets/responsive_panel.dart]
     verifier:
       commands: [flutter test test/widget/responsive_panel_test.dart]
+      hidden_commands: [sh -c 'cp hidden/responsive_panel_hidden_test.dart test/widget/responsive_panel_hidden_test.dart; trap "rm -f test/widget/responsive_panel_hidden_test.dart" EXIT; flutter test test/widget/responsive_panel_hidden_test.dart']
+      mutation_commands: [sh -c 'cp hidden/responsive_panel_mutation_test.dart test/widget/responsive_panel_mutation_test.dart; trap "rm -f test/widget/responsive_panel_mutation_test.dart" EXIT; flutter test test/widget/responsive_panel_mutation_test.dart']
       semantic_checks: [golden_layout_bounds]
       timeout_seconds: 120
     scoring:
@@ -87,6 +91,7 @@ cases:
     verifier:
       commands: [flutter test test/widget/detail_screen_test.dart]
       hidden_commands: [sh -c 'cp hidden/detail_screen_hidden_test.dart test/widget/detail_screen_hidden_test.dart; trap "rm -f test/widget/detail_screen_hidden_test.dart" EXIT; flutter test test/widget/detail_screen_hidden_test.dart']
+      mutation_commands: [sh -c 'cp hidden/detail_screen_mutation_test.dart test/widget/detail_screen_mutation_test.dart; trap "rm -f test/widget/detail_screen_mutation_test.dart" EXIT; flutter test test/widget/detail_screen_mutation_test.dart']
       timeout_seconds: 120
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, safety_pass, semantic_pass]
@@ -110,6 +115,7 @@ cases:
     verifier:
       commands: [flutter test test/platform, flutter build web --no-pub]
       hidden_commands: [python3 hidden/verify_web_platform_abstraction.py]
+      mutation_commands: [python3 hidden/verify_web_platform_mutation.py]
       semantic_checks: [no_dart_io_in_web_path]
       timeout_seconds: 180
     scoring:
@@ -133,6 +139,8 @@ cases:
     solution_paths: [lib/domain/password_validator.dart]
     verifier:
       commands: [flutter test test/domain]
+      hidden_commands: [sh -c 'cp hidden/password_validator_hidden_test.dart test/domain/password_validator_hidden_test.dart; trap "rm -f test/domain/password_validator_hidden_test.dart" EXIT; flutter test test/domain/password_validator_hidden_test.dart']
+      mutation_commands: [sh -c 'cp hidden/password_validator_mutation_test.dart test/domain/password_validator_mutation_test.dart; trap "rm -f test/domain/password_validator_mutation_test.dart" EXIT; flutter test test/domain/password_validator_mutation_test.dart']
       timeout_seconds: 120
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
@@ -155,6 +163,8 @@ cases:
     solution_paths: [lib/state/search_controller.dart]
     verifier:
       commands: [flutter test test/state]
+      hidden_commands: [sh -c 'cp hidden/search_controller_hidden_test.dart test/state/search_controller_hidden_test.dart; trap "rm -f test/state/search_controller_hidden_test.dart" EXIT; flutter test test/state/search_controller_hidden_test.dart']
+      mutation_commands: [sh -c 'cp hidden/search_controller_mutation_test.dart test/state/search_controller_mutation_test.dart; trap "rm -f test/state/search_controller_mutation_test.dart" EXIT; flutter test test/state/search_controller_mutation_test.dart']
       timeout_seconds: 120
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
@@ -177,6 +187,8 @@ cases:
     solution_paths: [lib/navigation/route_parser.dart]
     verifier:
       commands: [flutter test test/navigation]
+      hidden_commands: [sh -c 'cp hidden/route_parser_hidden_test.dart test/navigation/route_parser_hidden_test.dart; trap "rm -f test/navigation/route_parser_hidden_test.dart" EXIT; flutter test test/navigation/route_parser_hidden_test.dart']
+      mutation_commands: [sh -c 'cp hidden/route_parser_mutation_test.dart test/navigation/route_parser_mutation_test.dart; trap "rm -f test/navigation/route_parser_mutation_test.dart" EXIT; flutter test test/navigation/route_parser_mutation_test.dart']
       timeout_seconds: 120
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass]
@@ -199,6 +211,8 @@ cases:
     solution_paths: [lib/platform/save_store.dart]
     verifier:
       commands: [flutter test test/platform]
+      hidden_commands: [sh -c 'cp hidden/save_store_hidden_test.dart test/platform/save_store_hidden_test.dart; trap "rm -f test/platform/save_store_hidden_test.dart" EXIT; flutter test test/platform/save_store_hidden_test.dart']
+      mutation_commands: [sh -c 'cp hidden/save_store_mutation_test.dart test/platform/save_store_mutation_test.dart; trap "rm -f test/platform/save_store_mutation_test.dart" EXIT; flutter test test/platform/save_store_mutation_test.dart']
       semantic_checks: [no_dart_io_in_web_path]
       timeout_seconds: 120
     scoring:
@@ -222,6 +236,8 @@ cases:
     solution_paths: [lib/widgets/profile_card.dart]
     verifier:
       commands: [flutter test test/widget/profile_card_test.dart]
+      hidden_commands: [sh -c 'cp hidden/profile_card_hidden_test.dart test/widget/profile_card_hidden_test.dart; trap "rm -f test/widget/profile_card_hidden_test.dart" EXIT; flutter test test/widget/profile_card_hidden_test.dart']
+      mutation_commands: [sh -c 'cp hidden/profile_card_mutation_test.dart test/widget/profile_card_mutation_test.dart; trap "rm -f test/widget/profile_card_mutation_test.dart" EXIT; flutter test test/widget/profile_card_mutation_test.dart']
       timeout_seconds: 120
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass]
@@ -244,6 +260,8 @@ cases:
     solution_paths: [lib/state/ticker_controller.dart]
     verifier:
       commands: [flutter test test/state]
+      hidden_commands: [sh -c 'cp hidden/ticker_controller_hidden_test.dart test/state/ticker_controller_hidden_test.dart; trap "rm -f test/state/ticker_controller_hidden_test.dart" EXIT; flutter test test/state/ticker_controller_hidden_test.dart']
+      mutation_commands: [sh -c 'cp hidden/ticker_controller_mutation_test.dart test/state/ticker_controller_mutation_test.dart; trap "rm -f test/state/ticker_controller_mutation_test.dart" EXIT; flutter test test/state/ticker_controller_mutation_test.dart']
       timeout_seconds: 120
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
@@ -266,6 +284,8 @@ cases:
     solution_paths: [lib/services/profile_cache.dart]
     verifier:
       commands: [flutter test test/services]
+      hidden_commands: [sh -c 'cp hidden/profile_cache_hidden_test.dart test/services/profile_cache_hidden_test.dart; trap "rm -f test/services/profile_cache_hidden_test.dart" EXIT; flutter test test/services/profile_cache_hidden_test.dart']
+      mutation_commands: [sh -c 'cp hidden/profile_cache_mutation_test.dart test/services/profile_cache_mutation_test.dart; trap "rm -f test/services/profile_cache_mutation_test.dart" EXIT; flutter test test/services/profile_cache_mutation_test.dart']
       timeout_seconds: 120
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass]
@@ -288,6 +308,8 @@ cases:
     solution_paths: [lib/widgets/submit_form.dart]
     verifier:
       commands: [flutter test test/widget/submit_form_test.dart]
+      hidden_commands: [sh -c 'cp hidden/submit_form_hidden_test.dart test/widget/submit_form_hidden_test.dart; trap "rm -f test/widget/submit_form_hidden_test.dart" EXIT; flutter test test/widget/submit_form_hidden_test.dart']
+      mutation_commands: [sh -c 'cp hidden/submit_form_mutation_test.dart test/widget/submit_form_mutation_test.dart; trap "rm -f test/widget/submit_form_mutation_test.dart" EXIT; flutter test test/widget/submit_form_mutation_test.dart']
       timeout_seconds: 120
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass]
@@ -310,6 +332,8 @@ cases:
     solution_paths: [lib/navigation/url_normalizer.dart]
     verifier:
       commands: [flutter test test/navigation]
+      hidden_commands: [sh -c 'cp hidden/url_normalizer_hidden_test.dart test/navigation/url_normalizer_hidden_test.dart; trap "rm -f test/navigation/url_normalizer_hidden_test.dart" EXIT; flutter test test/navigation/url_normalizer_hidden_test.dart']
+      mutation_commands: [sh -c 'cp hidden/url_normalizer_mutation_test.dart test/navigation/url_normalizer_mutation_test.dart; trap "rm -f test/navigation/url_normalizer_mutation_test.dart" EXIT; flutter test test/navigation/url_normalizer_mutation_test.dart']
       timeout_seconds: 120
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
@@ -332,6 +356,8 @@ cases:
     solution_paths: [lib/services/offline_queue.dart]
     verifier:
       commands: [flutter test test/services]
+      hidden_commands: [sh -c 'cp hidden/offline_queue_hidden_test.dart test/services/offline_queue_hidden_test.dart; trap "rm -f test/services/offline_queue_hidden_test.dart" EXIT; flutter test test/services/offline_queue_hidden_test.dart']
+      mutation_commands: [sh -c 'cp hidden/offline_queue_mutation_test.dart test/services/offline_queue_mutation_test.dart; trap "rm -f test/services/offline_queue_mutation_test.dart" EXIT; flutter test test/services/offline_queue_mutation_test.dart']
       timeout_seconds: 120
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass]
