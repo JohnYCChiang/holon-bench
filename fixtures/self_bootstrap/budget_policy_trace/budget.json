@@ -1,0 +1,10 @@
+{
+  "max_total_cost": 10,
+  "default_cost": 1,
+  "task_cost": {
+    "plan": 4,
+    "patch": 6,
+    "verify": 5,
+    "review": 5
+  }
+}

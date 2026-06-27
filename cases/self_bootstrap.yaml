@@ -88,3 +88,217 @@ cases:
       hard_gates: [patch_applies, tests_pass, scope_pass]
       soft_metrics: [contract_compliance, maintainability, observability]
     failure_tags: [missing_requirement, backward_incompatibility, over_refactor, mutation_verifier_failed]
+
+  - id: self-boot-004
+    track: self_bootstrap
+    language: python
+    difficulty: medium
+    task_type: routing_table_repair
+    fixture: fixtures/self_bootstrap/routing_dispatch_table
+    user_request: >
+      schema_migration submissions are being silently dropped because routing.json
+      has no route for them and they fall through to the default sink. Add an
+      explicit route so they reach migration_worker, without repointing existing
+      routes and without hijacking the default (other unknown task types must still
+      fall through to unrouted). Edit only routing.json.
+    constraints:
+      - schema_migration must dispatch to migration_worker.
+      - The default sink must remain "unrouted".
+      - Do not repoint any existing route; do not route unknown types to the new worker.
+      - Do not edit engine.py or any test.
+    allowed_paths: [routing.json]
+    forbidden_paths: [README.md]
+    protected_paths: [engine.py, tests/**, hidden/**]
+    solution_paths: [routing.json]
+    verifier:
+      commands: [python3 -m unittest tests.test_routing]
+      hidden_commands: [python3 hidden/verify_routing.py]
+      mutation_commands: [python3 hidden/verify_routing_mutation.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [contract_compliance, minimality, observability]
+    failure_tags: [missing_requirement, hidden_verifier_failed, over_refactor, fake_success]
+
+  - id: self-boot-005
+    track: self_bootstrap
+    language: python
+    difficulty: medium
+    task_type: capability_grant_extend
+    fixture: fixtures/self_bootstrap/capability_grant_matrix
+    user_request: >
+      The maintainer role now owns pull-request merges but capabilities.json does
+      not grant it merge_pr. Add that grant for maintainer only — do not grant it
+      to lower-privilege roles such as guest, and do not revoke any existing grant.
+      Edit only capabilities.json.
+    constraints:
+      - maintainer must be authorized for merge_pr.
+      - guest (and other lower-privilege roles) must remain denied merge_pr.
+      - No existing grant may be revoked.
+      - Do not edit engine.py or any test.
+    allowed_paths: [capabilities.json]
+    forbidden_paths: [README.md]
+    protected_paths: [engine.py, tests/**, hidden/**]
+    solution_paths: [capabilities.json]
+    verifier:
+      commands: [python3 -m unittest tests.test_capabilities]
+      hidden_commands: [python3 hidden/verify_capabilities.py]
+      mutation_commands: [python3 hidden/verify_capabilities_mutation.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [contract_compliance, minimality, observability]
+    failure_tags: [missing_requirement, backward_incompatibility, over_refactor, mutation_verifier_failed]
+
+  - id: self-boot-006
+    track: self_bootstrap
+    language: python
+    difficulty: easy
+    task_type: gate_threshold_config
+    fixture: fixtures/self_bootstrap/gate_threshold_config
+    user_request: >
+      The quality gate leaves coverage ungated, so high-score but low-coverage
+      submissions pass. Add a coverage floor of 0.80 to thresholds.json while
+      preserving the existing score bar of 70, and do not over-tighten so that a
+      submission exactly at both bars still passes. Edit only thresholds.json.
+    constraints:
+      - A coverage floor of 0.80 must be enforced.
+      - The existing score bar (>=70) must be preserved.
+      - A submission exactly at both bars must still be accepted.
+      - Do not edit engine.py or any test.
+    allowed_paths: [thresholds.json]
+    forbidden_paths: [README.md]
+    protected_paths: [engine.py, tests/**, hidden/**]
+    solution_paths: [thresholds.json]
+    verifier:
+      commands: [python3 -m unittest tests.test_thresholds]
+      hidden_commands: [python3 hidden/verify_thresholds.py]
+      mutation_commands: [python3 hidden/verify_thresholds_mutation.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [contract_compliance, minimality, observability]
+    failure_tags: [missing_requirement, wrong_edge_case, over_refactor, fake_success]
+
+  - id: self-boot-007
+    track: self_bootstrap
+    language: python
+    difficulty: hard
+    task_type: budget_policy_repair
+    fixture: fixtures/self_bootstrap/budget_policy_trace
+    user_request: >
+      A recorded plan (failed_run.json) was aborted because budget.json set
+      max_total_cost too low for its legitimate tasks (which cost 20 in total).
+      Raise the ceiling just enough so the recorded plan completes, while keeping
+      it finite (a runaway plan must still be blocked) and leaving every per-task
+      cost unchanged. Edit only budget.json.
+    constraints:
+      - The recorded plan must complete under the fixed budget.
+      - The budget ceiling must stay finite; runaway plans must still be blocked.
+      - Do not change any per-task cost.
+      - Do not edit engine.py, failed_run.json, or any test.
+    allowed_paths: [budget.json]
+    forbidden_paths: [README.md, failed_run.json]
+    protected_paths: [engine.py, tests/**, hidden/**]
+    solution_paths: [budget.json]
+    verifier:
+      commands: [python3 -m unittest tests.test_budget]
+      hidden_commands: [python3 hidden/verify_budget.py]
+      mutation_commands: [python3 hidden/verify_budget_mutation.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, observability]
+    failure_tags: [missing_requirement, over_refactor, fake_success, mutation_verifier_failed]
+
+  - id: self-boot-008
+    track: self_bootstrap
+    language: python
+    difficulty: hard
+    task_type: escalation_policy_extend
+    fixture: fixtures/self_bootstrap/escalation_policy_tiers
+    user_request: >
+      A new top tier is required: at five consecutive failures the escalation
+      policy must return page_oncall. Add that tier to escalation.json without
+      lowering or removing the existing retry (>=1) and notify_team (>=3) tiers,
+      and ensure it does not fire before five failures. Edit only escalation.json.
+    constraints:
+      - escalate(5) must return page_oncall.
+      - escalate(4) must still return notify_team (the new tier must not fire early).
+      - The retry and notify_team tiers must be preserved.
+      - Do not edit engine.py or any test.
+    allowed_paths: [escalation.json]
+    forbidden_paths: [README.md]
+    protected_paths: [engine.py, tests/**, hidden/**]
+    solution_paths: [escalation.json]
+    verifier:
+      commands: [python3 -m unittest tests.test_escalation]
+      hidden_commands: [python3 hidden/verify_escalation.py]
+      mutation_commands: [python3 hidden/verify_escalation_mutation.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [contract_compliance, maintainability, observability]
+    failure_tags: [missing_requirement, wrong_edge_case, backward_incompatibility, mutation_verifier_failed]
+
+  - id: self-boot-009
+    track: self_bootstrap
+    language: python
+    difficulty: hard
+    task_type: stage_dependency_order
+    fixture: fixtures/self_bootstrap/stage_dependency_order
+    user_request: >
+      The scheduler resolves deploy before integration_test because both only
+      depend on build — an unsafe ordering. Add the missing dependency in
+      pipeline.json so deploy runs after integration_test, without removing
+      existing dependencies, introducing a cycle, or depending on stages that do
+      not exist. Edit only pipeline.json.
+    constraints:
+      - In the resolved order, integration_test must precede deploy.
+      - Existing dependencies (build prerequisites) must be preserved.
+      - The graph must stay acyclic and reference only existing stages.
+      - Do not edit engine.py or any test.
+    allowed_paths: [pipeline.json]
+    forbidden_paths: [README.md]
+    protected_paths: [engine.py, tests/**, hidden/**]
+    solution_paths: [pipeline.json]
+    verifier:
+      commands: [python3 -m unittest tests.test_pipeline_order]
+      hidden_commands: [python3 hidden/verify_pipeline_order.py]
+      mutation_commands: [python3 hidden/verify_pipeline_order_mutation.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, observability]
+    failure_tags: [missing_requirement, domain_rule_violation, over_refactor, mutation_verifier_failed]
+
+  - id: self-boot-010
+    track: self_bootstrap
+    language: python
+    difficulty: expert
+    task_type: schema_migration_path
+    fixture: fixtures/self_bootstrap/schema_migration_path
+    user_request: >
+      migrations.json has two disconnected islands (v1->v2 and v3->v4), so v1 data
+      cannot be migrated forward to v4. Bridge the gap so v1 reaches v4 through
+      every intermediate version (v1->v2->v3->v4) by adding only the missing
+      v2->v3 step. Do not add a data-unsafe direct shortcut (e.g. v1->v4 or v2->v4)
+      and do not drop the existing steps. Edit only migrations.json.
+    constraints:
+      - find_path(v1, v4) must equal the full chain v1->v2->v3->v4.
+      - No shortcut step (v1->v4, v2->v4) may be added.
+      - The existing v1->v2 and v3->v4 steps must be preserved.
+      - Do not edit engine.py or any test.
+    allowed_paths: [migrations.json]
+    forbidden_paths: [README.md]
+    protected_paths: [engine.py, tests/**, hidden/**]
+    solution_paths: [migrations.json]
+    verifier:
+      commands: [python3 -m unittest tests.test_migrations]
+      hidden_commands: [python3 hidden/verify_migrations.py]
+      mutation_commands: [python3 hidden/verify_migrations_mutation.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, observability]
+    failure_tags: [missing_requirement, domain_rule_violation, backward_incompatibility, mutation_verifier_failed]

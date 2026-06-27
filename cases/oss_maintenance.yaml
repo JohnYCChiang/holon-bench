@@ -87,3 +87,216 @@ cases:
       hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
       soft_metrics: [functional_correctness, maintainability, test_quality]
     failure_tags: [goroutine_leak, cancellation_ignored, missing_test, mutation_verifier_failed]
+
+  - id: oss-maint-004
+    track: oss_maintenance
+    language: python
+    difficulty: easy
+    task_type: chunk_offbyone_repair
+    fixture: fixtures/oss_maintenance/chunk_off_by_one
+    user_request: >
+      A user reports (see BUG.md) that chunk(seq, size) silently drops the final
+      partial batch when len(seq) is not a multiple of size. Reproduce, fix the
+      off-by-one root cause minimally, and leave behind a regression test that
+      pins the trailing-batch behavior.
+    constraints:
+      - Preserve chunk(seq, size) as the public API and its list-of-lists return shape.
+      - No element may be lost; concatenating the chunks must reproduce seq.
+      - A non-positive size must still raise ValueError; do not mutate the input.
+      - Add a regression test at exactly tests/test_regression.py that catches this bug.
+    allowed_paths: [src/**, tests/**]
+    forbidden_paths: [BUG.md]
+    protected_paths: [tests/test_acceptance.py, hidden/**]
+    solution_paths: [src/batch.py, tests/test_regression.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_acceptance]
+      hidden_commands: [python3 -m unittest hidden.test_batch_hidden]
+      mutation_commands: [python3 hidden/check_regression.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, test_quality]
+    failure_tags: [missing_test, wrong_edge_case, over_refactor, hidden_verifier_failed]
+
+  - id: oss-maint-005
+    track: oss_maintenance
+    language: python
+    difficulty: hard
+    task_type: unicode_boundary_repair
+    fixture: fixtures/oss_maintenance/utf8_truncate
+    user_request: >
+      A user reports a UnicodeDecodeError (see BUG.md): truncate_utf8 slices the
+      UTF-8 encoding at a byte limit that lands inside a multi-byte character and
+      then decodes the broken bytes. Reproduce, fix the root cause minimally so a
+      character that does not fully fit is dropped (never split), and leave behind
+      a regression test.
+    constraints:
+      - Preserve truncate_utf8(text, max_bytes) as the public API.
+      - A character whose encoding does not fully fit is dropped, never split.
+      - The function must not raise on any valid str; negative max_bytes still raises ValueError.
+      - Add a regression test at exactly tests/test_regression.py that catches this bug.
+    allowed_paths: [src/**, tests/**]
+    forbidden_paths: [BUG.md]
+    protected_paths: [tests/test_acceptance.py, hidden/**]
+    solution_paths: [src/textutil.py, tests/test_regression.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_acceptance]
+      hidden_commands: [python3 -m unittest hidden.test_textutil_hidden]
+      mutation_commands: [python3 hidden/check_regression.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, test_quality]
+    failure_tags: [missing_test, wrong_edge_case, over_refactor, mutation_verifier_failed]
+
+  - id: oss-maint-006
+    track: oss_maintenance
+    language: go
+    difficulty: medium
+    task_type: set_idempotency_repair
+    fixture: fixtures/oss_maintenance/go_set_idempotent
+    user_request: >
+      A user reports (see BUG.md) that registry.Set.Add is not idempotent:
+      re-adding a value already present duplicates it in Items. Reproduce, fix the
+      root cause minimally so Add is a no-op for existing values while preserving
+      first-insertion order, and leave behind a regression test.
+    constraints:
+      - Preserve the Set/New/Add/Items API and first-insertion ordering.
+      - Add must be idempotent; Items returns each distinct value exactly once.
+      - Items must keep returning a copy, not the internal slice.
+      - Do not change go.mod or the provided acceptance test.
+    allowed_paths: [internal/**]
+    forbidden_paths: [BUG.md, go.mod]
+    protected_paths: [internal/registry/registry_test.go, hidden/**]
+    solution_paths: [internal/registry/registry.go]
+    verifier:
+      commands: [go test ./internal/registry -count=1]
+      hidden_commands: ["sh -c 'cp hidden/registry_hidden_test.go internal/registry/registry_hidden_test.go; trap \"rm -f internal/registry/registry_hidden_test.go\" EXIT; go test ./internal/registry -run Hidden -count=1'"]
+      mutation_commands: ["sh -c 'cp hidden/registry_mutation_test.go internal/registry/registry_mutation_test.go; trap \"rm -f internal/registry/registry_mutation_test.go\" EXIT; go test ./internal/registry -run Mutation -count=1'"]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, test_quality]
+    failure_tags: [non_idempotent_tool, wrong_edge_case, missing_test, mutation_verifier_failed]
+
+  - id: oss-maint-007
+    track: oss_maintenance
+    language: go
+    difficulty: medium
+    task_type: summary_ordering_repair
+    fixture: fixtures/oss_maintenance/go_summary_ordering
+    user_request: >
+      A user reports (see BUG.md) that report.Summarize orders lines by count
+      ascending and does not break ties by name, inverting the intended ranking.
+      Reproduce, fix the ordering contract minimally (count descending, ties by
+      name ascending), and leave behind a regression test.
+    constraints:
+      - Order by Count descending; break ties by Name ascending.
+      - Preserve the Summarize signature and the Event type.
+      - Do not mutate the input slice.
+      - Do not change go.mod or the provided acceptance test.
+    allowed_paths: [internal/**]
+    forbidden_paths: [BUG.md, go.mod]
+    protected_paths: [internal/report/report_test.go, hidden/**]
+    solution_paths: [internal/report/report.go]
+    verifier:
+      commands: [go test ./internal/report -count=1]
+      hidden_commands: ["sh -c 'cp hidden/report_hidden_test.go internal/report/report_hidden_test.go; trap \"rm -f internal/report/report_hidden_test.go\" EXIT; go test ./internal/report -run Hidden -count=1'"]
+      mutation_commands: ["sh -c 'cp hidden/report_mutation_test.go internal/report/report_mutation_test.go; trap \"rm -f internal/report/report_mutation_test.go\" EXIT; go test ./internal/report -run Mutation -count=1'"]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, test_quality]
+    failure_tags: [wrong_edge_case, missing_requirement, missing_test, mutation_verifier_failed]
+
+  - id: oss-maint-008
+    track: oss_maintenance
+    language: rust
+    difficulty: medium
+    task_type: checksum_overflow_repair
+    fixture: fixtures/oss_maintenance/rust_checksum_overflow
+    user_request: >
+      A user reports a panic (see BUG.md): checksum's u32 multiply-add overflows
+      and aborts in debug builds. Reproduce, fix the root cause minimally so the
+      arithmetic wraps modulo 2^32 (never panics) while keeping the same values,
+      and leave behind a regression test that pins the wrapping behavior.
+    constraints:
+      - Preserve the checksum(&[u8]) -> u32 signature and the multiply-add recurrence.
+      - Arithmetic wraps modulo 2^32; the function must never panic on overflow.
+      - Do not saturate or clamp — overflowing inputs must equal the exact wrapped value.
+      - Do not edit Cargo.toml or the provided acceptance test.
+    allowed_paths: [src/**]
+    forbidden_paths: [BUG.md, Cargo.toml]
+    protected_paths: [tests/checksum.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test checksum]
+      hidden_commands: ["sh -c 'cp hidden/checksum_hidden.rs tests/checksum_hidden.rs; trap \"rm -f tests/checksum_hidden.rs\" EXIT; cargo test --test checksum_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/checksum_mutation.rs tests/checksum_mutation.rs; trap \"rm -f tests/checksum_mutation.rs\" EXIT; cargo test --test checksum_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, test_quality]
+    failure_tags: [wrong_edge_case, domain_rule_violation, missing_test, mutation_verifier_failed]
+
+  - id: oss-maint-009
+    track: oss_maintenance
+    language: rust
+    difficulty: hard
+    task_type: parse_error_repair
+    fixture: fixtures/oss_maintenance/rust_kv_parse_error
+    user_request: >
+      A user reports a panic (see BUG.md): parse_kv unwraps the result of
+      find('=') and aborts on a line with no delimiter. Reproduce, fix the root
+      cause minimally so malformed input returns Err(MissingDelimiter) instead of
+      panicking, keep the first-'=' split so values may contain '=', and leave
+      behind a regression test.
+    constraints:
+      - Preserve the parse_kv signature and the ParseError variants.
+      - Missing '=' returns Err(MissingDelimiter); empty key returns Err(EmptyKey); never panic.
+      - Split on the FIRST '=' so the value may itself contain '='.
+      - Do not edit Cargo.toml or the provided acceptance test.
+    allowed_paths: [src/**]
+    forbidden_paths: [BUG.md, Cargo.toml]
+    protected_paths: [tests/parse.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test parse]
+      hidden_commands: ["sh -c 'cp hidden/parse_hidden.rs tests/parse_hidden.rs; trap \"rm -f tests/parse_hidden.rs\" EXIT; cargo test --test parse_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/parse_mutation.rs tests/parse_mutation.rs; trap \"rm -f tests/parse_mutation.rs\" EXIT; cargo test --test parse_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, test_quality]
+    failure_tags: [unstructured_error, error_taxonomy_mismatch, missing_test, mutation_verifier_failed]
+
+  - id: oss-maint-010
+    track: oss_maintenance
+    language: rust
+    difficulty: expert
+    task_type: ringbuffer_boundary_repair
+    fixture: fixtures/oss_maintenance/rust_ring_buffer
+    user_request: >
+      A service owner reports a panic (see BUG.md): RingBuffer::to_vec computes
+      head + i without reducing modulo capacity, so after the buffer wraps the
+      read index walks off the backing storage. Reproduce, fix the boundary
+      handling minimally so to_vec always returns the live elements oldest ->
+      newest, and leave behind a regression test.
+    constraints:
+      - Preserve the RingBuffer new/push/to_vec API and overwrite-oldest semantics.
+      - to_vec returns the live elements oldest -> newest across any number of wraps.
+      - The read index must be reduced modulo capacity; do not clamp or reorder slots.
+      - Do not edit Cargo.toml or the provided acceptance test.
+    allowed_paths: [src/**]
+    forbidden_paths: [BUG.md, Cargo.toml]
+    protected_paths: [tests/ring.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test ring]
+      hidden_commands: ["sh -c 'cp hidden/ring_hidden.rs tests/ring_hidden.rs; trap \"rm -f tests/ring_hidden.rs\" EXIT; cargo test --test ring_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/ring_mutation.rs tests/ring_mutation.rs; trap \"rm -f tests/ring_mutation.rs\" EXIT; cargo test --test ring_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement, over_refactor, mutation_verifier_failed]

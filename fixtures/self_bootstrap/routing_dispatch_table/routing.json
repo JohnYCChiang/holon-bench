@@ -1,0 +1,8 @@
+{
+  "routes": {
+    "lint": "style_worker",
+    "unit_test": "test_worker",
+    "review": "review_worker"
+  },
+  "default": "unrouted"
+}

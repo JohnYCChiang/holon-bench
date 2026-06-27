@@ -87,3 +87,210 @@ cases:
       hard_gates: [patch_applies, tests_pass, scope_pass]
       soft_metrics: [functional_correctness, contract_compliance, test_quality]
     failure_tags: [domain_rule_violation, missing_requirement, state_sync_corruption, mutation_verifier_failed]
+
+  - id: ddd-first-004
+    track: ddd_first
+    language: python
+    difficulty: medium
+    task_type: pricing_value_object
+    fixture: fixtures/ddd_first/cart_pricing
+    user_request: >
+      Implement the Pricing domain in src/cart.py so the scenarios pass: an immutable
+      Discount value object that floors a percentage reduction, and a Cart aggregate
+      that enforces positive prices/quantities and carries at most one discount.
+      Follow DOMAIN.md.
+    constraints:
+      - Discount is immutable; percent must be an integer in 0..100 (ValueError otherwise).
+      - apply_to rounds down — amount - (amount * percent) // 100.
+      - unit_price and quantity must be positive integers; rejected commands leave state unchanged.
+      - A cart carries at most one discount; a second apply_discount is rejected without replacing the first.
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/cart.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_cart_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_cart_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [domain_rule_violation, missing_requirement, wrong_edge_case, over_refactor]
+
+  - id: ddd-first-005
+    track: ddd_first
+    language: python
+    difficulty: hard
+    task_type: overlap_invariant
+    fixture: fixtures/ddd_first/booking_overlap
+    user_request: >
+      Implement the Scheduling domain in src/booking.py so reservations never overlap:
+      an immutable Interval value object using half-open ranges, and a Calendar
+      aggregate that rejects overlapping or invalid bookings without mutating state.
+      Follow DOMAIN.md.
+    constraints:
+      - Interval is immutable; start and end are integers with start < end (ValueError otherwise).
+      - Half-open ranges that merely touch at an endpoint do not overlap.
+      - A booking overlapping any existing reservation is rejected and must not mutate state.
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/booking.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_booking_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_booking_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, minimality]
+    failure_tags: [domain_rule_violation, missing_requirement, wrong_edge_case, state_sync_corruption]
+
+  - id: ddd-first-006
+    track: ddd_first
+    language: python
+    difficulty: medium
+    task_type: lifecycle_state_machine
+    fixture: fixtures/ddd_first/subscription_lifecycle
+    user_request: >
+      Implement Subscription in src/subscription.py as a lifecycle state machine so
+      only allowed transitions are accepted, each transition records an event, and the
+      canceled state is terminal. Follow DOMAIN.md.
+    constraints:
+      - Transitions activate/mark_past_due/cancel are only valid from the states named in DOMAIN.md.
+      - An invalid transition raises ValueError and changes neither state nor events.
+      - canceled is terminal; every transition out of it is rejected.
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/subscription.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_subscription_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_subscription_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [domain_rule_violation, missing_requirement, wrong_edge_case, state_sync_corruption]
+
+  - id: ddd-first-007
+    track: ddd_first
+    language: python
+    difficulty: hard
+    task_type: double_entry_balance
+    fixture: fixtures/ddd_first/ledger_double_entry
+    user_request: >
+      Implement Ledger in src/ledger.py enforcing the double-entry invariant: every
+      posting must have at least two non-zero legs that sum to zero, and an unbalanced
+      posting must be rejected without mutating any balance. Follow DOMAIN.md.
+    constraints:
+      - A posting needs at least two legs, each a non-zero integer amount (ValueError otherwise).
+      - Legs must sum to exactly zero; an unbalanced posting is rejected with no partial mutation.
+      - balance returns 0 for unknown accounts; is_balanced holds after every accepted posting.
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/ledger.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_ledger_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_ledger_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, minimality]
+    failure_tags: [domain_rule_violation, missing_requirement, state_sync_corruption, mutation_verifier_failed]
+
+  - id: ddd-first-008
+    track: ddd_first
+    language: python
+    difficulty: easy
+    task_type: capacity_invariant
+    fixture: fixtures/ddd_first/parcel_packing
+    user_request: >
+      Implement ShippingBox in src/box.py so packing items respects both a weight
+      capacity and an item-count capacity, and a rejected pack leaves weight and count
+      unchanged. Follow DOMAIN.md.
+    constraints:
+      - weight must be a positive integer (ValueError otherwise).
+      - Total weight may never exceed max_weight and item count may never exceed max_items.
+      - A rejected pack must not mutate state; empty box totals are zero.
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/box.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_box_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_box_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [domain_rule_violation, missing_requirement, wrong_edge_case, over_refactor]
+
+  - id: ddd-first-009
+    track: ddd_first
+    language: python
+    difficulty: medium
+    task_type: role_aggregate
+    fixture: fixtures/ddd_first/access_roles
+    user_request: >
+      Implement AccessControl in src/access.py so roles grant fixed permission sets,
+      grants are idempotent, and the aggregate refuses to revoke the last admin.
+      Follow DOMAIN.md.
+    constraints:
+      - grant rejects unknown roles; granting a held role is idempotent.
+      - revoke rejects a role the user does not hold.
+      - While any admin exists, revoking the last admin is rejected without mutating state.
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/access.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_access_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_access_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, minimality]
+    failure_tags: [domain_rule_violation, missing_requirement, state_sync_corruption, mutation_verifier_failed]
+
+  - id: ddd-first-010
+    track: ddd_first
+    language: python
+    difficulty: expert
+    task_type: multi_aggregate_transfer
+    fixture: fixtures/ddd_first/wallet_holds
+    user_request: >
+      Implement Bank in src/wallet.py with two-phase transfers via holds: place_hold
+      reserves funds, capture moves them between wallets, release frees them, money is
+      conserved across all wallets, and non-active holds cannot be captured or released.
+      Follow DOMAIN.md.
+    constraints:
+      - place_hold requires available funds; a rejected hold must not mutate state or emit events.
+      - capture moves the held amount to another wallet and conserves total balance; capturing a non-active hold is rejected.
+      - release frees a hold's reserved funds exactly once; double capture/release is rejected.
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/wallet.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_wallet_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_wallet_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, test_quality]
+    failure_tags: [domain_rule_violation, missing_requirement, state_sync_corruption, mutation_verifier_failed]

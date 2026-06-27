@@ -87,3 +87,221 @@ cases:
       hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
       soft_metrics: [functional_correctness, contract_compliance, test_quality]
     failure_tags: [golden_output_mismatch, behavior_not_equivalent, wrong_edge_case, mutation_verifier_failed]
+
+  - id: martial-rpg-004
+    track: martial_rpg
+    language: go
+    difficulty: medium
+    task_type: poise_stagger_authority
+    fixture: fixtures/martial_rpg/poise_stagger
+    user_request: >
+      ApplyPoiseDamage in internal/poise/poise.go drives poise negative and
+      trusts the client's stagger claim. Make it authoritative: poise never goes
+      negative, a break (poise reaching 0 or below) staggers and restores poise
+      to MaxPoise, and the client's ClientStaggered flag is ignored. Keep the
+      signature.
+    constraints:
+      - Poise must never go negative.
+      - A break (poise <= 0) staggers and restores poise to MaxPoise.
+      - Never trust ClientStaggered; compute stagger from server state only.
+      - Negative PoiseDamage must not heal poise.
+      - Do not edit go.mod or the provided test.
+    allowed_paths: [internal/**]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/poise/poise_test.go, hidden/**]
+    solution_paths: [internal/poise/poise.go]
+    verifier:
+      commands: [go test ./internal/poise -count=1]
+      hidden_commands: ["sh -c 'cp hidden/poise_hidden_test.go internal/poise/poise_hidden_test.go; trap \"rm -f internal/poise/poise_hidden_test.go\" EXIT; go test ./internal/poise -run Hidden -count=1'"]
+      mutation_commands: ["sh -c 'cp hidden/poise_mutation_test.go internal/poise/poise_mutation_test.go; trap \"rm -f internal/poise/poise_mutation_test.go\" EXIT; go test ./internal/poise -run Mutation -count=1'"]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, test_quality]
+    failure_tags: [domain_rule_violation, wrong_edge_case, state_sync_corruption, mutation_verifier_failed]
+
+  - id: martial-rpg-005
+    track: martial_rpg
+    language: rust
+    difficulty: hard
+    task_type: status_stack_merge
+    fixture: fixtures/martial_rpg/status_stacking
+    user_request: >
+      merge_stacks in src/lib.rs returns effects in first-seen insertion order
+      and never clamps a stacked total to the cap. Make it authoritative: sum
+      magnitudes per effect id, clamp each id's total to [-cap, cap], and emit
+      exactly one entry per id sorted by ascending id so the result is the same
+      regardless of submission order. Keep the public Stack/merge_stacks API.
+    constraints:
+      - Output is one entry per id, sorted by ascending id (order-independent).
+      - Per-id totals are the sum of magnitudes clamped to [-cap, cap].
+      - Distinct ids are never merged; duplicate ids always are.
+      - Do not edit Cargo.toml or the provided test.
+    allowed_paths: [src/**]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/stacking.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test stacking]
+      hidden_commands: ["sh -c 'cp hidden/stacking_hidden.rs tests/stacking_hidden.rs; trap \"rm -f tests/stacking_hidden.rs\" EXIT; cargo test --test stacking_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/stacking_mutation.rs tests/stacking_mutation.rs; trap \"rm -f tests/stacking_mutation.rs\" EXIT; cargo test --test stacking_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [domain_rule_violation, wrong_edge_case, over_refactor, mutation_verifier_failed]
+
+  - id: martial-rpg-006
+    track: martial_rpg
+    language: go
+    difficulty: medium
+    task_type: combo_window_authority
+    fixture: fixtures/martial_rpg/combo_window
+    user_request: >
+      Advance in internal/combo/combo.go trusts the client's combo count. Make
+      it authoritative: increment the count by 1 only when the hit lands strictly
+      after LastTick and within Window ticks, otherwise reset to 1, and never
+      read ClientCount. Keep the Advance signature.
+    constraints:
+      - Combo count is computed by the server, never from ClientCount.
+      - A hit extends the chain only when 0 < (Tick - LastTick) <= Window.
+      - Duplicate or backwards ticks reset the chain to 1.
+      - Do not edit go.mod or the provided test.
+    allowed_paths: [internal/**]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/combo/combo_test.go, hidden/**]
+    solution_paths: [internal/combo/combo.go]
+    verifier:
+      commands: [go test ./internal/combo -count=1]
+      hidden_commands: ["sh -c 'cp hidden/combo_hidden_test.go internal/combo/combo_hidden_test.go; trap \"rm -f internal/combo/combo_hidden_test.go\" EXIT; go test ./internal/combo -run Hidden -count=1'"]
+      mutation_commands: ["sh -c 'cp hidden/combo_mutation_test.go internal/combo/combo_mutation_test.go; trap \"rm -f internal/combo/combo_mutation_test.go\" EXIT; go test ./internal/combo -run Mutation -count=1'"]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, test_quality]
+    failure_tags: [domain_rule_violation, state_sync_corruption, missing_requirement, mutation_verifier_failed]
+
+  - id: martial-rpg-007
+    track: martial_rpg
+    language: rust
+    difficulty: easy
+    task_type: damage_mitigation_pipeline
+    fixture: fixtures/martial_rpg/damage_mitigation
+    user_request: >
+      mitigate in src/lib.rs applies the resist percentage before armor and can
+      return negative damage. Fix the pipeline so armor (flat) is applied first,
+      then resist (percentage) on the remainder, with resist_pct clamped to
+      [0,100] and the result floored at 0. Keep the public mitigate/Mitigation API.
+    constraints:
+      - Apply flat armor first, then percentage resist on the post-armor value.
+      - resist_pct is clamped to [0,100].
+      - The mitigated result is floored at 0 (never negative).
+      - Do not edit Cargo.toml or the provided test.
+    allowed_paths: [src/**]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/mitigation.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test mitigation]
+      hidden_commands: ["sh -c 'cp hidden/mitigation_hidden.rs tests/mitigation_hidden.rs; trap \"rm -f tests/mitigation_hidden.rs\" EXIT; cargo test --test mitigation_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/mitigation_mutation.rs tests/mitigation_mutation.rs; trap \"rm -f tests/mitigation_mutation.rs\" EXIT; cargo test --test mitigation_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [domain_rule_violation, wrong_edge_case, mutation_verifier_failed]
+
+  - id: martial-rpg-008
+    track: martial_rpg
+    language: go
+    difficulty: hard
+    task_type: authoritative_movement_clamp
+    fixture: fixtures/martial_rpg/authoritative_move
+    user_request: >
+      ResolveMove in internal/movement/movement.go returns the client's desired
+      position verbatim, allowing teleports. Make it authoritative: clamp the
+      per-axis displacement from Current to [-MaxSpeed, MaxSpeed] (treating a
+      negative MaxSpeed as 0) and return Current plus the clamped delta. Keep the
+      ResolveMove signature.
+    constraints:
+      - Per-axis displacement is clamped to [-MaxSpeed, MaxSpeed].
+      - A negative MaxSpeed is treated as 0 (no movement).
+      - Moves already within speed are preserved exactly.
+      - Never return the client's Desired position unclamped.
+      - Do not edit go.mod or the provided test.
+    allowed_paths: [internal/**]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/movement/movement_test.go, hidden/**]
+    solution_paths: [internal/movement/movement.go]
+    verifier:
+      commands: [go test ./internal/movement -count=1]
+      hidden_commands: ["sh -c 'cp hidden/movement_hidden_test.go internal/movement/movement_hidden_test.go; trap \"rm -f internal/movement/movement_hidden_test.go\" EXIT; go test ./internal/movement -run Hidden -count=1'"]
+      mutation_commands: ["sh -c 'cp hidden/movement_mutation_test.go internal/movement/movement_mutation_test.go; trap \"rm -f internal/movement/movement_mutation_test.go\" EXIT; go test ./internal/movement -run Mutation -count=1'"]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, test_quality]
+    failure_tags: [domain_rule_violation, state_sync_corruption, wrong_edge_case, mutation_verifier_failed]
+
+  - id: martial-rpg-009
+    track: martial_rpg
+    language: rust
+    difficulty: expert
+    task_type: deterministic_replay_rng
+    fixture: fixtures/martial_rpg/replay_rng
+    user_request: >
+      ReplayRng::roll_for in src/lib.rs threads a mutable internal state, so a
+      roll depends on how many rolls came before and replays processed in a
+      different order diverge. Make roll_for a pure function of (seed, entity_id,
+      tick) with good avalanche so distinct coordinates differ, preserving the
+      roll_for(&mut self, ...) signature.
+    constraints:
+      - roll_for depends only on (seed, entity_id, tick), never on call order.
+      - The same coordinates always yield the same value (replay parity).
+      - Distinct entity_id or tick values yield well-mixed distinct outputs.
+      - Different seeds yield different streams.
+      - Do not edit Cargo.toml or the provided test.
+    allowed_paths: [src/**]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/rng.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test rng]
+      hidden_commands: ["sh -c 'cp hidden/rng_hidden.rs tests/rng_hidden.rs; trap \"rm -f tests/rng_hidden.rs\" EXIT; cargo test --test rng_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/rng_mutation.rs tests/rng_mutation.rs; trap \"rm -f tests/rng_mutation.rs\" EXIT; cargo test --test rng_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, test_quality]
+    failure_tags: [behavior_not_equivalent, golden_output_mismatch, wrong_edge_case, mutation_verifier_failed]
+
+  - id: martial-rpg-010
+    track: martial_rpg
+    language: go
+    difficulty: hard
+    task_type: initiative_order_determinism
+    fixture: fixtures/martial_rpg/initiative_order
+    user_request: >
+      Order in internal/initiative/initiative.go sorts only by Speed, so ties
+      keep submission order, and it sorts the caller's slice in place. Make it
+      authoritative: higher Speed first, ties broken by lower ID, deterministic
+      regardless of input order, without mutating the caller's slice. Keep the
+      Order signature.
+    constraints:
+      - Order by Speed descending, ties broken by ID ascending.
+      - Output is deterministic and independent of submission order.
+      - The caller's input slice must not be mutated.
+      - Do not edit go.mod or the provided test.
+    allowed_paths: [internal/**]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/initiative/initiative_test.go, hidden/**]
+    solution_paths: [internal/initiative/initiative.go]
+    verifier:
+      commands: [go test ./internal/initiative -count=1]
+      hidden_commands: ["sh -c 'cp hidden/initiative_hidden_test.go internal/initiative/initiative_hidden_test.go; trap \"rm -f internal/initiative/initiative_hidden_test.go\" EXIT; go test ./internal/initiative -run Hidden -count=1'"]
+      mutation_commands: ["sh -c 'cp hidden/initiative_mutation_test.go internal/initiative/initiative_mutation_test.go; trap \"rm -f internal/initiative/initiative_mutation_test.go\" EXIT; go test ./internal/initiative -run Mutation -count=1'"]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [domain_rule_violation, wrong_edge_case, state_sync_corruption, mutation_verifier_failed]

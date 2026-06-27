@@ -1,0 +1,7 @@
+{
+  "default_action": "ignore",
+  "thresholds": [
+    {"min_failures": 1, "action": "retry"},
+    {"min_failures": 3, "action": "notify_team"}
+  ]
+}

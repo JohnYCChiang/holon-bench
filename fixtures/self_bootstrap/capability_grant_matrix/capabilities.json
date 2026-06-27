@@ -1,0 +1,7 @@
+{
+  "grants": {
+    "guest": ["read"],
+    "maintainer": ["read", "comment", "label"],
+    "admin": ["read", "comment", "label", "merge_pr", "rotate_keys"]
+  }
+}

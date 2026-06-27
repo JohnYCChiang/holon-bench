@@ -1,0 +1,8 @@
+{
+  "stages": {
+    "build": [],
+    "unit_test": ["build"],
+    "integration_test": ["build"],
+    "deploy": ["build"]
+  }
+}
