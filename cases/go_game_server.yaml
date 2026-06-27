@@ -360,3 +360,243 @@ cases:
       hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
       soft_metrics: [functional_correctness, maintainability, observability]
     failure_tags: [wrong_edge_case, fake_success]
+  - id: go-game-101
+    track: go_game_server
+    language: go
+    difficulty: easy
+    task_type: health_bounds_clamp
+    fixture: fixtures/go_game/health_clamp
+    user_request: Clamp entity health to its valid bounds when applying damage or healing.
+    constraints:
+      - HP must never drop below 0.
+      - HP must never exceed Max.
+      - Apply accepts arbitrary positive or negative deltas.
+    allowed_paths: [server/combat/**, server/combat/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/combat/*_test.go]
+    solution_paths: [server/combat/health.go]
+    verifier:
+      commands: [go test ./server/combat]
+      hidden_commands: [sh -c 'cp hidden/health_hidden_test.go server/combat/health_hidden_test.go; trap "rm -f server/combat/health_hidden_test.go" EXIT; go test ./server/combat -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/health_mutation_test.go server/combat/health_mutation_test.go; trap "rm -f server/combat/health_mutation_test.go" EXIT; go test ./server/combat -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [domain_rule_violation, wrong_edge_case]
+  - id: go-game-102
+    track: go_game_server
+    language: go
+    difficulty: easy
+    task_type: spawn_protection
+    fixture: fixtures/go_game/spawn_protection
+    user_request: Ignore damage to players inside their spawn-protection window.
+    constraints:
+      - Damage is blocked while tick is in [SpawnTick, SpawnTick+Protect).
+      - Protection ends exactly at SpawnTick+Protect.
+      - Damage returns whether it was actually applied.
+    allowed_paths: [server/spawn/**, server/spawn/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/spawn/*_test.go]
+    solution_paths: [server/spawn/spawn.go]
+    verifier:
+      commands: [go test ./server/spawn]
+      hidden_commands: [sh -c 'cp hidden/spawn_hidden_test.go server/spawn/spawn_hidden_test.go; trap "rm -f server/spawn/spawn_hidden_test.go" EXIT; go test ./server/spawn -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/spawn_mutation_test.go server/spawn/spawn_mutation_test.go; trap "rm -f server/spawn/spawn_mutation_test.go" EXIT; go test ./server/spawn -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, observability, maintainability]
+    failure_tags: [domain_rule_violation, wrong_edge_case]
+  - id: go-game-103
+    track: go_game_server
+    language: go
+    difficulty: medium
+    task_type: input_rate_limit
+    fixture: fixtures/go_game/input_rate_limit
+    user_request: Rate-limit per-player inputs per tick and count dropped ones.
+    constraints:
+      - At most Max inputs accepted per player per tick.
+      - The budget resets when the tick advances.
+      - Dropped inputs are counted; players are independent.
+    allowed_paths: [server/netio/**, server/netio/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/netio/*_test.go, hidden/**]
+    solution_paths: [server/netio/limit.go]
+    verifier:
+      commands: [go test ./server/netio]
+      hidden_commands: [sh -c 'cp hidden/limit_hidden_test.go server/netio/limit_hidden_test.go; trap "rm -f server/netio/limit_hidden_test.go" EXIT; go test ./server/netio -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/limit_mutation_test.go server/netio/limit_mutation_test.go; trap "rm -f server/netio/limit_mutation_test.go" EXIT; go test ./server/netio -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, observability, test_quality]
+    failure_tags: [domain_rule_violation, missing_requirement, hidden_verifier_failed]
+  - id: go-game-104
+    track: go_game_server
+    language: go
+    difficulty: medium
+    task_type: pickup_authority
+    fixture: fixtures/go_game/item_pickup
+    user_request: Let only the first claimant own a world item and reject later or empty claims.
+    constraints:
+      - An item has at most one owner.
+      - Once owned, later claims are rejected.
+      - Empty player ids are rejected without mutating state.
+    allowed_paths: [server/world/**, server/world/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/world/*_test.go, hidden/**]
+    solution_paths: [server/world/pickup.go]
+    verifier:
+      commands: [go test ./server/world]
+      hidden_commands: [sh -c 'cp hidden/pickup_hidden_test.go server/world/pickup_hidden_test.go; trap "rm -f server/world/pickup_hidden_test.go" EXIT; go test ./server/world -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/pickup_mutation_test.go server/world/pickup_mutation_test.go; trap "rm -f server/world/pickup_mutation_test.go" EXIT; go test ./server/world -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, maintainability, observability]
+    failure_tags: [state_sync_corruption, domain_rule_violation]
+  - id: go-game-105
+    track: go_game_server
+    language: go
+    difficulty: medium
+    task_type: projectile_expiry
+    fixture: fixtures/go_game/projectile_ttl
+    user_request: Remove expired projectiles each tick while preserving survivor order.
+    constraints:
+      - A projectile expires when tick >= SpawnTick+TTL.
+      - Survivor order is preserved.
+      - Repeated Step calls are stable.
+    allowed_paths: [server/world/**, server/world/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/world/*_test.go]
+    solution_paths: [server/world/projectile.go]
+    verifier:
+      commands: [go test ./server/world]
+      hidden_commands: [sh -c 'cp hidden/projectile_hidden_test.go server/world/projectile_hidden_test.go; trap "rm -f server/world/projectile_hidden_test.go" EXIT; go test ./server/world -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/projectile_mutation_test.go server/world/projectile_mutation_test.go; trap "rm -f server/world/projectile_mutation_test.go" EXIT; go test ./server/world -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement]
+  - id: go-game-106
+    track: go_game_server
+    language: go
+    difficulty: medium
+    task_type: vote_kick_threshold
+    fixture: fixtures/go_game/vote_kick
+    user_request: Trigger a vote-kick only on a strict majority of eligible voters.
+    constraints:
+      - Each voter is counted at most once.
+      - Kick triggers only on a strict majority of Voters.
+      - Empty voter ids are rejected.
+    allowed_paths: [server/room/**, server/room/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/room/*_test.go, hidden/**]
+    solution_paths: [server/room/vote.go]
+    verifier:
+      commands: [go test ./server/room]
+      hidden_commands: [sh -c 'cp hidden/vote_hidden_test.go server/room/vote_hidden_test.go; trap "rm -f server/room/vote_hidden_test.go" EXIT; go test ./server/room -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/vote_mutation_test.go server/room/vote_mutation_test.go; trap "rm -f server/room/vote_mutation_test.go" EXIT; go test ./server/room -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, observability]
+    failure_tags: [domain_rule_violation, wrong_edge_case, mutation_verifier_failed]
+  - id: go-game-107
+    track: go_game_server
+    language: go
+    difficulty: medium
+    task_type: respawn_timer
+    fixture: fixtures/go_game/respawn_timer
+    user_request: Allow respawns only after the death delay has elapsed.
+    constraints:
+      - Respawn is rejected before DeathTick+Delay.
+      - An already-alive player cannot respawn.
+      - Respawn is allowed exactly at DeathTick+Delay.
+    allowed_paths: [server/combat/**, server/combat/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/combat/*_test.go]
+    solution_paths: [server/combat/respawn.go]
+    verifier:
+      commands: [go test ./server/combat]
+      hidden_commands: [sh -c 'cp hidden/respawn_hidden_test.go server/combat/respawn_hidden_test.go; trap "rm -f server/combat/respawn_hidden_test.go" EXIT; go test ./server/combat -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/respawn_mutation_test.go server/combat/respawn_mutation_test.go; trap "rm -f server/combat/respawn_mutation_test.go" EXIT; go test ./server/combat -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, observability, maintainability]
+    failure_tags: [domain_rule_violation, wrong_edge_case]
+  - id: go-game-108
+    track: go_game_server
+    language: go
+    difficulty: hard
+    task_type: grid_collision_resolve
+    fixture: fixtures/go_game/grid_occupancy
+    user_request: Enforce single-occupancy cells so entities cannot stack on the grid.
+    constraints:
+      - Two entities may never occupy the same cell.
+      - A rejected move leaves the mover in place.
+      - The position and cell views stay consistent with no stale occupancy.
+    allowed_paths: [server/world/**, server/world/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/world/*_test.go, hidden/**]
+    solution_paths: [server/world/grid.go]
+    verifier:
+      commands: [go test ./server/world]
+      hidden_commands: [sh -c 'cp hidden/grid_hidden_test.go server/world/grid_hidden_test.go; trap "rm -f server/world/grid_hidden_test.go" EXIT; go test ./server/world -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/grid_mutation_test.go server/world/grid_mutation_test.go; trap "rm -f server/world/grid_mutation_test.go" EXIT; go test ./server/world -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, maintainability, test_quality]
+    failure_tags: [state_sync_corruption, domain_rule_violation, hidden_verifier_failed]
+  - id: go-game-109
+    track: go_game_server
+    language: go
+    difficulty: hard
+    task_type: trade_atomicity
+    fixture: fixtures/go_game/trade_atomic
+    user_request: Make two-player item trades atomic and authoritative.
+    constraints:
+      - A trade commits only when both sides own their offered item.
+      - A failed trade leaves both inventories unchanged.
+      - Items are never duplicated or destroyed.
+    allowed_paths: [server/economy/**, server/economy/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/economy/*_test.go, hidden/**]
+    solution_paths: [server/economy/trade.go]
+    verifier:
+      commands: [go test ./server/economy]
+      hidden_commands: [sh -c 'cp hidden/trade_hidden_test.go server/economy/trade_hidden_test.go; trap "rm -f server/economy/trade_hidden_test.go" EXIT; go test ./server/economy -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/trade_mutation_test.go server/economy/trade_mutation_test.go; trap "rm -f server/economy/trade_mutation_test.go" EXIT; go test ./server/economy -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, maintainability, minimality]
+    failure_tags: [state_sync_corruption, fake_success, hidden_verifier_failed]
+  - id: go-game-110
+    track: go_game_server
+    language: go
+    difficulty: expert
+    task_type: deterministic_loot_rng
+    fixture: fixtures/go_game/loot_rng
+    user_request: Generate replay-deterministic seeded loot independent of map iteration order.
+    constraints:
+      - The roller must advance state so the seed reproduces the sequence.
+      - Players are processed in sorted id order; output is sorted by id.
+      - Same seed and player set always yield identical drops within range.
+    allowed_paths: [server/loot/**, server/loot/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/loot/*_test.go, hidden/**]
+    solution_paths: [server/loot/loot.go]
+    verifier:
+      commands: [go test ./server/loot -count=1]
+      hidden_commands: [sh -c 'cp hidden/loot_hidden_test.go server/loot/loot_hidden_test.go; trap "rm -f server/loot/loot_hidden_test.go" EXIT; go test ./server/loot -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/loot_mutation_test.go server/loot/loot_mutation_test.go; trap "rm -f server/loot/loot_mutation_test.go" EXIT; go test ./server/loot -run Mutation -count=1']
+      timeout_seconds: 90
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, test_quality, maintainability]
+    failure_tags: [flaky_test, golden_output_mismatch, state_sync_corruption, hidden_verifier_failed]

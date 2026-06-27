@@ -362,3 +362,243 @@ cases:
       hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
       soft_metrics: [functional_correctness, maintainability, minimality]
     failure_tags: [wrong_edge_case, over_refactor]
+  - id: bevy-101
+    track: rust_bevy
+    language: rust
+    difficulty: easy
+    task_type: cooldown_timer
+    fixture: fixtures/bevy/ability_cooldown
+    user_request: Clamp ability cooldown ticks at zero so banked negative time cannot fire abilities early.
+    constraints:
+      - Remaining cooldown must never go below zero.
+      - Preserve the ready and trigger semantics.
+      - Keep cooldown logic pure and testable.
+    allowed_paths: [src/cooldown.rs, tests/ability_cooldown.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/ability_cooldown.rs, hidden/**]
+    solution_paths: [src/cooldown.rs]
+    verifier:
+      commands: [cargo test --test ability_cooldown]
+      hidden_commands: [sh -c 'cp hidden/ability_cooldown_hidden.rs tests/ability_cooldown_hidden.rs; trap "rm -f tests/ability_cooldown_hidden.rs" EXIT; cargo test --test ability_cooldown_hidden']
+      mutation_commands: [sh -c 'cp hidden/ability_cooldown_mutation.rs tests/ability_cooldown_mutation.rs; trap "rm -f tests/ability_cooldown_mutation.rs" EXIT; cargo test --test ability_cooldown_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [wrong_edge_case, domain_rule_violation]
+  - id: bevy-102
+    track: rust_bevy
+    language: rust
+    difficulty: medium
+    task_type: damage_mitigation
+    fixture: fixtures/bevy/damage_resolution
+    user_request: Resolve armored damage with a minimum chip floor and clamp applied damage at zero health.
+    constraints:
+      - A positive hit must always deal at least one point of damage.
+      - Non-positive raw damage deals nothing.
+      - Health must never go below zero.
+    allowed_paths: [src/combat.rs, tests/damage_resolution.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/damage_resolution.rs, hidden/**]
+    solution_paths: [src/combat.rs]
+    verifier:
+      commands: [cargo test --test damage_resolution]
+      hidden_commands: [sh -c 'cp hidden/damage_resolution_hidden.rs tests/damage_resolution_hidden.rs; trap "rm -f tests/damage_resolution_hidden.rs" EXIT; cargo test --test damage_resolution_hidden']
+      mutation_commands: [sh -c 'cp hidden/damage_resolution_mutation.rs tests/damage_resolution_mutation.rs; trap "rm -f tests/damage_resolution_mutation.rs" EXIT; cargo test --test damage_resolution_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, minimality]
+    failure_tags: [domain_rule_violation, wrong_edge_case]
+  - id: bevy-103
+    track: rust_bevy
+    language: rust
+    difficulty: medium
+    task_type: inventory_stacking
+    fixture: fixtures/bevy/inventory_stacking
+    user_request: Stack picked-up items into partial stacks first, then spill remainder into new max-sized stacks.
+    constraints:
+      - Fill existing partial stacks before creating new ones.
+      - No stack may exceed the configured maximum.
+      - Preserve stack order and conserve total quantity.
+    allowed_paths: [src/inventory.rs, tests/inventory_stacking.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/inventory_stacking.rs, hidden/**]
+    solution_paths: [src/inventory.rs]
+    verifier:
+      commands: [cargo test --test inventory_stacking]
+      hidden_commands: [sh -c 'cp hidden/inventory_stacking_hidden.rs tests/inventory_stacking_hidden.rs; trap "rm -f tests/inventory_stacking_hidden.rs" EXIT; cargo test --test inventory_stacking_hidden']
+      mutation_commands: [sh -c 'cp hidden/inventory_stacking_mutation.rs tests/inventory_stacking_mutation.rs; trap "rm -f tests/inventory_stacking_mutation.rs" EXIT; cargo test --test inventory_stacking_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement]
+  - id: bevy-104
+    track: rust_bevy
+    language: rust
+    difficulty: easy
+    task_type: level_curve
+    fixture: fixtures/bevy/level_progression
+    user_request: Compute character level from total XP using inclusive cumulative thresholds.
+    constraints:
+      - Reaching a threshold exactly must grant that level.
+      - Players start at level one with empty thresholds.
+      - Keep progression math pure and deterministic.
+    allowed_paths: [src/progression.rs, tests/level_progression.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/level_progression.rs, hidden/**]
+    solution_paths: [src/progression.rs]
+    verifier:
+      commands: [cargo test --test level_progression]
+      hidden_commands: [sh -c 'cp hidden/level_progression_hidden.rs tests/level_progression_hidden.rs; trap "rm -f tests/level_progression_hidden.rs" EXIT; cargo test --test level_progression_hidden']
+      mutation_commands: [sh -c 'cp hidden/level_progression_mutation.rs tests/level_progression_mutation.rs; trap "rm -f tests/level_progression_mutation.rs" EXIT; cargo test --test level_progression_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, test_quality]
+    failure_tags: [wrong_edge_case, missing_requirement]
+  - id: bevy-105
+    track: rust_bevy
+    language: rust
+    difficulty: medium
+    task_type: collision_detection
+    fixture: fixtures/bevy/aabb_overlap
+    user_request: Fix the AABB overlap test so it requires intersection on both axes.
+    constraints:
+      - Overlap must check both x and y axes.
+      - Edge-touching boxes count as overlapping.
+      - Keep the test symmetric and deterministic.
+    allowed_paths: [src/collision.rs, tests/aabb_overlap.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/aabb_overlap.rs, hidden/**]
+    solution_paths: [src/collision.rs]
+    verifier:
+      commands: [cargo test --test aabb_overlap]
+      hidden_commands: [sh -c 'cp hidden/aabb_overlap_hidden.rs tests/aabb_overlap_hidden.rs; trap "rm -f tests/aabb_overlap_hidden.rs" EXIT; cargo test --test aabb_overlap_hidden']
+      mutation_commands: [sh -c 'cp hidden/aabb_overlap_mutation.rs tests/aabb_overlap_mutation.rs; trap "rm -f tests/aabb_overlap_mutation.rs" EXIT; cargo test --test aabb_overlap_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [wrong_edge_case, domain_rule_violation]
+  - id: bevy-106
+    track: rust_bevy
+    language: rust
+    difficulty: medium
+    task_type: turn_order
+    fixture: fixtures/bevy/turn_order
+    user_request: Break initiative speed ties by ascending id so turn order is input-independent.
+    constraints:
+      - Faster units act first.
+      - Equal speeds break ties by ascending id.
+      - Order must not depend on input arrangement.
+    allowed_paths: [src/initiative.rs, tests/turn_order.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/turn_order.rs, hidden/**]
+    solution_paths: [src/initiative.rs]
+    verifier:
+      commands: [cargo test --test turn_order]
+      hidden_commands: [sh -c 'cp hidden/turn_order_hidden.rs tests/turn_order_hidden.rs; trap "rm -f tests/turn_order_hidden.rs" EXIT; cargo test --test turn_order_hidden']
+      mutation_commands: [sh -c 'cp hidden/turn_order_mutation.rs tests/turn_order_mutation.rs; trap "rm -f tests/turn_order_mutation.rs" EXIT; cargo test --test turn_order_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, test_quality, maintainability]
+    failure_tags: [wrong_edge_case, domain_rule_violation]
+  - id: bevy-107
+    track: rust_bevy
+    language: rust
+    difficulty: hard
+    task_type: spatial_partition
+    fixture: fixtures/bevy/spatial_hash
+    user_request: Use floored division for spatial grid cells so negative coordinates bucket correctly.
+    constraints:
+      - Cell mapping must use floored division, not truncation.
+      - Grid buckets must be returned in deterministic ascending order.
+      - Every point index appears exactly once in its correct cell.
+    allowed_paths: [src/grid.rs, tests/spatial_hash.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/spatial_hash.rs, hidden/**]
+    solution_paths: [src/grid.rs]
+    verifier:
+      commands: [cargo test --test spatial_hash]
+      hidden_commands: [sh -c 'cp hidden/spatial_hash_hidden.rs tests/spatial_hash_hidden.rs; trap "rm -f tests/spatial_hash_hidden.rs" EXIT; cargo test --test spatial_hash_hidden']
+      mutation_commands: [sh -c 'cp hidden/spatial_hash_mutation.rs tests/spatial_hash_mutation.rs; trap "rm -f tests/spatial_hash_mutation.rs" EXIT; cargo test --test spatial_hash_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, test_quality, maintainability]
+    failure_tags: [wrong_edge_case, domain_rule_violation, hidden_verifier_failed]
+  - id: bevy-108
+    track: rust_bevy
+    language: rust
+    difficulty: medium
+    task_type: state_transition
+    fixture: fixtures/bevy/state_machine
+    user_request: Make the Dead animation state terminal so no input can revive a dead character.
+    constraints:
+      - Dead must be an absorbing state.
+      - Only the Die input may reach Dead.
+      - Preserve the remaining transition table.
+    allowed_paths: [src/states.rs, tests/state_machine.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/state_machine.rs, hidden/**]
+    solution_paths: [src/states.rs]
+    verifier:
+      commands: [cargo test --test state_machine]
+      hidden_commands: [sh -c 'cp hidden/state_machine_hidden.rs tests/state_machine_hidden.rs; trap "rm -f tests/state_machine_hidden.rs" EXIT; cargo test --test state_machine_hidden']
+      mutation_commands: [sh -c 'cp hidden/state_machine_mutation.rs tests/state_machine_mutation.rs; trap "rm -f tests/state_machine_mutation.rs" EXIT; cargo test --test state_machine_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [domain_rule_violation, wrong_edge_case]
+  - id: bevy-109
+    track: rust_bevy
+    language: rust
+    difficulty: expert
+    task_type: entity_allocator
+    fixture: fixtures/bevy/entity_allocator
+    user_request: Bump the generation on free so recycled entity slots cannot revive stale handles.
+    constraints:
+      - Freeing must invalidate every existing handle to that slot.
+      - Recycled slots must reuse the index with a fresh generation.
+      - Do not use unsafe and keep allocation deterministic.
+    allowed_paths: [src/allocator.rs, tests/entity_allocator.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/entity_allocator.rs, hidden/**]
+    solution_paths: [src/allocator.rs]
+    verifier:
+      commands: [cargo test --test entity_allocator]
+      hidden_commands: [sh -c 'cp hidden/entity_allocator_hidden.rs tests/entity_allocator_hidden.rs; trap "rm -f tests/entity_allocator_hidden.rs" EXIT; cargo test --test entity_allocator_hidden']
+      mutation_commands: [sh -c 'cp hidden/entity_allocator_mutation.rs tests/entity_allocator_mutation.rs; trap "rm -f tests/entity_allocator_mutation.rs" EXIT; cargo test --test entity_allocator_mutation']
+      timeout_seconds: 90
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, test_quality, maintainability]
+    failure_tags: [state_sync_corruption, domain_rule_violation, mutation_verifier_failed]
+  - id: bevy-110
+    track: rust_bevy
+    language: rust
+    difficulty: medium
+    task_type: spawn_scheduling
+    fixture: fixtures/bevy/spawn_scheduler
+    user_request: Cap wave spawns at the remaining budget while preserving banked accumulator time.
+    constraints:
+      - Never spawn more than the wave budget and decrement it per spawn.
+      - Only consume interval-sized chunks for enemies that actually spawn.
+      - Keep the scheduler deterministic without wall-clock time.
+    allowed_paths: [src/spawner.rs, tests/spawn_scheduler.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/spawn_scheduler.rs, hidden/**]
+    solution_paths: [src/spawner.rs]
+    verifier:
+      commands: [cargo test --test spawn_scheduler]
+      hidden_commands: [sh -c 'cp hidden/spawn_scheduler_hidden.rs tests/spawn_scheduler_hidden.rs; trap "rm -f tests/spawn_scheduler_hidden.rs" EXIT; cargo test --test spawn_scheduler_hidden']
+      mutation_commands: [sh -c 'cp hidden/spawn_scheduler_mutation.rs tests/spawn_scheduler_mutation.rs; trap "rm -f tests/spawn_scheduler_mutation.rs" EXIT; cargo test --test spawn_scheduler_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass]
+      soft_metrics: [functional_correctness, maintainability, minimality]
+    failure_tags: [domain_rule_violation, wrong_edge_case]

@@ -360,3 +360,243 @@ cases:
       hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
       soft_metrics: [contract_compliance, observability, maintainability]
     failure_tags: [unstructured_error, missing_requirement]
+  - id: rs-core-101
+    track: rust_core
+    language: rust
+    difficulty: easy
+    task_type: try_from_conversion
+    fixture: fixtures/rust/from_conversion
+    user_request: Implement TryFrom so hex color strings parse into Rgb with typed errors.
+    constraints:
+      - Do not panic on malformed input.
+      - Reject inputs that are not exactly a hash plus six hex digits.
+      - Preserve the public Rgb and ParseColorError types.
+    allowed_paths: [src/color.rs, tests/color.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/color.rs, hidden/**]
+    solution_paths: [src/color.rs]
+    verifier:
+      commands: [cargo test --test color]
+      hidden_commands: [sh -c 'cp hidden/color_hidden.rs tests/color_hidden.rs; trap "rm -f tests/color_hidden.rs" EXIT; cargo test --test color_hidden']
+      mutation_commands: [sh -c 'cp hidden/color_mutation.rs tests/color_mutation.rs; trap "rm -f tests/color_mutation.rs" EXIT; cargo test --test color_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [missing_requirement, fake_success]
+  - id: rs-core-102
+    track: rust_core
+    language: rust
+    difficulty: easy
+    task_type: custom_ordering
+    fixture: fixtures/rust/custom_ordering
+    user_request: Fix the Ord implementation so tasks sort by descending priority then ascending name.
+    constraints:
+      - Higher priority must sort first.
+      - Equal priorities break ties by name ascending.
+      - Keep Ord and PartialOrd consistent.
+    allowed_paths: [src/tasks.rs, tests/tasks.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/tasks.rs, hidden/**]
+    solution_paths: [src/tasks.rs]
+    verifier:
+      commands: [cargo test --test tasks]
+      hidden_commands: [sh -c 'cp hidden/tasks_hidden.rs tests/tasks_hidden.rs; trap "rm -f tests/tasks_hidden.rs" EXIT; cargo test --test tasks_hidden']
+      mutation_commands: [sh -c 'cp hidden/tasks_mutation.rs tests/tasks_mutation.rs; trap "rm -f tests/tasks_mutation.rs" EXIT; cargo test --test tasks_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, minimality]
+    failure_tags: [domain_rule_violation, missing_requirement]
+  - id: rs-core-103
+    track: rust_core
+    language: rust
+    difficulty: medium
+    task_type: custom_iterator
+    fixture: fixtures/rust/run_length_iter
+    user_request: Implement the Iterator so run-length pairs expand into the encoded character stream.
+    constraints:
+      - Preserve run order.
+      - Skip runs with a zero count.
+      - Yield each character exactly as many times as its count.
+    allowed_paths: [src/rle.rs, tests/rle.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/rle.rs, hidden/**]
+    solution_paths: [src/rle.rs]
+    verifier:
+      commands: [cargo test --test rle]
+      hidden_commands: [sh -c 'cp hidden/rle_hidden.rs tests/rle_hidden.rs; trap "rm -f tests/rle_hidden.rs" EXIT; cargo test --test rle_hidden']
+      mutation_commands: [sh -c 'cp hidden/rle_mutation.rs tests/rle_mutation.rs; trap "rm -f tests/rle_mutation.rs" EXIT; cargo test --test rle_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, minimality]
+    failure_tags: [missing_requirement, wrong_edge_case]
+  - id: rs-core-104
+    track: rust_core
+    language: rust
+    difficulty: easy
+    task_type: option_combinator
+    fixture: fixtures/rust/second_word
+    user_request: Return the second whitespace-separated word as a borrowed slice, or None.
+    constraints:
+      - Do not allocate a new String.
+      - Treat any run of whitespace as a single separator.
+      - Return None when there is no second word.
+    allowed_paths: [src/words.rs, tests/words.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/words.rs, hidden/**]
+    solution_paths: [src/words.rs]
+    verifier:
+      commands: [cargo test --test words]
+      hidden_commands: [sh -c 'cp hidden/words_hidden.rs tests/words_hidden.rs; trap "rm -f tests/words_hidden.rs" EXIT; cargo test --test words_hidden']
+      mutation_commands: [sh -c 'cp hidden/words_mutation.rs tests/words_mutation.rs; trap "rm -f tests/words_mutation.rs" EXIT; cargo test --test words_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement]
+  - id: rs-core-105
+    track: rust_core
+    language: rust
+    difficulty: hard
+    task_type: recursive_eval
+    fixture: fixtures/rust/expr_eval
+    user_request: Evaluate the expression tree and return a typed error on division by zero.
+    constraints:
+      - Handle every operator variant.
+      - Subtraction and division use left-then-right operand order.
+      - Division by zero returns DivideByZero instead of panicking.
+    allowed_paths: [src/eval.rs, tests/eval.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/eval.rs, hidden/**]
+    solution_paths: [src/eval.rs]
+    verifier:
+      commands: [cargo test --test eval]
+      hidden_commands: [sh -c 'cp hidden/eval_hidden.rs tests/eval_hidden.rs; trap "rm -f tests/eval_hidden.rs" EXIT; cargo test --test eval_hidden']
+      mutation_commands: [sh -c 'cp hidden/eval_mutation.rs tests/eval_mutation.rs; trap "rm -f tests/eval_mutation.rs" EXIT; cargo test --test eval_mutation']
+      timeout_seconds: 90
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [missing_requirement, wrong_edge_case]
+  - id: rs-core-106
+    track: rust_core
+    language: rust
+    difficulty: medium
+    task_type: trait_default_method
+    fixture: fixtures/rust/animal_trait
+    user_request: Give the trait a working default describe method without breaking overrides.
+    constraints:
+      - Default describe must use both name and legs.
+      - Existing overrides must keep their behavior.
+      - Do not add required methods to the trait.
+    allowed_paths: [src/animal.rs, tests/animal.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/animal.rs, hidden/**]
+    solution_paths: [src/animal.rs]
+    verifier:
+      commands: [cargo test --test animal]
+      hidden_commands: [sh -c 'cp hidden/animal_hidden.rs tests/animal_hidden.rs; trap "rm -f tests/animal_hidden.rs" EXIT; cargo test --test animal_hidden']
+      mutation_commands: [sh -c 'cp hidden/animal_mutation.rs tests/animal_mutation.rs; trap "rm -f tests/animal_mutation.rs" EXIT; cargo test --test animal_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [contract_compliance, maintainability, minimality]
+    failure_tags: [public_api_break, missing_requirement]
+  - id: rs-core-107
+    track: rust_core
+    language: rust
+    difficulty: medium
+    task_type: newtype_invariant
+    fixture: fixtures/rust/percentage_newtype
+    user_request: Enforce the 0..=100 invariant in the Percentage constructor.
+    constraints:
+      - Reject values above 100 with OutOfRange carrying the original value.
+      - Do not silently truncate out-of-range input.
+      - Preserve the value accessor.
+    allowed_paths: [src/percentage.rs, tests/percentage.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/percentage.rs, hidden/**]
+    solution_paths: [src/percentage.rs]
+    verifier:
+      commands: [cargo test --test percentage]
+      hidden_commands: [sh -c 'cp hidden/percentage_hidden.rs tests/percentage_hidden.rs; trap "rm -f tests/percentage_hidden.rs" EXIT; cargo test --test percentage_hidden']
+      mutation_commands: [sh -c 'cp hidden/percentage_mutation.rs tests/percentage_mutation.rs; trap "rm -f tests/percentage_mutation.rs" EXIT; cargo test --test percentage_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [domain_rule_violation, fake_success]
+  - id: rs-core-108
+    track: rust_core
+    language: rust
+    difficulty: expert
+    task_type: interior_mutability
+    fixture: fixtures/rust/memo_cache
+    user_request: Make the memoizing cache compute each key only once using interior mutability.
+    constraints:
+      - Each key must invoke the compute closure at most once.
+      - Do not trigger a RefCell double-borrow panic.
+      - Preserve the len and is_empty accessors.
+    allowed_paths: [src/memo.rs, tests/memo.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/memo.rs, hidden/**]
+    solution_paths: [src/memo.rs]
+    verifier:
+      commands: [cargo test --test memo]
+      hidden_commands: [sh -c 'cp hidden/memo_hidden.rs tests/memo_hidden.rs; trap "rm -f tests/memo_hidden.rs" EXIT; cargo test --test memo_hidden']
+      mutation_commands: [sh -c 'cp hidden/memo_mutation.rs tests/memo_mutation.rs; trap "rm -f tests/memo_mutation.rs" EXIT; cargo test --test memo_mutation']
+      timeout_seconds: 90
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, maintainability, minimality]
+    failure_tags: [missing_requirement, fake_success]
+  - id: rs-core-109
+    track: rust_core
+    language: rust
+    difficulty: medium
+    task_type: map_entry_grouping
+    fixture: fixtures/rust/word_counts
+    user_request: Count word occurrences using the entry API instead of overwriting counts.
+    constraints:
+      - Counts must accumulate across repeats.
+      - Keep matching case-sensitive.
+      - Preserve deterministic sorted key ordering.
+    allowed_paths: [src/counts.rs, tests/counts.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/counts.rs, hidden/**]
+    solution_paths: [src/counts.rs]
+    verifier:
+      commands: [cargo test --test counts]
+      hidden_commands: [sh -c 'cp hidden/counts_hidden.rs tests/counts_hidden.rs; trap "rm -f tests/counts_hidden.rs" EXIT; cargo test --test counts_hidden']
+      mutation_commands: [sh -c 'cp hidden/counts_mutation.rs tests/counts_mutation.rs; trap "rm -f tests/counts_mutation.rs" EXIT; cargo test --test counts_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, minimality]
+    failure_tags: [wrong_edge_case, missing_requirement]
+  - id: rs-core-110
+    track: rust_core
+    language: rust
+    difficulty: hard
+    task_type: checked_arithmetic
+    fixture: fixtures/rust/checked_total
+    user_request: Sum the values with checked arithmetic and return Overflow instead of wrapping or panicking.
+    constraints:
+      - Detect both overflow and underflow.
+      - Return Overflow rather than a wrapped result.
+      - Empty input sums to zero.
+    allowed_paths: [src/total.rs, tests/total.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/total.rs, hidden/**]
+    solution_paths: [src/total.rs]
+    verifier:
+      commands: [cargo test --test total]
+      hidden_commands: [sh -c 'cp hidden/total_hidden.rs tests/total_hidden.rs; trap "rm -f tests/total_hidden.rs" EXIT; cargo test --test total_hidden']
+      mutation_commands: [sh -c 'cp hidden/total_mutation.rs tests/total_mutation.rs; trap "rm -f tests/total_mutation.rs" EXIT; cargo test --test total_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement]

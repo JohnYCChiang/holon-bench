@@ -360,3 +360,243 @@ cases:
       hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
       soft_metrics: [functional_correctness, maintainability]
     failure_tags: [deadlock, cancellation_ignored]
+  - id: go-core-101
+    track: go_core
+    language: go
+    difficulty: easy
+    task_type: nil_slice_handling
+    fixture: fixtures/go/filter
+    user_request: Return a non-nil empty slice so filtered results encode as [] instead of null.
+    constraints:
+      - Always return a non-nil slice, even when nothing matches.
+      - Preserve the order of kept elements.
+      - Do not change the exported Filter signature.
+    allowed_paths: [pkg/filter/**, pkg/filter/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [pkg/filter/*_test.go]
+    solution_paths: [pkg/filter/filter.go]
+    verifier:
+      commands: [go test ./pkg/filter]
+      hidden_commands: [sh -c 'cp hidden/filter_hidden_test.go pkg/filter/filter_hidden_test.go; trap "rm -f pkg/filter/filter_hidden_test.go" EXIT; go test ./pkg/filter -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/filter_mutation_test.go pkg/filter/filter_mutation_test.go; trap "rm -f pkg/filter/filter_mutation_test.go" EXIT; go test ./pkg/filter -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [missing_requirement, backward_incompatibility, wrong_edge_case]
+  - id: go-core-102
+    track: go_core
+    language: go
+    difficulty: easy
+    task_type: unicode_handling
+    fixture: fixtures/go/unicode_reverse
+    user_request: Reverse strings by Unicode code point so multi-byte characters are not corrupted.
+    constraints:
+      - Operate on runes, not bytes.
+      - Output must remain valid UTF-8.
+      - Preserve the exported ReverseRunes signature.
+    allowed_paths: [pkg/textutil/**, pkg/textutil/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [pkg/textutil/*_test.go]
+    solution_paths: [pkg/textutil/reverse.go]
+    verifier:
+      commands: [go test ./pkg/textutil]
+      hidden_commands: [sh -c 'cp hidden/reverse_hidden_test.go pkg/textutil/reverse_hidden_test.go; trap "rm -f pkg/textutil/reverse_hidden_test.go" EXIT; go test ./pkg/textutil -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/reverse_mutation_test.go pkg/textutil/reverse_mutation_test.go; trap "rm -f pkg/textutil/reverse_mutation_test.go" EXIT; go test ./pkg/textutil -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass]
+      soft_metrics: [functional_correctness, test_quality]
+    failure_tags: [wrong_edge_case, missing_requirement]
+  - id: go-core-103
+    track: go_core
+    language: go
+    difficulty: medium
+    task_type: deterministic_ordering
+    fixture: fixtures/go/rank_order
+    user_request: Make ranking deterministic by breaking score ties on name ascending.
+    constraints:
+      - Order by score descending, then name ascending.
+      - Do not mutate the input slice.
+      - Keep the exported Rank signature.
+    allowed_paths: [internal/rank/**, internal/rank/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/rank/*_test.go]
+    solution_paths: [internal/rank/rank.go]
+    verifier:
+      commands: [go test ./internal/rank]
+      hidden_commands: [sh -c 'cp hidden/rank_hidden_test.go internal/rank/rank_hidden_test.go; trap "rm -f internal/rank/rank_hidden_test.go" EXIT; go test ./internal/rank -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/rank_mutation_test.go internal/rank/rank_mutation_test.go; trap "rm -f internal/rank/rank_mutation_test.go" EXIT; go test ./internal/rank -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement]
+  - id: go-core-104
+    track: go_core
+    language: go
+    difficulty: medium
+    task_type: json_schema_compat
+    fixture: fixtures/go/json_strict_decode
+    user_request: Reject JSON input that contains unknown fields while keeping known fields working.
+    constraints:
+      - Unknown fields must produce an error matching ErrUnknownField via errors.Is.
+      - Malformed JSON must not be reported as an unknown field.
+      - Do not rename existing JSON field tags.
+    allowed_paths: [pkg/decode/**, pkg/decode/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [pkg/decode/*_test.go]
+    solution_paths: [pkg/decode/decode.go]
+    verifier:
+      commands: [go test ./pkg/decode]
+      hidden_commands: [sh -c 'cp hidden/decode_hidden_test.go pkg/decode/decode_hidden_test.go; trap "rm -f pkg/decode/decode_hidden_test.go" EXIT; go test ./pkg/decode -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/decode_mutation_test.go pkg/decode/decode_mutation_test.go; trap "rm -f pkg/decode/decode_mutation_test.go" EXIT; go test ./pkg/decode -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
+      soft_metrics: [contract_compliance, functional_correctness]
+    failure_tags: [backward_incompatibility, missing_requirement]
+  - id: go-core-105
+    track: go_core
+    language: go
+    difficulty: medium
+    task_type: panic_recovery
+    fixture: fixtures/go/panic_guard
+    user_request: Convert panics raised inside the callback into an error wrapping ErrPanic.
+    constraints:
+      - Recover panics and wrap them so errors.Is matches ErrPanic.
+      - Pass normal return values through unchanged.
+      - Do not wrap ordinary returned errors as ErrPanic.
+    allowed_paths: [internal/guard/**, internal/guard/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/guard/*_test.go]
+    solution_paths: [internal/guard/guard.go]
+    verifier:
+      commands: [go test ./internal/guard]
+      hidden_commands: [sh -c 'cp hidden/guard_hidden_test.go internal/guard/guard_hidden_test.go; trap "rm -f internal/guard/guard_hidden_test.go" EXIT; go test ./internal/guard -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/guard_mutation_test.go internal/guard/guard_mutation_test.go; trap "rm -f internal/guard/guard_mutation_test.go" EXIT; go test ./internal/guard -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [missing_requirement, wrong_edge_case]
+  - id: go-core-106
+    track: go_core
+    language: go
+    difficulty: medium
+    task_type: channel_safety
+    fixture: fixtures/go/drop_overflow
+    user_request: Make TryPut non-blocking, dropping and counting values only when the buffer is full.
+    constraints:
+      - Never block on a full buffer.
+      - Report false and count the drop when a value is dropped.
+      - Do not claim success for dropped values.
+    allowed_paths: [internal/dropbox/**, internal/dropbox/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/dropbox/*_test.go]
+    solution_paths: [internal/dropbox/dropbox.go]
+    verifier:
+      commands: [go test ./internal/dropbox]
+      hidden_commands: [sh -c 'cp hidden/dropbox_hidden_test.go internal/dropbox/dropbox_hidden_test.go; trap "rm -f internal/dropbox/dropbox_hidden_test.go" EXIT; go test ./internal/dropbox -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/dropbox_mutation_test.go internal/dropbox/dropbox_mutation_test.go; trap "rm -f internal/dropbox/dropbox_mutation_test.go" EXIT; go test ./internal/dropbox -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [missing_requirement, wrong_edge_case, resource_leak]
+  - id: go-core-107
+    track: go_core
+    language: go
+    difficulty: hard
+    task_type: goroutine_safety
+    fixture: fixtures/go/lazy_once
+    user_request: Make lazy initialization run exactly once and safe under concurrent Get calls.
+    constraints:
+      - Initialize at most once across concurrent callers.
+      - Race detector must pass.
+      - Preserve the exported Get and New signatures.
+    allowed_paths: [internal/lazy/**, internal/lazy/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/lazy/*_test.go]
+    solution_paths: [internal/lazy/lazy.go]
+    verifier:
+      commands: [go test -race ./internal/lazy]
+      hidden_commands: [sh -c 'cp hidden/lazy_hidden_test.go internal/lazy/lazy_hidden_test.go; trap "rm -f internal/lazy/lazy_hidden_test.go" EXIT; go test -race ./internal/lazy -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/lazy_mutation_test.go internal/lazy/lazy_mutation_test.go; trap "rm -f internal/lazy/lazy_mutation_test.go" EXIT; go test -race ./internal/lazy -run Mutation -count=1']
+      timeout_seconds: 90
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [race_condition, missing_requirement, hidden_verifier_failed]
+  - id: go-core-108
+    track: go_core
+    language: go
+    difficulty: hard
+    task_type: slice_aliasing
+    fixture: fixtures/go/chunk_alias
+    user_request: Return independent chunks so appending to one cannot corrupt the source or other chunks.
+    constraints:
+      - Appending to a returned chunk must not mutate the input or sibling chunks.
+      - Preserve chunk contents and sizes.
+      - Keep the exported Chunk signature.
+    allowed_paths: [pkg/chunk/**, pkg/chunk/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [pkg/chunk/*_test.go]
+    solution_paths: [pkg/chunk/chunk.go]
+    verifier:
+      commands: [go test ./pkg/chunk]
+      hidden_commands: [sh -c 'cp hidden/chunk_hidden_test.go pkg/chunk/chunk_hidden_test.go; trap "rm -f pkg/chunk/chunk_hidden_test.go" EXIT; go test ./pkg/chunk -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/chunk_mutation_test.go pkg/chunk/chunk_mutation_test.go; trap "rm -f pkg/chunk/chunk_mutation_test.go" EXIT; go test ./pkg/chunk -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [state_sync_corruption, wrong_edge_case]
+  - id: go-core-109
+    track: go_core
+    language: go
+    difficulty: hard
+    task_type: context_cancellation
+    fixture: fixtures/go/retry_ctx
+    user_request: Make the retry loop respect context cancellation and keep retrying until success otherwise.
+    constraints:
+      - Return ctx.Err() when the context is cancelled while waiting.
+      - Do not cap retries while the context is still alive.
+      - Return nil immediately once fn succeeds.
+    allowed_paths: [internal/retry/**, internal/retry/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/retry/*_test.go]
+    solution_paths: [internal/retry/retry.go]
+    verifier:
+      commands: [go test ./internal/retry -run Cancel -count=1]
+      hidden_commands: [sh -c 'cp hidden/retry_hidden_test.go internal/retry/retry_hidden_test.go; trap "rm -f internal/retry/retry_hidden_test.go" EXIT; go test ./internal/retry -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/retry_mutation_test.go internal/retry/retry_mutation_test.go; trap "rm -f internal/retry/retry_mutation_test.go" EXIT; go test ./internal/retry -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [cancellation_ignored, missing_requirement]
+  - id: go-core-110
+    track: go_core
+    language: go
+    difficulty: expert
+    task_type: concurrency_ordering
+    fixture: fixtures/go/merge_streams
+    user_request: Merge multiple sorted input channels into one globally sorted output stream closed exactly once.
+    constraints:
+      - Output must be globally sorted, preserving duplicates.
+      - Close the output channel exactly once after all inputs drain.
+      - Do not leak goroutines and pass the race detector.
+    allowed_paths: [internal/merge/**, internal/merge/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/merge/*_test.go]
+    solution_paths: [internal/merge/merge.go]
+    verifier:
+      commands: [go test -race ./internal/merge -count=1]
+      hidden_commands: [sh -c 'cp hidden/merge_hidden_test.go internal/merge/merge_hidden_test.go; trap "rm -f internal/merge/merge_hidden_test.go" EXIT; go test -race ./internal/merge -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/merge_mutation_test.go internal/merge/merge_mutation_test.go; trap "rm -f internal/merge/merge_mutation_test.go" EXIT; go test -race ./internal/merge -run Mutation -count=1']
+      timeout_seconds: 90
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [race_condition, wrong_edge_case, hidden_verifier_failed, mutation_verifier_failed]
