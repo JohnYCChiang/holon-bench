@@ -3,7 +3,7 @@ name: Holon Benchmark v0.1
 phase: phase_2_compact_core
 case_count_target:
   phase_1: 60
-  phase_2: 230
+  phase_2: 263
   phase_3: 365
   phase_4: 500
 purpose: >

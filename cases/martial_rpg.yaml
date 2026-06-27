@@ -834,3 +834,288 @@ cases:
       hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
       soft_metrics: [functional_correctness, contract_compliance, test_quality]
     failure_tags: [behavior_not_equivalent, golden_output_mismatch, wrong_edge_case, mutation_verifier_failed]
+
+  - id: martial-rpg-028
+    track: martial_rpg
+    language: go
+    difficulty: medium
+    task_type: armor_durability_decay
+    fixture: fixtures/martial_rpg/armor_durability
+    user_request: >
+      Absorb in internal/armor/armor.go trusts the client's durability claim,
+      mitigates even when the plate is broken (returning negative damage), and
+      lets durability go negative. Make it authoritative: while Durability > 0
+      reduce damage by Mitigation (floored at 0) and spend one durability, a
+      broken plate (Durability 0) gives no mitigation, durability never goes
+      negative, and ClientDurability is ignored. Keep the Absorb signature.
+    constraints:
+      - Mitigation applies only while Durability > 0; each hit spends one durability.
+      - A broken plate deals full incoming damage; dealt damage floors at 0.
+      - Durability never goes negative; ClientDurability is never trusted.
+      - Do not edit go.mod or the provided test.
+    allowed_paths: [internal/**]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/armor/armor_test.go, hidden/**]
+    solution_paths: [internal/armor/armor.go]
+    verifier:
+      commands: [go test ./internal/armor -count=1]
+      hidden_commands: ["sh -c 'cp hidden/armor_hidden_test.go internal/armor/armor_hidden_test.go; trap \"rm -f internal/armor/armor_hidden_test.go\" EXIT; go test ./internal/armor -run Hidden -count=1'"]
+      mutation_commands: ["sh -c 'cp hidden/armor_mutation_test.go internal/armor/armor_mutation_test.go; trap \"rm -f internal/armor/armor_mutation_test.go\" EXIT; go test ./internal/armor -run Mutation -count=1'"]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, test_quality]
+    failure_tags: [domain_rule_violation, state_sync_corruption, wrong_edge_case, mutation_verifier_failed]
+
+  - id: martial-rpg-029
+    track: martial_rpg
+    language: rust
+    difficulty: medium
+    task_type: summon_entity_cap
+    fixture: fixtures/martial_rpg/summon_cap
+    user_request: >
+      summon in src/lib.rs always pushes the requested entity, ignoring the
+      per-summoner cap and duplicate ids, and active() leaks insertion order.
+      Make it authoritative: summon succeeds only when below max_active and the
+      id is not already active (otherwise leave the set unchanged and return
+      false), and active() returns the ids sorted ascending. Keep the Summoner API.
+    constraints:
+      - summon adds an id only when count < max_active and the id is not present.
+      - A rejected summon leaves the active set unchanged and returns false.
+      - active() is sorted ascending so the view is order-independent.
+      - Do not edit Cargo.toml or the provided test.
+    allowed_paths: [src/**]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/summon.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test summon]
+      hidden_commands: ["sh -c 'cp hidden/summon_hidden.rs tests/summon_hidden.rs; trap \"rm -f tests/summon_hidden.rs\" EXIT; cargo test --test summon_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/summon_mutation.rs tests/summon_mutation.rs; trap \"rm -f tests/summon_mutation.rs\" EXIT; cargo test --test summon_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [domain_rule_violation, wrong_edge_case, over_refactor, mutation_verifier_failed]
+
+  - id: martial-rpg-030
+    track: martial_rpg
+    language: go
+    difficulty: easy
+    task_type: stealth_detection_radius
+    fixture: fixtures/martial_rpg/stealth_detect
+    user_request: >
+      Detect in internal/stealth/stealth.go returns the client's ClientDetected
+      claim. Make it authoritative: detect the target iff the squared distance
+      from the observer is within (inclusive of) Radius, treat a negative Radius
+      as never-detect, and ignore ClientDetected. Keep the Detect signature.
+    constraints:
+      - Detection is computed from the squared Euclidean distance, boundary inclusive.
+      - A negative Radius never detects anything.
+      - ClientDetected is never trusted in either direction.
+      - Do not edit go.mod or the provided test.
+    allowed_paths: [internal/**]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/stealth/stealth_test.go, hidden/**]
+    solution_paths: [internal/stealth/stealth.go]
+    verifier:
+      commands: [go test ./internal/stealth -count=1]
+      hidden_commands: ["sh -c 'cp hidden/stealth_hidden_test.go internal/stealth/stealth_hidden_test.go; trap \"rm -f internal/stealth/stealth_hidden_test.go\" EXIT; go test ./internal/stealth -run Hidden -count=1'"]
+      mutation_commands: ["sh -c 'cp hidden/stealth_mutation_test.go internal/stealth/stealth_mutation_test.go; trap \"rm -f internal/stealth/stealth_mutation_test.go\" EXIT; go test ./internal/stealth -run Mutation -count=1'"]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [domain_rule_violation, state_sync_corruption, wrong_edge_case, mutation_verifier_failed]
+
+  - id: martial-rpg-031
+    track: martial_rpg
+    language: rust
+    difficulty: medium
+    task_type: channel_interrupt_on_damage
+    fixture: fixtures/martial_rpg/channel_interrupt
+    user_request: >
+      Channel in src/lib.rs trusts the client's interrupt flag in hit and lets
+      tick underflow remaining at 0 while ignoring interruption. Make it
+      authoritative: hit breaks the channel only when it is still active and the
+      damage meets interrupt_threshold (ignoring client_interrupted), and tick
+      decrements only an active channel, never underflowing, returning true only
+      on the tick that completes it. Keep the Channel API.
+    constraints:
+      - hit interrupts only an active channel and only when dmg >= interrupt_threshold.
+      - client_interrupted is never trusted.
+      - tick never decrements an interrupted or finished channel and never underflows.
+      - Do not edit Cargo.toml or the provided test.
+    allowed_paths: [src/**]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/channel.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test channel]
+      hidden_commands: ["sh -c 'cp hidden/channel_hidden.rs tests/channel_hidden.rs; trap \"rm -f tests/channel_hidden.rs\" EXIT; cargo test --test channel_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/channel_mutation.rs tests/channel_mutation.rs; trap \"rm -f tests/channel_mutation.rs\" EXIT; cargo test --test channel_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, test_quality]
+    failure_tags: [domain_rule_violation, state_sync_corruption, wrong_edge_case, mutation_verifier_failed]
+
+  - id: martial-rpg-032
+    track: martial_rpg
+    language: go
+    difficulty: medium
+    task_type: resource_node_depletion
+    fixture: fixtures/martial_rpg/resource_node
+    user_request: >
+      Harvest in internal/resource/resource.go trusts the client's stock,
+      ignores the remaining Amount, and can drive it negative while always
+      granting the full request. Make it authoritative: a non-positive request
+      or a depleted node yields nothing, otherwise the yield is min(request,
+      Amount), Amount drops by the yield and never goes negative, and
+      ClientAmount is ignored. Keep the Harvest signature.
+    constraints:
+      - Yield is min(request, Amount); a non-positive request or empty node yields 0.
+      - Amount decreases by the yield and never goes negative.
+      - ClientAmount is never trusted; total yield over a full drain equals the stock.
+      - Do not edit go.mod or the provided test.
+    allowed_paths: [internal/**]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/resource/resource_test.go, hidden/**]
+    solution_paths: [internal/resource/resource.go]
+    verifier:
+      commands: [go test ./internal/resource -count=1]
+      hidden_commands: ["sh -c 'cp hidden/resource_hidden_test.go internal/resource/resource_hidden_test.go; trap \"rm -f internal/resource/resource_hidden_test.go\" EXIT; go test ./internal/resource -run Hidden -count=1'"]
+      mutation_commands: ["sh -c 'cp hidden/resource_mutation_test.go internal/resource/resource_mutation_test.go; trap \"rm -f internal/resource/resource_mutation_test.go\" EXIT; go test ./internal/resource -run Mutation -count=1'"]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, test_quality]
+    failure_tags: [domain_rule_violation, state_sync_corruption, wrong_edge_case, mutation_verifier_failed]
+
+  - id: martial-rpg-033
+    track: martial_rpg
+    language: rust
+    difficulty: hard
+    task_type: formation_slot_assignment
+    fixture: fixtures/martial_rpg/formation_slot
+    user_request: >
+      assign in src/lib.rs hands out the raw input index as each unit's slot,
+      trusting submission order and ignoring the slot cap so units overflow and
+      slots collide. Make it authoritative: seat units by priority descending,
+      ties by ascending id, into contiguous slots 0..slots; units beyond the cap
+      get slot -1; return pairs sorted by ascending id, independent of input
+      order. Keep the assign signature.
+    constraints:
+      - Seating order is priority descending, ties broken by ascending id.
+      - Assigned slots are the contiguous range 0..min(n, slots); no two share a slot.
+      - Overflow units get -1; output is sorted by id and order-independent.
+      - Do not edit Cargo.toml or the provided test.
+    allowed_paths: [src/**]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/formation.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test formation]
+      hidden_commands: ["sh -c 'cp hidden/formation_hidden.rs tests/formation_hidden.rs; trap \"rm -f tests/formation_hidden.rs\" EXIT; cargo test --test formation_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/formation_mutation.rs tests/formation_mutation.rs; trap \"rm -f tests/formation_mutation.rs\" EXIT; cargo test --test formation_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [domain_rule_violation, wrong_edge_case, golden_output_mismatch, mutation_verifier_failed]
+
+  - id: martial-rpg-034
+    track: martial_rpg
+    language: go
+    difficulty: hard
+    task_type: ladder_elo_update
+    fixture: fixtures/martial_rpg/ladder_elo
+    user_request: >
+      Update in internal/ladder/ladder.go returns the client's claimed new
+      rating and performs no Elo math. Make it authoritative: compute the
+      expected score E = 1/(1+10^((opponent-player)/400)), actual score A =
+      Outcome/2, delta = round(K*(A-E)), apply it to the player's rating, floor
+      the result at MinRating, and ignore ClientNewRating. Keep the Update
+      signature.
+    constraints:
+      - Rating delta is round(K * (actual - expected)) using the standard Elo curve.
+      - The new rating is floored at MinRating and never read from ClientNewRating.
+      - An underdog win gains more than a favorite win; a draw between equals is unchanged.
+      - Do not edit go.mod or the provided test.
+    allowed_paths: [internal/**]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/ladder/ladder_test.go, hidden/**]
+    solution_paths: [internal/ladder/ladder.go]
+    verifier:
+      commands: [go test ./internal/ladder -count=1]
+      hidden_commands: ["sh -c 'cp hidden/ladder_hidden_test.go internal/ladder/ladder_hidden_test.go; trap \"rm -f internal/ladder/ladder_hidden_test.go\" EXIT; go test ./internal/ladder -run Hidden -count=1'"]
+      mutation_commands: ["sh -c 'cp hidden/ladder_mutation_test.go internal/ladder/ladder_mutation_test.go; trap \"rm -f internal/ladder/ladder_mutation_test.go\" EXIT; go test ./internal/ladder -run Mutation -count=1'"]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [domain_rule_violation, state_sync_corruption, wrong_edge_case, mutation_verifier_failed]
+
+  - id: martial-rpg-035
+    track: martial_rpg
+    language: rust
+    difficulty: hard
+    task_type: tick_accurate_dot
+    fixture: fixtures/martial_rpg/dot_tick
+    user_request: >
+      Dot::step in src/lib.rs applies damage every game tick, ignores the period
+      and the remaining application count, and underflows hp. Make it
+      authoritative and tick-accurate: apply tick_damage only on the tick that
+      completes a full period (a period of 0 means 1), for exactly the configured
+      number of applications, saturating hp at 0 and freezing once exhausted.
+      Keep the Dot API.
+    constraints:
+      - Damage lands only on period boundaries, exactly `applications` times.
+      - hp is clamped at 0 with saturating subtraction; no underflow.
+      - Once remaining reaches 0 the DoT deals no further damage.
+      - Do not edit Cargo.toml or the provided test.
+    allowed_paths: [src/**]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/dot.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test dot]
+      hidden_commands: ["sh -c 'cp hidden/dot_hidden.rs tests/dot_hidden.rs; trap \"rm -f tests/dot_hidden.rs\" EXIT; cargo test --test dot_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/dot_mutation.rs tests/dot_mutation.rs; trap \"rm -f tests/dot_mutation.rs\" EXIT; cargo test --test dot_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [domain_rule_violation, wrong_edge_case, missing_requirement, mutation_verifier_failed]
+
+  - id: martial-rpg-036
+    track: martial_rpg
+    language: rust
+    difficulty: expert
+    task_type: deterministic_card_draw_hand
+    fixture: fixtures/martial_rpg/card_draw
+    user_request: >
+      draw_hand in src/lib.rs maps each card to an independent hash of the seed
+      reduced modulo size, so a hand can contain duplicates and is not a real
+      subset of the deck. Make it authoritative: return a hand of distinct cards
+      from 0..size as the prefix of a seeded permutation (partial Fisher-Yates),
+      pure in (seed, size, hand_size), reproducible and seed-sensitive, with
+      hand_size >= size yielding a full permutation. Keep the draw_hand signature.
+    constraints:
+      - A hand contains only distinct cards from 0..size (a true subset).
+      - draw_hand is a pure function of (seed, size, hand_size), independent of call order.
+      - hand_size >= size returns a full permutation; size 0 yields an empty hand.
+      - Do not edit Cargo.toml or the provided test.
+    allowed_paths: [src/**]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/cards.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test cards]
+      hidden_commands: ["sh -c 'cp hidden/cards_hidden.rs tests/cards_hidden.rs; trap \"rm -f tests/cards_hidden.rs\" EXIT; cargo test --test cards_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/cards_mutation.rs tests/cards_mutation.rs; trap \"rm -f tests/cards_mutation.rs\" EXIT; cargo test --test cards_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, test_quality]
+    failure_tags: [behavior_not_equivalent, golden_output_mismatch, wrong_edge_case, mutation_verifier_failed]

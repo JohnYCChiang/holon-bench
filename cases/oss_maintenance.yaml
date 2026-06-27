@@ -814,3 +814,340 @@ cases:
       hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
       soft_metrics: [functional_correctness, minimality, maintainability]
     failure_tags: [wrong_edge_case, missing_requirement, over_refactor, mutation_verifier_failed]
+
+  - id: oss-maint-028
+    track: oss_maintenance
+    language: python
+    difficulty: easy
+    task_type: rle_roundtrip_repair
+    fixture: fixtures/oss_maintenance/rle_roundtrip
+    user_request: >
+      A user reports (see BUG.md) that the run-length codec breaks its own
+      round-trip once a run reaches length 10: encode writes a multi-digit count
+      but decode reads only a single digit, so decode(encode(x)) corrupts or
+      crashes for runs of 10 or more. Reproduce, fix the decode parsing minimally,
+      and leave behind a regression test that pins the multi-digit round-trip.
+    constraints:
+      - Preserve encode(s)/decode(s) as the public API; decode(encode(x)) == x for any str.
+      - A run length may be any positive integer; decode reads the full decimal count.
+      - encode("") and decode("") both return ""; do not mutate the input.
+      - Add a regression test at exactly tests/test_regression.py that catches this bug.
+    allowed_paths: [src/**, tests/**]
+    forbidden_paths: [BUG.md]
+    protected_paths: [tests/test_acceptance.py, hidden/**]
+    solution_paths: [src/rle.py, tests/test_regression.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_acceptance]
+      hidden_commands: [python3 -m unittest hidden.test_rle_hidden]
+      mutation_commands: [python3 hidden/check_regression.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, test_quality]
+    failure_tags: [missing_test, wrong_edge_case, over_refactor, hidden_verifier_failed]
+
+  - id: oss-maint-029
+    track: oss_maintenance
+    language: python
+    difficulty: medium
+    task_type: cidr_contains_repair
+    fixture: fixtures/oss_maintenance/cidr_contains
+    user_request: >
+      A user reports (see BUG.md) that contains rejects valid members when the
+      CIDR is written with host bits set (e.g. "192.168.1.10/24"): the masked
+      candidate is compared against the raw network integer instead of the masked
+      network address. Reproduce, fix the normalization minimally, and leave
+      behind a regression test.
+    constraints:
+      - Preserve contains(cidr, ip) as the public API returning a bool.
+      - The network address is normalized (masked) before comparison; only the prefix length matters.
+      - A prefix outside 0..32 or an invalid octet raises ValueError; do not mutate the input.
+      - Add a regression test at exactly tests/test_regression.py that catches this bug.
+    allowed_paths: [src/**, tests/**]
+    forbidden_paths: [BUG.md]
+    protected_paths: [tests/test_acceptance.py, hidden/**]
+    solution_paths: [src/cidr.py, tests/test_regression.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_acceptance]
+      hidden_commands: [python3 -m unittest hidden.test_cidr_hidden]
+      mutation_commands: [python3 hidden/check_regression.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, test_quality]
+    failure_tags: [missing_test, wrong_edge_case, domain_rule_violation, mutation_verifier_failed]
+
+  - id: oss-maint-030
+    track: oss_maintenance
+    language: python
+    difficulty: medium
+    task_type: html_escape_repair
+    fixture: fixtures/oss_maintenance/html_escape
+    user_request: >
+      A user reports (see BUG.md) that escape double-escapes its own output: the
+      ampersand replacement runs last and rewrites the '&' in the entities the
+      earlier replacements just inserted, so "a < b" becomes "a &amp;lt; b".
+      Reproduce, fix the replacement order minimally, and leave behind a
+      regression test that pins the no-double-escape contract.
+    constraints:
+      - Preserve escape(s) as the public API returning a new string.
+      - Escape '&' first (or otherwise order replacements) so nothing is double-escaped.
+      - The five specials & < > " ' each map to exactly one entity; escape("") is "".
+      - Add a regression test at exactly tests/test_regression.py that catches this bug.
+    allowed_paths: [src/**, tests/**]
+    forbidden_paths: [BUG.md]
+    protected_paths: [tests/test_acceptance.py, hidden/**]
+    solution_paths: [src/htmlesc.py, tests/test_regression.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_acceptance]
+      hidden_commands: [python3 -m unittest hidden.test_htmlesc_hidden]
+      mutation_commands: [python3 hidden/check_regression.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, test_quality]
+    failure_tags: [missing_test, wrong_edge_case, over_refactor, hidden_verifier_failed]
+
+  - id: oss-maint-031
+    track: oss_maintenance
+    language: python
+    difficulty: hard
+    task_type: bytesize_humanize_repair
+    fixture: fixtures/oss_maintenance/bytesize_humanize
+    user_request: >
+      A user reports (see BUG.md) that humanize prints "1024.0 KiB" instead of
+      "1.0 MiB": a value just below a power of 1024 stays in the lower unit, but
+      rounding to one decimal place pushes it to 1024.0 with no roll-over to the
+      next unit. Reproduce, fix the rounding roll-over minimally, and leave behind
+      a regression test.
+    constraints:
+      - Preserve humanize(n) as the public API and one-decimal binary-unit formatting.
+      - When rounding to one decimal place reaches 1024.0, roll over to the next larger unit.
+      - humanize(0) is "0 B"; negative input raises ValueError; no output ever reads "1024.0 <unit>".
+      - Add a regression test at exactly tests/test_regression.py that catches this bug.
+    allowed_paths: [src/**, tests/**]
+    forbidden_paths: [BUG.md]
+    protected_paths: [tests/test_acceptance.py, hidden/**]
+    solution_paths: [src/humanize.py, tests/test_regression.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_acceptance]
+      hidden_commands: [python3 -m unittest hidden.test_humanize_hidden]
+      mutation_commands: [python3 hidden/check_regression.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [missing_test, wrong_edge_case, domain_rule_violation, mutation_verifier_failed]
+
+  - id: oss-maint-032
+    track: oss_maintenance
+    language: go
+    difficulty: easy
+    task_type: dedup_order_repair
+    fixture: fixtures/oss_maintenance/go_dedup_order
+    user_request: >
+      A user reports (see BUG.md) that Dedup only collapses back-to-back
+      duplicates (like uniq), so a repeated value that is not adjacent slips
+      through. Reproduce, fix the membership tracking minimally so every duplicate
+      is removed while keeping first-seen order, and leave behind a regression test.
+    constraints:
+      - Preserve the Dedup(items []string) []string signature and first-seen order.
+      - Every value appears once regardless of where duplicates occur.
+      - The result is non-nil (empty, non-nil for empty input); do not mutate the input.
+      - Do not change go.mod or the provided acceptance test.
+    allowed_paths: [internal/**]
+    forbidden_paths: [BUG.md, go.mod]
+    protected_paths: [internal/dedup/dedup_test.go, hidden/**]
+    solution_paths: [internal/dedup/dedup.go]
+    verifier:
+      commands: [go test ./internal/dedup -count=1]
+      hidden_commands: ["sh -c 'cp hidden/dedup_hidden_test.go internal/dedup/dedup_hidden_test.go; trap \"rm -f internal/dedup/dedup_hidden_test.go\" EXIT; go test ./internal/dedup -run Hidden -count=1'"]
+      mutation_commands: ["sh -c 'cp hidden/dedup_mutation_test.go internal/dedup/dedup_mutation_test.go; trap \"rm -f internal/dedup/dedup_mutation_test.go\" EXIT; go test ./internal/dedup -run Mutation -count=1'"]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, test_quality]
+    failure_tags: [wrong_edge_case, missing_requirement, missing_test, mutation_verifier_failed]
+
+  - id: oss-maint-033
+    track: oss_maintenance
+    language: go
+    difficulty: medium
+    task_type: timeofday_wrap_repair
+    fixture: fixtures/oss_maintenance/go_timeofday_wrap
+    user_request: >
+      A user reports (see BUG.md) that AddMinutes returns a negative minute-of-day
+      when subtracting across midnight: Go's % keeps the sign of the dividend, so
+      (10 + -20) % 1440 is -10 instead of 1430. Reproduce, fix the wrap
+      normalization minimally, and leave behind a regression test.
+    constraints:
+      - Preserve the AddMinutes(minuteOfDay, delta int) int signature.
+      - The result is normalized into [0, 1440) for any delta, including deltas more negative than a day.
+      - Do not special-case single wraps; fix the underlying modulo handling.
+      - Do not change go.mod or the provided acceptance test.
+    allowed_paths: [internal/**]
+    forbidden_paths: [BUG.md, go.mod]
+    protected_paths: [internal/clock/clock_test.go, hidden/**]
+    solution_paths: [internal/clock/clock.go]
+    verifier:
+      commands: [go test ./internal/clock -count=1]
+      hidden_commands: ["sh -c 'cp hidden/clock_hidden_test.go internal/clock/clock_hidden_test.go; trap \"rm -f internal/clock/clock_hidden_test.go\" EXIT; go test ./internal/clock -run Hidden -count=1'"]
+      mutation_commands: ["sh -c 'cp hidden/clock_mutation_test.go internal/clock/clock_mutation_test.go; trap \"rm -f internal/clock/clock_mutation_test.go\" EXIT; go test ./internal/clock -run Mutation -count=1'"]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, test_quality]
+    failure_tags: [wrong_edge_case, domain_rule_violation, missing_test, mutation_verifier_failed]
+
+  - id: oss-maint-034
+    track: oss_maintenance
+    language: go
+    difficulty: medium
+    task_type: luhn_checksum_repair
+    fixture: fixtures/oss_maintenance/go_luhn_checksum
+    user_request: >
+      A user reports (see BUG.md) that Valid rejects legitimate numbers: it
+      doubles every second digit but never applies the Luhn "subtract 9" when a
+      doubled digit exceeds 9, so any number with such a digit is mis-scored.
+      Reproduce, fix the adjustment minimally, and leave behind a regression test.
+    constraints:
+      - Preserve the Valid(number string) bool signature.
+      - A doubled digit greater than 9 contributes (doubled - 9); the classic Luhn checks pass.
+      - An empty string or any non-digit character is invalid.
+      - Do not change go.mod or the provided acceptance test.
+    allowed_paths: [internal/**]
+    forbidden_paths: [BUG.md, go.mod]
+    protected_paths: [internal/luhn/luhn_test.go, hidden/**]
+    solution_paths: [internal/luhn/luhn.go]
+    verifier:
+      commands: [go test ./internal/luhn -count=1]
+      hidden_commands: ["sh -c 'cp hidden/luhn_hidden_test.go internal/luhn/luhn_hidden_test.go; trap \"rm -f internal/luhn/luhn_hidden_test.go\" EXIT; go test ./internal/luhn -run Hidden -count=1'"]
+      mutation_commands: ["sh -c 'cp hidden/luhn_mutation_test.go internal/luhn/luhn_mutation_test.go; trap \"rm -f internal/luhn/luhn_mutation_test.go\" EXIT; go test ./internal/luhn -run Mutation -count=1'"]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, test_quality]
+    failure_tags: [wrong_edge_case, domain_rule_violation, missing_test, mutation_verifier_failed]
+
+  - id: oss-maint-035
+    track: oss_maintenance
+    language: go
+    difficulty: hard
+    task_type: bfs_shortest_path_repair
+    fixture: fixtures/oss_maintenance/go_bfs_shortest
+    user_request: >
+      A service owner reports (see BUG.md) that ShortestPath sometimes returns a
+      longer-than-shortest distance: it pops the most recently added node from its
+      frontier, turning the intended breadth-first search into a depth-first one
+      that can reach the destination via a longer route first. Reproduce, fix the
+      traversal order minimally, and leave behind a regression test.
+    constraints:
+      - Preserve the ShortestPath(n, edges, src, dst) signature and edge-count result.
+      - Nodes are expanded breadth-first (FIFO) so the first arrival at dst is along a shortest path.
+      - src == dst returns 0; unreachable or out-of-range returns -1; the graph is undirected.
+      - Do not change go.mod or the provided acceptance test.
+    allowed_paths: [internal/**]
+    forbidden_paths: [BUG.md, go.mod]
+    protected_paths: [internal/bfs/bfs_test.go, hidden/**]
+    solution_paths: [internal/bfs/bfs.go]
+    verifier:
+      commands: [go test ./internal/bfs -count=1]
+      hidden_commands: ["sh -c 'cp hidden/bfs_hidden_test.go internal/bfs/bfs_hidden_test.go; trap \"rm -f internal/bfs/bfs_hidden_test.go\" EXIT; go test ./internal/bfs -run Hidden -count=1'"]
+      mutation_commands: ["sh -c 'cp hidden/bfs_mutation_test.go internal/bfs/bfs_mutation_test.go; trap \"rm -f internal/bfs/bfs_mutation_test.go\" EXIT; go test ./internal/bfs -run Mutation -count=1'"]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement, over_refactor, mutation_verifier_failed]
+
+  - id: oss-maint-036
+    track: oss_maintenance
+    language: rust
+    difficulty: medium
+    task_type: base62_encode_repair
+    fixture: fixtures/oss_maintenance/rust_base62_encode
+    user_request: >
+      A user reports (see BUG.md) that encode returns base62 strings in reverse:
+      digits are generated least-significant first but the buffer is never
+      reversed, so every multi-digit result is mirrored. Reproduce, fix the digit
+      order minimally, and leave behind a regression test.
+    constraints:
+      - Preserve the encode(n: u64) -> String signature and the 0-9 A-Z a-z alphabet.
+      - The encoded string reads most-significant digit first; encode(62) == "10".
+      - encode(0) == "0"; do not change the alphabet or its ordering.
+      - Do not edit Cargo.toml or the provided acceptance test.
+    allowed_paths: [src/**]
+    forbidden_paths: [BUG.md, Cargo.toml]
+    protected_paths: [tests/base62.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test base62]
+      hidden_commands: ["sh -c 'cp hidden/base62_hidden.rs tests/base62_hidden.rs; trap \"rm -f tests/base62_hidden.rs\" EXIT; cargo test --test base62_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/base62_mutation.rs tests/base62_mutation.rs; trap \"rm -f tests/base62_mutation.rs\" EXIT; cargo test --test base62_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, test_quality]
+    failure_tags: [wrong_edge_case, missing_requirement, missing_test, mutation_verifier_failed]
+
+  - id: oss-maint-037
+    track: oss_maintenance
+    language: rust
+    difficulty: hard
+    task_type: glob_match_repair
+    fixture: fixtures/oss_maintenance/rust_glob_match
+    user_request: >
+      A user reports (see BUG.md) that a trailing '*' fails to match an empty
+      suffix: the '*' branch bails out as soon as the remaining text is empty, so
+      '*' behaves like one-or-more instead of zero-or-more. Reproduce, fix the
+      star handling minimally (with proper backtracking), and leave behind a
+      regression test.
+    constraints:
+      - Preserve the matches(pattern, text) -> bool signature and the '*'/'?' semantics.
+      - A '*' matches zero or more characters with backtracking; a '?' matches exactly one.
+      - matches("a*", "a") and matches("*", "") are true; literals match exactly.
+      - Do not edit Cargo.toml or the provided acceptance test.
+    allowed_paths: [src/**]
+    forbidden_paths: [BUG.md, Cargo.toml]
+    protected_paths: [tests/glob.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test glob]
+      hidden_commands: ["sh -c 'cp hidden/glob_hidden.rs tests/glob_hidden.rs; trap \"rm -f tests/glob_hidden.rs\" EXIT; cargo test --test glob_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/glob_mutation.rs tests/glob_mutation.rs; trap \"rm -f tests/glob_mutation.rs\" EXIT; cargo test --test glob_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement, over_refactor, mutation_verifier_failed]
+
+  - id: oss-maint-038
+    track: oss_maintenance
+    language: rust
+    difficulty: expert
+    task_type: quote_balance_repair
+    fixture: fixtures/oss_maintenance/rust_quote_balance
+    user_request: >
+      A service owner reports (see BUG.md) that validate mis-parses an escaped
+      quote inside a string: the in-string branch never handles the backslash
+      escape, so a backslash-quote is read as a closing quote and the following
+      quote reopens an unterminated string. Reproduce, fix the escape handling
+      minimally, and leave behind a regression test.
+    constraints:
+      - Preserve the validate(s) -> Result<(), QuoteError> signature and the QuoteError variants.
+      - Inside a quoted span a backslash escapes the next character (consuming both); brackets stay ignored.
+      - Balanced input returns Ok(()); mismatches, stray closes, unclosed brackets, and unterminated strings map to their variants.
+      - Do not edit Cargo.toml or the provided acceptance test.
+    allowed_paths: [src/**]
+    forbidden_paths: [BUG.md, Cargo.toml]
+    protected_paths: [tests/quotes.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test quotes]
+      hidden_commands: ["sh -c 'cp hidden/quotes_hidden.rs tests/quotes_hidden.rs; trap \"rm -f tests/quotes_hidden.rs\" EXIT; cargo test --test quotes_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/quotes_mutation.rs tests/quotes_mutation.rs; trap \"rm -f tests/quotes_mutation.rs\" EXIT; cargo test --test quotes_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement, over_refactor, mutation_verifier_failed]

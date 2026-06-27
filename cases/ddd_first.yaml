@@ -807,3 +807,382 @@ cases:
       hard_gates: [patch_applies, tests_pass, scope_pass]
       soft_metrics: [functional_correctness, contract_compliance, test_quality]
     failure_tags: [domain_rule_violation, missing_requirement, state_sync_corruption, mutation_verifier_failed]
+
+  - id: ddd-first-028
+    track: ddd_first
+    language: python
+    difficulty: medium
+    task_type: meeting_room_scheduling
+    fixture: fixtures/ddd_first/meeting_room
+    user_request: >
+      Implement the Meeting Rooms domain in src/meeting_room.py: an immutable half-open
+      TimeSlot value object and a Room aggregate that rejects overlapping bookings and
+      over-capacity attendee counts. Follow DOMAIN.md.
+    constraints:
+      - TimeSlot is immutable, compares by value, and uses half-open ranges; start >= end raises ValueError.
+      - Back-to-back slots do not overlap; overlapping bookings are rejected with ValueError.
+      - attendees must be a positive integer not exceeding capacity; rejected bookings leave state unchanged.
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/meeting_room.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_meeting_room_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_meeting_room_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [domain_rule_violation, missing_requirement, wrong_edge_case, over_refactor]
+
+  - id: ddd-first-029
+    track: ddd_first
+    language: python
+    difficulty: hard
+    task_type: change_making_value_object
+    fixture: fixtures/ddd_first/vending_machine
+    user_request: >
+      Implement VendingMachine in src/vending.py so dispense_change makes exact change by
+      deterministic greedy from the largest denomination, respects coin inventory, and
+      leaves inventory untouched when exact change is impossible. Follow DOMAIN.md.
+    constraints:
+      - amount must be a non-negative integer; amount 0 returns an empty plan.
+      - Greedy takes min(remaining // denom, available) per denomination from largest down.
+      - If exact change cannot be made, raise ValueError and do not mutate inventory (plan computed before applying).
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/vending.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_vending_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_vending_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, minimality]
+    failure_tags: [domain_rule_violation, missing_requirement, state_sync_corruption, mutation_verifier_failed]
+
+  - id: ddd-first-030
+    track: ddd_first
+    language: python
+    difficulty: medium
+    task_type: phase_state_machine
+    fixture: fixtures/ddd_first/traffic_light
+    user_request: >
+      Implement TrafficLight in src/traffic.py as a deterministic phase state machine
+      (GREEN->YELLOW->RED->GREEN) that records phase events and grants a pending
+      pedestrian walk exactly once when the light reaches RED. Follow DOMAIN.md.
+    constraints:
+      - Phases cycle deterministically and each advance appends the new phase to events.
+      - An unknown start phase raises ValueError.
+      - A pending walk is granted exactly once on reaching RED, never at GREEN or YELLOW.
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/traffic.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_traffic_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_traffic_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, test_quality]
+    failure_tags: [domain_rule_violation, missing_requirement, wrong_edge_case, state_sync_corruption]
+
+  - id: ddd-first-031
+    track: ddd_first
+    language: python
+    difficulty: medium
+    task_type: room_upgrade_policy
+    fixture: fixtures/ddd_first/hotel_upgrade
+    user_request: >
+      Implement Reservation in src/hotel.py so upgrade only moves to a strictly higher,
+      available room class, returns the correct nightly-rate surcharge, emits an Upgraded
+      event, and rejects downgrades and same-class moves without mutating state. Follow
+      DOMAIN.md.
+    constraints:
+      - Room classes are ranked STANDARD < DELUXE < SUITE; only strictly higher targets are upgrades.
+      - Same-class, downgrade, unknown, or unavailable targets raise ValueError.
+      - Surcharge is (target_rate - current_rate) * nights; rejected upgrades leave state unchanged.
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/hotel.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_hotel_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_hotel_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [domain_rule_violation, missing_requirement, wrong_edge_case, backward_incompatibility]
+
+  - id: ddd-first-032
+    track: ddd_first
+    language: python
+    difficulty: hard
+    task_type: premium_value_object
+    fixture: fixtures/ddd_first/insurance_premium
+    user_request: >
+      Implement InsurancePolicy in src/insurance.py so quote applies the age band, claims
+      surcharge, loyalty discount, and floor in the exact specified order using integer
+      arithmetic, and validates its inputs. Follow DOMAIN.md.
+    constraints:
+      - Computation order is fixed: age band multiplier, then claims surcharge, then loyalty discount, then floor.
+      - All arithmetic is integer floor division; loyalty discount caps at 5 years.
+      - age outside 18..120, negative claims, or negative loyalty raise ValueError.
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/insurance.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_insurance_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_insurance_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, minimality]
+    failure_tags: [domain_rule_violation, missing_requirement, wrong_edge_case, hidden_verifier_failed]
+
+  - id: ddd-first-033
+    track: ddd_first
+    language: python
+    difficulty: medium
+    task_type: standings_tally_policy
+    fixture: fixtures/ddd_first/league_standings
+    user_request: >
+      Implement League in src/standings.py so match results tally points (3/1/0) and
+      goals, and standings() orders teams deterministically by points, then goal
+      difference, then name. Follow DOMAIN.md.
+    constraints:
+      - Win awards 3 points, draw 1 each, loss 0; goals-for/against update both teams.
+      - Unknown teams, a team playing itself, or negative goals raise ValueError without mutating state.
+      - standings() ordering is points desc, then goal difference desc, then name asc.
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/standings.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_standings_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_standings_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, test_quality]
+    failure_tags: [domain_rule_violation, missing_requirement, wrong_edge_case, over_refactor]
+
+  - id: ddd-first-034
+    track: ddd_first
+    language: python
+    difficulty: easy
+    task_type: nutrition_totals_value_object
+    fixture: fixtures/ddd_first/recipe_nutrition
+    user_request: >
+      Implement the Recipe Nutrition domain in src/nutrition.py: an immutable Nutrition
+      value object with by-value equality, scale, and add, and a Recipe aggregate that
+      totals scaled ingredients. Follow DOMAIN.md.
+    constraints:
+      - Nutrition is immutable and compares by value; scale and add return new instances.
+      - add_ingredient requires a positive integer qty (ValueError otherwise).
+      - total() sums each ingredient scaled by quantity; an empty recipe totals all zeros.
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/nutrition.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_nutrition_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_nutrition_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [domain_rule_violation, missing_requirement, wrong_edge_case, over_refactor]
+
+  - id: ddd-first-035
+    track: ddd_first
+    language: python
+    difficulty: hard
+    task_type: approval_chain_aggregate
+    fixture: fixtures/ddd_first/approval_chain
+    user_request: >
+      Implement ApprovalChain in src/approval.py so approvals follow the ordered approver
+      list, a rejection is terminal, DocumentApproved is emitted exactly once on
+      completion, and commands after a terminal state are rejected without mutation.
+      Follow DOMAIN.md.
+    constraints:
+      - approve/reject are only valid while PENDING and only from the current expected approver.
+      - Out-of-order, duplicate, or unknown approvers raise ValueError leaving index and events unchanged.
+      - DocumentApproved is emitted exactly once when the last approver approves; reject is terminal.
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/approval.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_approval_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_approval_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, test_quality]
+    failure_tags: [domain_rule_violation, missing_requirement, state_sync_corruption, mutation_verifier_failed]
+
+  - id: ddd-first-036
+    track: ddd_first
+    language: python
+    difficulty: medium
+    task_type: membership_freeze_policy
+    fixture: fixtures/ddd_first/membership_freeze
+    user_request: >
+      Implement Membership in src/membership.py so freeze/unfreeze enforce the annual
+      freeze budget and active/frozen state, emit events, and reject invalid commands
+      without mutating state. Follow DOMAIN.md.
+    constraints:
+      - freeze requires positive months, only from ACTIVE, and frozen_used + months may not exceed MAX_FREEZE.
+      - unfreeze is only valid from FROZEN; invalid commands raise ValueError and leave state unchanged.
+      - Budget is enforced cumulatively across multiple freezes within the year.
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/membership.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_membership_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_membership_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, minimality]
+    failure_tags: [domain_rule_violation, missing_requirement, wrong_edge_case, mutation_verifier_failed]
+
+  - id: ddd-first-037
+    track: ddd_first
+    language: python
+    difficulty: medium
+    task_type: refund_policy_value_object
+    fixture: fixtures/ddd_first/ticket_refund
+    user_request: >
+      Implement RefundPolicy in src/refund.py so refund subtracts the non-refundable
+      service fee, applies the correct tiered percentage by days-before-event, and
+      validates inputs using integer arithmetic. Follow DOMAIN.md.
+    constraints:
+      - refundable = max(price_cents - SERVICE_FEE, 0); arithmetic is integer floor division.
+      - Refund percentage is 100 at >= 7 days, 50 at >= 3 days, else 0.
+      - price_cents must be positive and days_before non-negative (ValueError otherwise).
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/refund.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_refund_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_refund_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [domain_rule_violation, missing_requirement, wrong_edge_case, over_refactor]
+
+  - id: ddd-first-038
+    track: ddd_first
+    language: python
+    difficulty: hard
+    task_type: multi_balance_wallet
+    fixture: fixtures/ddd_first/multi_wallet
+    user_request: >
+      Implement Wallet in src/wallet.py so per-currency balances stay independent and non-
+      negative, withdrawals reject overdrafts without mutating state, and transfers
+      between wallets are atomic. Follow DOMAIN.md.
+    constraints:
+      - deposit and withdraw require positive integer amounts; an unseen currency reads as 0.
+      - Overdrawn withdrawals raise ValueError and leave state unchanged; currencies are independent.
+      - transfer atomically withdraws then deposits; a rejected withdrawal mutates neither wallet.
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/wallet.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_wallet_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_wallet_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, minimality]
+    failure_tags: [domain_rule_violation, missing_requirement, state_sync_corruption, mutation_verifier_failed]
+
+  - id: ddd-first-039
+    track: ddd_first
+    language: python
+    difficulty: hard
+    task_type: leaderboard_ranking_policy
+    fixture: fixtures/ddd_first/leaderboard_ranking
+    user_request: >
+      Implement Leaderboard in src/leaderboard.py so ranked() uses standard competition
+      ranking with shared ranks for ties and skipped ranks afterward, ordered by score
+      then name, and rejects duplicate or invalid submissions. Follow DOMAIN.md.
+    constraints:
+      - submit requires a non-negative integer score and a not-yet-seen player (ValueError otherwise).
+      - ranked() orders by score desc then name asc; tied scores share a rank and the next rank skips.
+      - Rejected submissions leave state unchanged and ranking is deterministic.
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/leaderboard.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_leaderboard_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_leaderboard_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, test_quality]
+    failure_tags: [domain_rule_violation, missing_requirement, wrong_edge_case, hidden_verifier_failed]
+
+  - id: ddd-first-040
+    track: ddd_first
+    language: python
+    difficulty: expert
+    task_type: seat_map_assignment
+    fixture: fixtures/ddd_first/seat_map
+    user_request: >
+      Implement SeatMap in src/seatmap.py so single-seat assignment guards range and
+      double-booking, release frees seats, and atomic group booking seats passengers in
+      the earliest adjacent run or rejects without any partial mutation. Follow DOMAIN.md.
+    constraints:
+      - assign rejects out-of-range seats, taken seats, and already-seated passengers, emitting an Assigned event.
+      - assign_group seats passengers in the earliest run of adjacent free seats in the row, emitting GroupAssigned.
+      - Group booking is atomic: any rejection (no run, duplicate, or already-seated passenger) mutates nothing and emits no event.
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/seatmap.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_seatmap_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_seatmap_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, test_quality]
+    failure_tags: [domain_rule_violation, missing_requirement, state_sync_corruption, mutation_verifier_failed]
