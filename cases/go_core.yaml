@@ -42,6 +42,7 @@ cases:
     verifier:
       commands: [go test ./pkg/tool]
       hidden_commands: [sh -c 'cp hidden/capabilities_hidden_test.go pkg/tool/capabilities_hidden_test.go; trap "rm -f pkg/tool/capabilities_hidden_test.go" EXIT; go test ./pkg/tool']
+      mutation_commands: [sh -c 'cp hidden/capabilities_mutation_test.go pkg/tool/capabilities_mutation_test.go; trap "rm -f pkg/tool/capabilities_mutation_test.go" EXIT; go test ./pkg/tool -run Mutation -count=1']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
@@ -65,6 +66,7 @@ cases:
     verifier:
       commands: [go test ./internal/worker -run Cancel -count=1]
       hidden_commands: [sh -c 'cp hidden/worker_lifecycle_hidden_test.go internal/worker/worker_lifecycle_hidden_test.go; trap "rm -f internal/worker/worker_lifecycle_hidden_test.go" EXIT; go test ./internal/worker -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/worker_lifecycle_mutation_test.go internal/worker/worker_lifecycle_mutation_test.go; trap "rm -f internal/worker/worker_lifecycle_mutation_test.go" EXIT; go test ./internal/worker -run Mutation -count=1']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
@@ -88,6 +90,7 @@ cases:
     verifier:
       commands: [go test -race ./internal/queue]
       hidden_commands: [sh -c 'cp hidden/queue_backpressure_hidden_test.go internal/queue/queue_backpressure_hidden_test.go; trap "rm -f internal/queue/queue_backpressure_hidden_test.go" EXIT; go test -race ./internal/queue']
+      mutation_commands: [sh -c 'cp hidden/queue_backpressure_mutation_test.go internal/queue/queue_backpressure_mutation_test.go; trap "rm -f internal/queue/queue_backpressure_mutation_test.go" EXIT; go test -race ./internal/queue -run Mutation -count=1']
       timeout_seconds: 90
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
@@ -110,6 +113,8 @@ cases:
     solution_paths: [pkg/schema/schema.go]
     verifier:
       commands: [go test ./pkg/schema]
+      hidden_commands: [sh -c 'cp hidden/schema_hidden_test.go pkg/schema/schema_hidden_test.go; trap "rm -f pkg/schema/schema_hidden_test.go" EXIT; go test ./pkg/schema -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/schema_mutation_test.go pkg/schema/schema_mutation_test.go; trap "rm -f pkg/schema/schema_mutation_test.go" EXIT; go test ./pkg/schema -run Mutation -count=1']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
@@ -132,6 +137,8 @@ cases:
     solution_paths: [internal/validate/validate.go]
     verifier:
       commands: [go test ./internal/validate]
+      hidden_commands: [sh -c 'cp hidden/validate_hidden_test.go internal/validate/validate_hidden_test.go; trap "rm -f internal/validate/validate_hidden_test.go" EXIT; go test ./internal/validate -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/validate_mutation_test.go internal/validate/validate_mutation_test.go; trap "rm -f internal/validate/validate_mutation_test.go" EXIT; go test ./internal/validate -run Mutation -count=1']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
@@ -154,6 +161,8 @@ cases:
     solution_paths: [internal/reader/reader.go]
     verifier:
       commands: [go test ./internal/reader -run Cancel -count=1]
+      hidden_commands: [sh -c 'cp hidden/reader_hidden_test.go internal/reader/reader_hidden_test.go; trap "rm -f internal/reader/reader_hidden_test.go" EXIT; go test ./internal/reader -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/reader_mutation_test.go internal/reader/reader_mutation_test.go; trap "rm -f internal/reader/reader_mutation_test.go" EXIT; go test ./internal/reader -run Mutation -count=1']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
@@ -176,6 +185,8 @@ cases:
     solution_paths: [internal/fanout/fanout.go]
     verifier:
       commands: [go test ./internal/fanout -count=1]
+      hidden_commands: [sh -c 'cp hidden/fanout_hidden_test.go internal/fanout/fanout_hidden_test.go; trap "rm -f internal/fanout/fanout_hidden_test.go" EXIT; go test ./internal/fanout -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/fanout_mutation_test.go internal/fanout/fanout_mutation_test.go; trap "rm -f internal/fanout/fanout_mutation_test.go" EXIT; go test ./internal/fanout -run Mutation -count=1']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
@@ -198,6 +209,8 @@ cases:
     solution_paths: [internal/bus/bus.go]
     verifier:
       commands: [go test -race ./internal/bus]
+      hidden_commands: [sh -c 'cp hidden/bus_hidden_test.go internal/bus/bus_hidden_test.go; trap "rm -f internal/bus/bus_hidden_test.go" EXIT; go test -race ./internal/bus -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/bus_mutation_test.go internal/bus/bus_mutation_test.go; trap "rm -f internal/bus/bus_mutation_test.go" EXIT; go test -race ./internal/bus -run Mutation -count=1']
       timeout_seconds: 90
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
@@ -220,6 +233,8 @@ cases:
     solution_paths: [pkg/store/store.go]
     verifier:
       commands: [go test ./pkg/store]
+      hidden_commands: [sh -c 'cp hidden/store_hidden_test.go pkg/store/store_hidden_test.go; trap "rm -f pkg/store/store_hidden_test.go" EXIT; go test ./pkg/store -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/store_mutation_test.go pkg/store/store_mutation_test.go; trap "rm -f pkg/store/store_mutation_test.go" EXIT; go test ./pkg/store -run Mutation -count=1']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
@@ -242,6 +257,8 @@ cases:
     solution_paths: [pkg/config/config.go]
     verifier:
       commands: [go test ./pkg/config]
+      hidden_commands: [sh -c 'cp hidden/config_hidden_test.go pkg/config/config_hidden_test.go; trap "rm -f pkg/config/config_hidden_test.go" EXIT; go test ./pkg/config -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/config_mutation_test.go pkg/config/config_mutation_test.go; trap "rm -f pkg/config/config_mutation_test.go" EXIT; go test ./pkg/config -run Mutation -count=1']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
@@ -264,6 +281,8 @@ cases:
     solution_paths: [pkg/schema/schema.go]
     verifier:
       commands: [go test ./pkg/schema]
+      hidden_commands: [sh -c 'cp hidden/schema_hidden_test.go pkg/schema/schema_hidden_test.go; trap "rm -f pkg/schema/schema_hidden_test.go" EXIT; go test ./pkg/schema -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/schema_mutation_test.go pkg/schema/schema_mutation_test.go; trap "rm -f pkg/schema/schema_mutation_test.go" EXIT; go test ./pkg/schema -run Mutation -count=1']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
@@ -286,6 +305,8 @@ cases:
     solution_paths: [pkg/parse/duration.go]
     verifier:
       commands: [go test ./pkg/parse]
+      hidden_commands: [sh -c 'cp hidden/duration_hidden_test.go pkg/parse/duration_hidden_test.go; trap "rm -f pkg/parse/duration_hidden_test.go" EXIT; go test ./pkg/parse -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/duration_mutation_test.go pkg/parse/duration_mutation_test.go; trap "rm -f pkg/parse/duration_mutation_test.go" EXIT; go test ./pkg/parse -run Mutation -count=1']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass]
@@ -332,6 +353,8 @@ cases:
     solution_paths: [internal/outbox/outbox.go]
     verifier:
       commands: [go test ./internal/outbox -count=1]
+      hidden_commands: [sh -c 'cp hidden/outbox_hidden_test.go internal/outbox/outbox_hidden_test.go; trap "rm -f internal/outbox/outbox_hidden_test.go" EXIT; go test ./internal/outbox -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/outbox_mutation_test.go internal/outbox/outbox_mutation_test.go; trap "rm -f internal/outbox/outbox_mutation_test.go" EXIT; go test ./internal/outbox -run Mutation -count=1']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, safety_pass]

@@ -17,6 +17,8 @@ cases:
     solution_paths: [src/parser.rs, src/error.rs]
     verifier:
       commands: [cargo test --test parser_errors]
+      hidden_commands: [sh -c 'cp hidden/parser_errors_hidden.rs tests/parser_errors_hidden.rs; trap "rm -f tests/parser_errors_hidden.rs" EXIT; cargo test --test parser_errors_hidden']
+      mutation_commands: [sh -c 'cp hidden/parser_errors_mutation.rs tests/parser_errors_mutation.rs; trap "rm -f tests/parser_errors_mutation.rs" EXIT; cargo test --test parser_errors_mutation']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
@@ -39,6 +41,8 @@ cases:
     solution_paths: [src/aggregator.rs]
     verifier:
       commands: [cargo test --test aggregator]
+      hidden_commands: [sh -c 'cp hidden/aggregator_hidden.rs tests/aggregator_hidden.rs; trap "rm -f tests/aggregator_hidden.rs" EXIT; cargo test --test aggregator_hidden']
+      mutation_commands: [sh -c 'cp hidden/aggregator_mutation.rs tests/aggregator_mutation.rs; trap "rm -f tests/aggregator_mutation.rs" EXIT; cargo test --test aggregator_mutation']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
@@ -62,6 +66,7 @@ cases:
     verifier:
       commands: [cargo test --test adapter_dispatch, cargo test --test existing_impls]
       hidden_commands: [sh -c 'cp hidden/adapter_boundary_hidden.rs tests/adapter_boundary_hidden.rs; trap "rm -f tests/adapter_boundary_hidden.rs" EXIT; cargo test --test adapter_boundary_hidden']
+      mutation_commands: [sh -c 'cp hidden/adapter_boundary_mutation.rs tests/adapter_boundary_mutation.rs; trap "rm -f tests/adapter_boundary_mutation.rs" EXIT; cargo test --test adapter_boundary_mutation']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
@@ -109,6 +114,7 @@ cases:
     verifier:
       commands: [cargo test --test serde_compat]
       hidden_commands: [sh -c 'cp hidden/serde_compat_hidden.rs tests/serde_compat_hidden.rs; trap "rm -f tests/serde_compat_hidden.rs" EXIT; cargo test --test serde_compat_hidden']
+      mutation_commands: [sh -c 'cp hidden/serde_compat_mutation.rs tests/serde_compat_mutation.rs; trap "rm -f tests/serde_compat_mutation.rs" EXIT; cargo test --test serde_compat_mutation']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
@@ -132,6 +138,7 @@ cases:
     verifier:
       commands: [cargo test --test module_visibility]
       hidden_commands: [python3 hidden/verify_internal_private.py]
+      mutation_commands: [sh -c 'cp hidden/module_visibility_mutation.rs tests/module_visibility_mutation.rs; trap "rm -f tests/module_visibility_mutation.rs" EXIT; cargo test --test module_visibility_mutation']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
@@ -154,6 +161,8 @@ cases:
     solution_paths: [src/events.rs]
     verifier:
       commands: [cargo test --test events]
+      hidden_commands: [sh -c 'cp hidden/events_hidden.rs tests/events_hidden.rs; trap "rm -f tests/events_hidden.rs" EXIT; cargo test --test events_hidden']
+      mutation_commands: [sh -c 'cp hidden/events_mutation.rs tests/events_mutation.rs; trap "rm -f tests/events_mutation.rs" EXIT; cargo test --test events_mutation']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
@@ -176,6 +185,8 @@ cases:
     solution_paths: [src/labels.rs]
     verifier:
       commands: [cargo test --test labels]
+      hidden_commands: [sh -c 'cp hidden/labels_hidden.rs tests/labels_hidden.rs; trap "rm -f tests/labels_hidden.rs" EXIT; cargo test --test labels_hidden']
+      mutation_commands: [sh -c 'cp hidden/labels_mutation.rs tests/labels_mutation.rs; trap "rm -f tests/labels_mutation.rs" EXIT; cargo test --test labels_mutation']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
@@ -198,6 +209,8 @@ cases:
     solution_paths: [src/aggregate.rs]
     verifier:
       commands: [cargo test --test aggregate]
+      hidden_commands: [sh -c 'cp hidden/aggregate_hidden.rs tests/aggregate_hidden.rs; trap "rm -f tests/aggregate_hidden.rs" EXIT; cargo test --test aggregate_hidden']
+      mutation_commands: [sh -c 'cp hidden/aggregate_mutation.rs tests/aggregate_mutation.rs; trap "rm -f tests/aggregate_mutation.rs" EXIT; cargo test --test aggregate_mutation']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
@@ -220,6 +233,8 @@ cases:
     solution_paths: [src/state.rs]
     verifier:
       commands: [cargo test --test state_machine]
+      hidden_commands: [sh -c 'cp hidden/state_machine_hidden.rs tests/state_machine_hidden.rs; trap "rm -f tests/state_machine_hidden.rs" EXIT; cargo test --test state_machine_hidden']
+      mutation_commands: [sh -c 'cp hidden/state_machine_mutation.rs tests/state_machine_mutation.rs; trap "rm -f tests/state_machine_mutation.rs" EXIT; cargo test --test state_machine_mutation']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
@@ -242,6 +257,8 @@ cases:
     solution_paths: [src/view.rs]
     verifier:
       commands: [cargo test --test view]
+      hidden_commands: [sh -c 'cp hidden/view_hidden.rs tests/view_hidden.rs; trap "rm -f tests/view_hidden.rs" EXIT; cargo test --test view_hidden']
+      mutation_commands: [sh -c 'cp hidden/view_mutation.rs tests/view_mutation.rs; trap "rm -f tests/view_mutation.rs" EXIT; cargo test --test view_mutation']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
@@ -264,6 +281,8 @@ cases:
     solution_paths: [src/status.rs]
     verifier:
       commands: [cargo test --test status, cargo test --features verbose --test status]
+      hidden_commands: [sh -c 'cp hidden/status_hidden.rs tests/status_hidden.rs; trap "rm -f tests/status_hidden.rs" EXIT; cargo test --test status_hidden', sh -c 'cp hidden/status_hidden.rs tests/status_hidden.rs; trap "rm -f tests/status_hidden.rs" EXIT; cargo test --features verbose --test status_hidden']
+      mutation_commands: [sh -c 'cp hidden/status_mutation.rs tests/status_mutation.rs; trap "rm -f tests/status_mutation.rs" EXIT; cargo test --test status_mutation', sh -c 'cp hidden/status_mutation.rs tests/status_mutation.rs; trap "rm -f tests/status_mutation.rs" EXIT; cargo test --features verbose --test status_mutation']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
@@ -286,6 +305,8 @@ cases:
     solution_paths: [src/builder.rs]
     verifier:
       commands: [cargo test --test builder]
+      hidden_commands: [sh -c 'cp hidden/builder_hidden.rs tests/builder_hidden.rs; trap "rm -f tests/builder_hidden.rs" EXIT; cargo test --test builder_hidden']
+      mutation_commands: [sh -c 'cp hidden/builder_mutation.rs tests/builder_mutation.rs; trap "rm -f tests/builder_mutation.rs" EXIT; cargo test --test builder_mutation']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
@@ -308,6 +329,8 @@ cases:
     solution_paths: [src/queue.rs]
     verifier:
       commands: [cargo test --test queue]
+      hidden_commands: [sh -c 'cp hidden/queue_hidden.rs tests/queue_hidden.rs; trap "rm -f tests/queue_hidden.rs" EXIT; cargo test --test queue_hidden']
+      mutation_commands: [sh -c 'cp hidden/queue_mutation.rs tests/queue_mutation.rs; trap "rm -f tests/queue_mutation.rs" EXIT; cargo test --test queue_mutation']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
@@ -330,6 +353,8 @@ cases:
     solution_paths: [src/error.rs]
     verifier:
       commands: [cargo test --test error_source]
+      hidden_commands: [sh -c 'cp hidden/error_source_hidden.rs tests/error_source_hidden.rs; trap "rm -f tests/error_source_hidden.rs" EXIT; cargo test --test error_source_hidden']
+      mutation_commands: [sh -c 'cp hidden/error_source_mutation.rs tests/error_source_mutation.rs; trap "rm -f tests/error_source_mutation.rs" EXIT; cargo test --test error_source_mutation']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, schema_valid]

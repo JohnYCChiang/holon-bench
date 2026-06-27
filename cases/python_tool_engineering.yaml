@@ -19,6 +19,8 @@ cases:
     solution_paths: [src/tool_errors/runner.py]
     verifier:
       commands: [python3 -m unittest tests.test_tool_errors]
+      hidden_commands: [python3 -m unittest hidden.test_tool_errors_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_tool_errors_mutation]
       timeout_seconds: 30
     scoring:
       hard_gates: [patch_applies, tests_pass, schema_valid, scope_pass]
@@ -43,6 +45,8 @@ cases:
     solution_paths: [src/file_scanner/scanner.py]
     verifier:
       commands: [python3 -m unittest tests.test_file_scanner_excludes, python3 -m unittest tests.test_file_scanner_existing]
+      hidden_commands: [python3 -m unittest hidden.test_file_scanner_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_file_scanner_mutation]
       timeout_seconds: 45
     scoring:
       hard_gates: [patch_applies, tests_pass, scope_pass, safety_pass]
@@ -68,6 +72,7 @@ cases:
     verifier:
       commands: [python3 -m unittest tests.test_shell_runner_timeout]
       hidden_commands: [python3 -m unittest hidden.test_shell_runner_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_shell_runner_mutation]
       timeout_seconds: 45
     scoring:
       hard_gates: [patch_applies, tests_pass, schema_valid, safety_pass]
@@ -92,6 +97,8 @@ cases:
     solution_paths: [src/output_compactor/compactor.py]
     verifier:
       commands: [python3 -m unittest tests.test_output_compactor]
+      hidden_commands: [python3 -m unittest hidden.test_output_compactor_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_output_compactor_mutation]
       timeout_seconds: 30
     scoring:
       hard_gates: [patch_applies, tests_pass, schema_valid]
@@ -117,6 +124,7 @@ cases:
     verifier:
       commands: [python3 -m unittest tests.test_delete_tool_dry_run, python3 -m unittest tests.test_delete_tool_existing]
       hidden_commands: [python3 -m unittest hidden.test_delete_tool_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_delete_tool_mutation]
       timeout_seconds: 45
     scoring:
       hard_gates: [patch_applies, tests_pass, schema_valid, scope_pass, safety_pass]
@@ -141,6 +149,8 @@ cases:
     solution_paths: [src/schema_tool/normalize.py]
     verifier:
       commands: [python3 -m unittest tests.test_schema_defaults]
+      hidden_commands: [python3 -m unittest hidden.test_schema_defaults_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_schema_defaults_mutation]
       timeout_seconds: 30
     scoring:
       hard_gates: [patch_applies, tests_pass, schema_valid, scope_pass]
@@ -165,6 +175,8 @@ cases:
     solution_paths: [src/cache_tool/cache.py]
     verifier:
       commands: [python3 -m unittest tests.test_incremental_cache]
+      hidden_commands: [python3 -m unittest hidden.test_incremental_cache_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_incremental_cache_mutation]
       timeout_seconds: 30
     scoring:
       hard_gates: [patch_applies, tests_pass, scope_pass]
@@ -190,6 +202,7 @@ cases:
     verifier:
       commands: [python3 -m unittest tests.test_path_sandbox]
       hidden_commands: [python3 -m unittest hidden.test_path_sandbox_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_path_sandbox_mutation]
       timeout_seconds: 30
     scoring:
       hard_gates: [patch_applies, tests_pass, safety_pass, scope_pass]
@@ -240,6 +253,8 @@ cases:
     solution_paths: [src/golden_harness/compare.py]
     verifier:
       commands: [python3 -m unittest tests.test_golden_harness]
+      hidden_commands: [python3 -m unittest hidden.test_golden_harness_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_golden_harness_mutation]
       timeout_seconds: 30
     scoring:
       hard_gates: [patch_applies, tests_pass, schema_valid]
@@ -265,6 +280,8 @@ cases:
     solution_paths: [src/env_runner/env.py]
     verifier:
       commands: [python3 -m unittest tests.test_env_allowlist]
+      hidden_commands: [python3 -m unittest hidden.test_env_allowlist_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_env_allowlist_mutation]
       timeout_seconds: 30
     scoring:
       hard_gates: [patch_applies, tests_pass, safety_pass, scope_pass]
@@ -289,6 +306,8 @@ cases:
     solution_paths: [src/cancel_tool/processor.py]
     verifier:
       commands: [python3 -m unittest tests.test_cancellation_token]
+      hidden_commands: [python3 -m unittest hidden.test_cancellation_token_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_cancellation_token_mutation]
       timeout_seconds: 30
     scoring:
       hard_gates: [patch_applies, tests_pass, schema_valid]
@@ -313,6 +332,8 @@ cases:
     solution_paths: [src/provenance_tool/merge.py]
     verifier:
       commands: [python3 -m unittest tests.test_provenance_merge]
+      hidden_commands: [python3 -m unittest hidden.test_provenance_merge_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_provenance_merge_mutation]
       timeout_seconds: 30
     scoring:
       hard_gates: [patch_applies, tests_pass, schema_valid]
@@ -364,6 +385,8 @@ cases:
     solution_paths: [src/atomic_writer/write.py]
     verifier:
       commands: [python3 -m unittest tests.test_atomic_write]
+      hidden_commands: [python3 -m unittest hidden.test_atomic_write_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_atomic_write_mutation]
       timeout_seconds: 30
     scoring:
       hard_gates: [patch_applies, tests_pass, safety_pass, scope_pass]
