@@ -1,0 +1,7 @@
+{
+  "default_ttl": 3600,
+  "ttls": {
+    "static_asset": 86400,
+    "user_profile": 3600
+  }
+}

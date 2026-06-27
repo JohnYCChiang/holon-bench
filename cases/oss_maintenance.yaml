@@ -300,3 +300,246 @@ cases:
       hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
       soft_metrics: [functional_correctness, minimality, maintainability]
     failure_tags: [wrong_edge_case, missing_requirement, over_refactor, mutation_verifier_failed]
+
+  - id: oss-maint-011
+    track: oss_maintenance
+    language: python
+    difficulty: easy
+    task_type: pagination_boundary_repair
+    fixture: fixtures/oss_maintenance/pagination_boundary
+    user_request: >
+      A user reports (see BUG.md) that paginate(items, page_size, page) shifts
+      every page forward by one, so page 1 returns the second page's items and
+      the first items can never be read. Reproduce, fix the 1-based indexing root
+      cause minimally, and leave behind a regression test that pins page 1.
+    constraints:
+      - Preserve paginate(items, page_size, page) as the public API and its list return shape.
+      - Page 1 returns the first page_size items; a page past the end returns an empty list.
+      - Non-positive page_size and page < 1 must still raise ValueError; do not mutate the input.
+      - Add a regression test at exactly tests/test_regression.py that catches this bug.
+    allowed_paths: [src/**, tests/**]
+    forbidden_paths: [BUG.md]
+    protected_paths: [tests/test_acceptance.py, hidden/**]
+    solution_paths: [src/page.py, tests/test_regression.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_acceptance]
+      hidden_commands: [python3 -m unittest hidden.test_page_hidden]
+      mutation_commands: [python3 hidden/check_regression.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, test_quality]
+    failure_tags: [missing_test, wrong_edge_case, over_refactor, hidden_verifier_failed]
+
+  - id: oss-maint-012
+    track: oss_maintenance
+    language: python
+    difficulty: medium
+    task_type: date_leap_year_repair
+    fixture: fixtures/oss_maintenance/date_leap_year
+    user_request: >
+      A user reports (see BUG.md) that days_between miscounts any span crossing a
+      century year such as 1900: the hand-rolled leap rule treats every year
+      divisible by 4 as a leap year, inserting a phantom Feb 29. Reproduce, fix
+      the Gregorian leap rule minimally, and leave behind a regression test.
+    constraints:
+      - Preserve days_between(a, b) as the public API; the result is b - a in whole days and may be negative.
+      - Leap years follow the Gregorian rule (divisible by 4, except centuries not divisible by 400); 2000 stays leap.
+      - Do not special-case 1900; fix the underlying rule so all centuries are correct.
+      - Add a regression test at exactly tests/test_regression.py that catches this bug.
+    allowed_paths: [src/**, tests/**]
+    forbidden_paths: [BUG.md]
+    protected_paths: [tests/test_acceptance.py, hidden/**]
+    solution_paths: [src/dateutil.py, tests/test_regression.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_acceptance]
+      hidden_commands: [python3 -m unittest hidden.test_dateutil_hidden]
+      mutation_commands: [python3 hidden/check_regression.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, test_quality]
+    failure_tags: [missing_test, wrong_edge_case, domain_rule_violation, mutation_verifier_failed]
+
+  - id: oss-maint-013
+    track: oss_maintenance
+    language: python
+    difficulty: hard
+    task_type: lru_eviction_repair
+    fixture: fixtures/oss_maintenance/lru_cache_eviction
+    user_request: >
+      A user reports (see BUG.md) that LRUCache evicts a key that was just read:
+      a successful get does not refresh the entry's recency, so eviction is driven
+      only by insertion order and drops the wrong key. Reproduce, fix the recency
+      tracking minimally, and leave behind a regression test.
+    constraints:
+      - Preserve the LRUCache(capacity)/get/put API and the least-recently-used eviction contract.
+      - A successful get marks the key most-recently used; put updates value and recency.
+      - capacity <= 0 must still raise ValueError; a miss returns None.
+      - Add a regression test at exactly tests/test_regression.py that catches this bug.
+    allowed_paths: [src/**, tests/**]
+    forbidden_paths: [BUG.md]
+    protected_paths: [tests/test_acceptance.py, hidden/**]
+    solution_paths: [src/lru.py, tests/test_regression.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_acceptance]
+      hidden_commands: [python3 -m unittest hidden.test_lru_hidden]
+      mutation_commands: [python3 hidden/check_regression.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [missing_test, wrong_edge_case, over_refactor, hidden_verifier_failed]
+
+  - id: oss-maint-014
+    track: oss_maintenance
+    language: go
+    difficulty: medium
+    task_type: retry_count_repair
+    fixture: fixtures/oss_maintenance/go_retry_count
+    user_request: >
+      A user reports (see BUG.md) that retry.Do gives up one attempt early and,
+      when attempts == 1, never calls fn at all yet returns nil as if it had
+      succeeded. Reproduce, fix the off-by-one loop bound minimally so fn runs
+      exactly attempts times in the worst case, and leave behind a regression test.
+    constraints:
+      - Preserve the Do(attempts, fn) signature and ErrNoAttempts.
+      - fn is invoked exactly once per attempt; Do returns nil on first success, else the last error.
+      - attempts < 1 returns ErrNoAttempts and never calls fn.
+      - Do not change go.mod or the provided acceptance test.
+    allowed_paths: [internal/**]
+    forbidden_paths: [BUG.md, go.mod]
+    protected_paths: [internal/retry/retry_test.go, hidden/**]
+    solution_paths: [internal/retry/retry.go]
+    verifier:
+      commands: [go test ./internal/retry -count=1]
+      hidden_commands: ["sh -c 'cp hidden/retry_hidden_test.go internal/retry/retry_hidden_test.go; trap \"rm -f internal/retry/retry_hidden_test.go\" EXIT; go test ./internal/retry -run Hidden -count=1'"]
+      mutation_commands: ["sh -c 'cp hidden/retry_mutation_test.go internal/retry/retry_mutation_test.go; trap \"rm -f internal/retry/retry_mutation_test.go\" EXIT; go test ./internal/retry -run Mutation -count=1'"]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, test_quality]
+    failure_tags: [missing_test, wrong_edge_case, missing_requirement, mutation_verifier_failed]
+
+  - id: oss-maint-015
+    track: oss_maintenance
+    language: go
+    difficulty: hard
+    task_type: rate_limiter_window_repair
+    fixture: fixtures/oss_maintenance/go_rate_limiter_window
+    user_request: >
+      A service owner reports (see BUG.md) that limiter.Allow throttles callers
+      one tick too long: its sliding-window prune keeps an event that is exactly
+      `window` ticks old, so the oldest slot never frees on time. Reproduce, fix
+      the boundary comparison minimally, and leave behind a regression test.
+    constraints:
+      - Preserve the New(capacity, window)/Allow(now) API and non-decreasing time contract.
+      - An event is in-window while now-t < window and has expired once now-t >= window.
+      - A denied request is not recorded; capacity is the maximum concurrent in-window events.
+      - Do not change go.mod or the provided acceptance test.
+    allowed_paths: [internal/**]
+    forbidden_paths: [BUG.md, go.mod]
+    protected_paths: [internal/limiter/limiter_test.go, hidden/**]
+    solution_paths: [internal/limiter/limiter.go]
+    verifier:
+      commands: [go test ./internal/limiter -count=1]
+      hidden_commands: ["sh -c 'cp hidden/limiter_hidden_test.go internal/limiter/limiter_hidden_test.go; trap \"rm -f internal/limiter/limiter_hidden_test.go\" EXIT; go test ./internal/limiter -run Hidden -count=1'"]
+      mutation_commands: ["sh -c 'cp hidden/limiter_mutation_test.go internal/limiter/limiter_mutation_test.go; trap \"rm -f internal/limiter/limiter_mutation_test.go\" EXIT; go test ./internal/limiter -run Mutation -count=1'"]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [missing_test, wrong_edge_case, domain_rule_violation, mutation_verifier_failed]
+
+  - id: oss-maint-016
+    track: oss_maintenance
+    language: rust
+    difficulty: medium
+    task_type: hex_decode_repair
+    fixture: fixtures/oss_maintenance/rust_hex_decode
+    user_request: >
+      A user reports a panic (see BUG.md): decode_hex indexes past the buffer on
+      odd-length input and unwraps to_digit on a non-hex character, aborting
+      instead of returning an error. Reproduce, fix the root cause minimally so
+      malformed input becomes a HexError (never a panic), and leave behind a
+      regression test.
+    constraints:
+      - Preserve the decode_hex(&str) -> Result<Vec<u8>, HexError> signature and the HexError variants.
+      - Odd length returns Err(OddLength); a non-hex character returns Err(InvalidChar(c)); never panic.
+      - Bytes decode high-nibble-first; do not silently truncate odd input or swap nibble order.
+      - Do not edit Cargo.toml or the provided acceptance test.
+    allowed_paths: [src/**]
+    forbidden_paths: [BUG.md, Cargo.toml]
+    protected_paths: [tests/hex.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test hex]
+      hidden_commands: ["sh -c 'cp hidden/hex_hidden.rs tests/hex_hidden.rs; trap \"rm -f tests/hex_hidden.rs\" EXIT; cargo test --test hex_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/hex_mutation.rs tests/hex_mutation.rs; trap \"rm -f tests/hex_mutation.rs\" EXIT; cargo test --test hex_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, test_quality]
+    failure_tags: [unstructured_error, wrong_edge_case, missing_test, mutation_verifier_failed]
+
+  - id: oss-maint-017
+    track: oss_maintenance
+    language: rust
+    difficulty: hard
+    task_type: binary_search_boundary_repair
+    fixture: fixtures/oss_maintenance/rust_lower_bound
+    user_request: >
+      A user reports (see BUG.md) that lower_bound returns the index AFTER a
+      duplicated value: the search advances on a[mid] <= target, computing an
+      upper bound instead of the leftmost index. Reproduce, fix the comparison
+      boundary minimally, and leave behind a regression test.
+    constraints:
+      - Preserve the lower_bound(&[i64], i64) -> usize signature over an ascending-sorted slice.
+      - Return the index of the FIRST element >= target (count of elements strictly less than target).
+      - For an absent target return the leftmost insertion point; handle empty slices and all-equal slices.
+      - Do not edit Cargo.toml or the provided acceptance test.
+    allowed_paths: [src/**]
+    forbidden_paths: [BUG.md, Cargo.toml]
+    protected_paths: [tests/search.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test search]
+      hidden_commands: ["sh -c 'cp hidden/search_hidden.rs tests/search_hidden.rs; trap \"rm -f tests/search_hidden.rs\" EXIT; cargo test --test search_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/search_mutation.rs tests/search_mutation.rs; trap \"rm -f tests/search_mutation.rs\" EXIT; cargo test --test search_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, test_quality]
+    failure_tags: [wrong_edge_case, missing_requirement, missing_test, mutation_verifier_failed]
+
+  - id: oss-maint-018
+    track: oss_maintenance
+    language: rust
+    difficulty: expert
+    task_type: graph_cycle_repair
+    fixture: fixtures/oss_maintenance/rust_graph_cycle
+    user_request: >
+      A service owner reports (see BUG.md) that topo_sort accepts cyclic graphs:
+      the DFS only tracks whether a node was ever visited, so a back-edge to a
+      node still on the current path is skipped and the cycle is never reported.
+      Reproduce, fix the cycle detection minimally so a back-edge is detected
+      while a forward/cross edge to a finished node is not, and leave behind a
+      regression test.
+    constraints:
+      - Preserve the topo_sort(n, edges) -> Result<Vec<usize>, GraphError> signature and the GraphError variants.
+      - A back-edge to a node on the current DFS path is a cycle (Err(Cycle)); a diamond DAG must still sort.
+      - Out-of-range nodes return Err(NodeOutOfRange(x)); a valid order keeps every edge pointing forward.
+      - Do not edit Cargo.toml or the provided acceptance test.
+    allowed_paths: [src/**]
+    forbidden_paths: [BUG.md, Cargo.toml]
+    protected_paths: [tests/graph.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test graph]
+      hidden_commands: ["sh -c 'cp hidden/graph_hidden.rs tests/graph_hidden.rs; trap \"rm -f tests/graph_hidden.rs\" EXIT; cargo test --test graph_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/graph_mutation.rs tests/graph_mutation.rs; trap \"rm -f tests/graph_mutation.rs\" EXIT; cargo test --test graph_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement, over_refactor, mutation_verifier_failed]

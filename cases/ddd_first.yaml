@@ -294,3 +294,243 @@ cases:
       hard_gates: [patch_applies, tests_pass, scope_pass]
       soft_metrics: [functional_correctness, contract_compliance, test_quality]
     failure_tags: [domain_rule_violation, missing_requirement, state_sync_corruption, mutation_verifier_failed]
+
+  - id: ddd-first-011
+    track: ddd_first
+    language: python
+    difficulty: easy
+    task_type: reservation_expiry_policy
+    fixture: fixtures/ddd_first/seat_holds
+    user_request: >
+      Implement SeatMap in src/seating.py so temporary seat holds expire on a
+      logical clock and free their seat, an active hold can be confirmed into a
+      permanent booking, and expired or absent holds cannot be confirmed. Follow
+      DOMAIN.md.
+    constraints:
+      - A hold is active while now < expiry; at or after expiry the seat is free again.
+      - hold rejects out-of-range seats, non-positive ttl, and seats that are confirmed or actively held.
+      - confirm requires an active hold; a rejected command must not mutate state.
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/seating.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_seating_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_seating_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [domain_rule_violation, missing_requirement, wrong_edge_case, over_refactor]
+
+  - id: ddd-first-012
+    track: ddd_first
+    language: python
+    difficulty: medium
+    task_type: points_accrual_redemption
+    fixture: fixtures/ddd_first/loyalty_points
+    user_request: >
+      Implement LoyaltyAccount in src/loyalty.py so points accrue at one per
+      whole dollar, redemptions never overdraw the balance, a lifetime-based GOLD
+      tier upgrades exactly once and never downgrades, and rejected commands leave
+      state unchanged. Follow DOMAIN.md.
+    constraints:
+      - earn rejects non-positive amounts; a sub-dollar purchase earns nothing and records no event.
+      - redeem rejects non-positive points or amounts above the balance without mutating state.
+      - TierUpgraded is emitted exactly once when lifetime_earned reaches the threshold; spending never downgrades the tier.
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/loyalty.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_loyalty_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_loyalty_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, minimality]
+    failure_tags: [domain_rule_violation, missing_requirement, wrong_edge_case, state_sync_corruption]
+
+  - id: ddd-first-013
+    track: ddd_first
+    language: python
+    difficulty: hard
+    task_type: bin_transfer_conservation
+    fixture: fixtures/ddd_first/warehouse_bins
+    user_request: >
+      Implement Warehouse in src/warehouse.py so stock lives in capacity-bounded
+      bins, receiving respects capacity, and transfers between distinct bins are
+      atomic and conserve total stock — a rejected transfer leaves both bins
+      unchanged. Follow DOMAIN.md.
+    constraints:
+      - add_bin and receive enforce new ids, positive quantities, and per-bin capacity.
+      - transfer requires distinct existing bins, sufficient source stock, and destination room; it conserves total stock.
+      - A rejected transfer must not mutate either bin or emit an event.
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/warehouse.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_warehouse_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_warehouse_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, minimality]
+    failure_tags: [domain_rule_violation, missing_requirement, state_sync_corruption, mutation_verifier_failed]
+
+  - id: ddd-first-014
+    track: ddd_first
+    language: python
+    difficulty: medium
+    task_type: quorum_tally_rule
+    fixture: fixtures/ddd_first/voting_quorum
+    user_request: >
+      Implement Poll in src/voting.py so only eligible voters vote at most once,
+      casting after close is rejected, and result is reported only when the poll
+      is closed and quorum is met, with ties broken toward the earliest declared
+      option. Follow DOMAIN.md.
+    constraints:
+      - cast rejects closed polls, ineligible voters, unknown options, and repeat voters without mutating state.
+      - result requires a closed poll with at least quorum votes; otherwise it raises.
+      - Ties resolve in favour of the option declared earliest; tally counts every declared option.
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/voting.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_voting_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_voting_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [domain_rule_violation, missing_requirement, wrong_edge_case, state_sync_corruption]
+
+  - id: ddd-first-015
+    track: ddd_first
+    language: python
+    difficulty: hard
+    task_type: tiered_metering_value_object
+    fixture: fixtures/ddd_first/metering_tiers
+    user_request: >
+      Implement TieredPlan and MeteredSubscription in src/metering.py so an
+      immutable plan prices usage across strictly ascending tiers, an aggregate
+      accumulates usage and bills cycles as immutable invoices, and invalid plans
+      or commands are rejected. Follow DOMAIN.md.
+    constraints:
+      - TieredPlan is immutable and compares by value; it validates ascending limits, non-negative rates, and only a trailing open-ended tier.
+      - cost charges each unit at its tier rate, caps usage at a finite final tier, and rejects negative units.
+      - record rejects non-positive units without mutating; close_cycle invoices the charge, emits an event, and resets usage.
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/metering.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_metering_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_metering_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, test_quality]
+    failure_tags: [domain_rule_violation, missing_requirement, wrong_edge_case, mutation_verifier_failed]
+
+  - id: ddd-first-016
+    track: ddd_first
+    language: python
+    difficulty: medium
+    task_type: coupon_stacking_policy
+    fixture: fixtures/ddd_first/coupon_stacking
+    user_request: >
+      Implement Coupon and Checkout in src/coupons.py so an immutable coupon
+      value object validates its kind and value, and a checkout enforces stacking
+      rules, rejects duplicate codes, and prices the cart deterministically with a
+      non-negative total. Follow DOMAIN.md.
+    constraints:
+      - Coupon is immutable and validates kind, percent range 1..100, positive fixed value, and non-empty code.
+      - A non-stackable coupon must be the only coupon; duplicate codes are rejected without mutating state.
+      - total applies coupons in insertion order, floors percentages, and never drops below zero.
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/coupons.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_coupons_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_coupons_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [domain_rule_violation, missing_requirement, wrong_edge_case, over_refactor]
+
+  - id: ddd-first-017
+    track: ddd_first
+    language: python
+    difficulty: easy
+    task_type: sla_breach_detection
+    fixture: fixtures/ddd_first/sla_breach
+    user_request: >
+      Implement SLAMonitor in src/sla.py so a breach latches only after a run of
+      consecutive over-threshold readings, a healthy reading resets the streak and
+      clears the latch, and the SLABreached event fires exactly once per breach
+      episode. Follow DOMAIN.md.
+    constraints:
+      - record rejects readings that are not non-negative integers without mutating state.
+      - A breach latches when consecutive over-threshold readings reach tolerance; SLABreached is emitted once per episode.
+      - A reading at or below threshold resets the consecutive counter and clears the latch.
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/sla.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_sla_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_sla_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [domain_rule_violation, missing_requirement, wrong_edge_case, over_refactor]
+
+  - id: ddd-first-018
+    track: ddd_first
+    language: python
+    difficulty: expert
+    task_type: dispatch_state_machine
+    fixture: fixtures/ddd_first/elevator_dispatch
+    user_request: >
+      Implement Elevator in src/elevator.py as an authoritative deterministic LOOK
+      dispatcher: requests are validated and idempotent, stepping serves the
+      nearest run of requests with deterministic tie-breaks, a door event fires on
+      each arrival, and an empty queue parks the car idle. Follow DOMAIN.md.
+    constraints:
+      - request rejects out-of-range floors, is a no-op for the current floor, and is idempotent; rejected requests do not mutate state.
+      - step follows the LOOK policy, reverses only when no requests remain ahead, and breaks idle ties upward.
+      - Each arrival removes its request and emits DoorOpened exactly once; an empty queue sets direction IDLE without moving.
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/elevator.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_elevator_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_elevator_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, test_quality]
+    failure_tags: [domain_rule_violation, missing_requirement, state_sync_corruption, mutation_verifier_failed]

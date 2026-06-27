@@ -1,0 +1,7 @@
+{
+  "internal_metrics": {
+    "enabled": true,
+    "rollout_percent": 0,
+    "allowlist": []
+  }
+}

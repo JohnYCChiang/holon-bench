@@ -305,3 +305,249 @@ cases:
       hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
       soft_metrics: [functional_correctness, contract_compliance, maintainability]
     failure_tags: [domain_rule_violation, wrong_edge_case, state_sync_corruption, mutation_verifier_failed]
+
+  - id: martial-rpg-011
+    track: martial_rpg
+    language: go
+    difficulty: medium
+    task_type: threat_table_ordering
+    fixture: fixtures/martial_rpg/threat_table
+    user_request: >
+      Target in internal/threat/threat.go trusts the client's claimed target id.
+      Make it authoritative: pick the unit with the highest Threat, break ties by
+      the lower ID, and return -1 for an empty table, ignoring ClientTargetID.
+      Keep the Target signature.
+    constraints:
+      - Choose the highest-Threat unit; ties broken by ascending ID.
+      - The result is deterministic regardless of slice order.
+      - Never read ClientTargetID; an empty table returns -1.
+      - Do not edit go.mod or the provided test.
+    allowed_paths: [internal/**]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/threat/threat_test.go, hidden/**]
+    solution_paths: [internal/threat/threat.go]
+    verifier:
+      commands: [go test ./internal/threat -count=1]
+      hidden_commands: ["sh -c 'cp hidden/threat_hidden_test.go internal/threat/threat_hidden_test.go; trap \"rm -f internal/threat/threat_hidden_test.go\" EXIT; go test ./internal/threat -run Hidden -count=1'"]
+      mutation_commands: ["sh -c 'cp hidden/threat_mutation_test.go internal/threat/threat_mutation_test.go; trap \"rm -f internal/threat/threat_mutation_test.go\" EXIT; go test ./internal/threat -run Mutation -count=1'"]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, test_quality]
+    failure_tags: [domain_rule_violation, state_sync_corruption, wrong_edge_case, mutation_verifier_failed]
+
+  - id: martial-rpg-012
+    track: martial_rpg
+    language: rust
+    difficulty: medium
+    task_type: experience_levelup_curve
+    fixture: fixtures/martial_rpg/levelup_curve
+    user_request: >
+      award in src/lib.rs only grants a single flat-threshold level, never carries
+      the xp remainder, and ignores the max-level cap. Make it authoritative:
+      level up repeatedly while accumulated xp meets the per-level threshold
+      (level * 100), carry the remainder, and never exceed max_level (surplus xp
+      discarded at the cap). Keep the award/Progress API.
+    constraints:
+      - Level up while xp >= level * 100, carrying the remainder each step.
+      - Levels never exceed max_level; xp is zeroed at the cap.
+      - Below the cap, remaining xp stays under the next threshold.
+      - Do not edit Cargo.toml or the provided test.
+    allowed_paths: [src/**]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/levelup.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test levelup]
+      hidden_commands: ["sh -c 'cp hidden/levelup_hidden.rs tests/levelup_hidden.rs; trap \"rm -f tests/levelup_hidden.rs\" EXIT; cargo test --test levelup_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/levelup_mutation.rs tests/levelup_mutation.rs; trap \"rm -f tests/levelup_mutation.rs\" EXIT; cargo test --test levelup_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [domain_rule_violation, wrong_edge_case, missing_requirement, mutation_verifier_failed]
+
+  - id: martial-rpg-013
+    track: martial_rpg
+    language: go
+    difficulty: hard
+    task_type: weighted_loot_roll
+    fixture: fixtures/martial_rpg/loot_roll
+    user_request: >
+      Roll in internal/loot/loot.go ignores entry weights, indexes by the raw
+      roll, and can return invalid entries. Make it authoritative and
+      deterministic: ignore non-positive weights, consider entries in ascending ID
+      order, and select by cumulative weight using the roll reduced modulo the
+      total valid weight, returning -1 when none are valid. Keep the Roll
+      signature.
+    constraints:
+      - Entries with non-positive weight are invalid and never chosen.
+      - Selection is order-independent (ascending ID, cumulative weight).
+      - The roll is reduced modulo the total valid weight; no valid entry returns -1.
+      - Do not edit go.mod or the provided test.
+    allowed_paths: [internal/**]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/loot/loot_test.go, hidden/**]
+    solution_paths: [internal/loot/loot.go]
+    verifier:
+      commands: [go test ./internal/loot -count=1]
+      hidden_commands: ["sh -c 'cp hidden/loot_hidden_test.go internal/loot/loot_hidden_test.go; trap \"rm -f internal/loot/loot_hidden_test.go\" EXIT; go test ./internal/loot -run Hidden -count=1'"]
+      mutation_commands: ["sh -c 'cp hidden/loot_mutation_test.go internal/loot/loot_mutation_test.go; trap \"rm -f internal/loot/loot_mutation_test.go\" EXIT; go test ./internal/loot -run Mutation -count=1'"]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, test_quality]
+    failure_tags: [domain_rule_violation, wrong_edge_case, state_sync_corruption, mutation_verifier_failed]
+
+  - id: martial-rpg-014
+    track: martial_rpg
+    language: rust
+    difficulty: hard
+    task_type: grid_pathfinding_cost
+    fixture: fixtures/martial_rpg/grid_pathfind
+    user_request: >
+      shortest_cost in src/lib.rs returns the raw Manhattan distance, ignoring
+      terrain cost and walls. Make it authoritative: compute the minimal total
+      entry-cost over a 4-connected grid (start cell's cost excluded, BLOCKED
+      cells impassable), returning None when an endpoint is out of bounds/blocked
+      or no path exists. Keep the shortest_cost signature.
+    constraints:
+      - Cost is the minimal sum of entered cells' costs (start excluded).
+      - BLOCKED cells are impassable; blocked/out-of-bounds endpoints return None.
+      - start == goal yields Some(0); the result is deterministic.
+      - Do not edit Cargo.toml or the provided test.
+    allowed_paths: [src/**]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/pathfind.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test pathfind]
+      hidden_commands: ["sh -c 'cp hidden/pathfind_hidden.rs tests/pathfind_hidden.rs; trap \"rm -f tests/pathfind_hidden.rs\" EXIT; cargo test --test pathfind_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/pathfind_mutation.rs tests/pathfind_mutation.rs; trap \"rm -f tests/pathfind_mutation.rs\" EXIT; cargo test --test pathfind_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [domain_rule_violation, wrong_edge_case, golden_output_mismatch, mutation_verifier_failed]
+
+  - id: martial-rpg-015
+    track: martial_rpg
+    language: go
+    difficulty: medium
+    task_type: mana_regen_tick
+    fixture: fixtures/martial_rpg/mana_regen
+    user_request: >
+      Tick in internal/mana/mana.go trusts the client's claimed mana and never
+      clamps. Make it authoritative: apply a spend only when affordable (0 < Spend
+      <= current Mana), then add Regen, clamping the result to [0, Max] and
+      ignoring ClientMana. Keep the Tick signature.
+    constraints:
+      - A spend applies only when 0 < Spend <= current Mana.
+      - Mana is clamped to [0, Max] every tick.
+      - ClientMana is never trusted; a negative spend grants nothing.
+      - Do not edit go.mod or the provided test.
+    allowed_paths: [internal/**]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/mana/mana_test.go, hidden/**]
+    solution_paths: [internal/mana/mana.go]
+    verifier:
+      commands: [go test ./internal/mana -count=1]
+      hidden_commands: ["sh -c 'cp hidden/mana_hidden_test.go internal/mana/mana_hidden_test.go; trap \"rm -f internal/mana/mana_hidden_test.go\" EXIT; go test ./internal/mana -run Hidden -count=1'"]
+      mutation_commands: ["sh -c 'cp hidden/mana_mutation_test.go internal/mana/mana_mutation_test.go; trap \"rm -f internal/mana/mana_mutation_test.go\" EXIT; go test ./internal/mana -run Mutation -count=1'"]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, test_quality]
+    failure_tags: [domain_rule_violation, state_sync_corruption, wrong_edge_case, mutation_verifier_failed]
+
+  - id: martial-rpg-016
+    track: martial_rpg
+    language: rust
+    difficulty: easy
+    task_type: inventory_weight_limit
+    fixture: fixtures/martial_rpg/inventory_weight
+    user_request: >
+      try_add in src/lib.rs always adds an item and can exceed capacity (and
+      overflow). Make it authoritative: add only when the new total weight stays
+      within capacity, returning true and updating on success, or false leaving
+      the inventory unchanged on failure. Keep the try_add/Inventory API.
+    constraints:
+      - An item is added only if weight + w <= capacity.
+      - A rejected add leaves the inventory unchanged and returns false.
+      - A near-overflow weight is rejected without panicking.
+      - Do not edit Cargo.toml or the provided test.
+    allowed_paths: [src/**]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/inventory.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test inventory]
+      hidden_commands: ["sh -c 'cp hidden/inventory_hidden.rs tests/inventory_hidden.rs; trap \"rm -f tests/inventory_hidden.rs\" EXIT; cargo test --test inventory_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/inventory_mutation.rs tests/inventory_mutation.rs; trap \"rm -f tests/inventory_mutation.rs\" EXIT; cargo test --test inventory_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [domain_rule_violation, wrong_edge_case, mutation_verifier_failed]
+
+  - id: martial-rpg-017
+    track: martial_rpg
+    language: go
+    difficulty: hard
+    task_type: respawn_timer_authority
+    fixture: fixtures/martial_rpg/respawn_timer
+    user_request: >
+      Tick in internal/respawn/respawn.go trusts the client's readiness flag and
+      underflows the timer. Make it authoritative: count a dead unit's timer down
+      by one per fixed tick and respawn (Dead=false) only when it reaches 0, never
+      letting Remaining go negative or touching a living unit, and ignoring
+      ClientReady. Keep the Tick signature.
+    constraints:
+      - A dead unit's timer decrements by one and respawns only at 0.
+      - Remaining never goes negative; a living unit is untouched.
+      - ClientReady is never trusted to force an early respawn.
+      - Do not edit go.mod or the provided test.
+    allowed_paths: [internal/**]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/respawn/respawn_test.go, hidden/**]
+    solution_paths: [internal/respawn/respawn.go]
+    verifier:
+      commands: [go test ./internal/respawn -count=1]
+      hidden_commands: ["sh -c 'cp hidden/respawn_hidden_test.go internal/respawn/respawn_hidden_test.go; trap \"rm -f internal/respawn/respawn_hidden_test.go\" EXIT; go test ./internal/respawn -run Hidden -count=1'"]
+      mutation_commands: ["sh -c 'cp hidden/respawn_mutation_test.go internal/respawn/respawn_mutation_test.go; trap \"rm -f internal/respawn/respawn_mutation_test.go\" EXIT; go test ./internal/respawn -run Mutation -count=1'"]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [domain_rule_violation, state_sync_corruption, wrong_edge_case, mutation_verifier_failed]
+
+  - id: martial-rpg-018
+    track: martial_rpg
+    language: rust
+    difficulty: expert
+    task_type: deterministic_deck_shuffle
+    fixture: fixtures/martial_rpg/deck_shuffle
+    user_request: >
+      shuffle in src/lib.rs maps each slot independently through the seed,
+      producing collisions so the output is not a real permutation. Make it
+      authoritative: return a true permutation of 0..size derived purely from the
+      seed (and size), reproducible for a given seed, seed-sensitive, and
+      independent of any prior calls. Keep the shuffle/Deck API.
+    constraints:
+      - The output is always a true permutation of 0..size (no dups or losses).
+      - It is a pure function of (seed, size): same seed reproduces the order.
+      - Distinct seeds can produce distinct orders; size 0 and 1 are handled.
+      - Do not edit Cargo.toml or the provided test.
+    allowed_paths: [src/**]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/shuffle.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test shuffle]
+      hidden_commands: ["sh -c 'cp hidden/shuffle_hidden.rs tests/shuffle_hidden.rs; trap \"rm -f tests/shuffle_hidden.rs\" EXIT; cargo test --test shuffle_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/shuffle_mutation.rs tests/shuffle_mutation.rs; trap \"rm -f tests/shuffle_mutation.rs\" EXIT; cargo test --test shuffle_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, test_quality]
+    failure_tags: [behavior_not_equivalent, golden_output_mismatch, wrong_edge_case, mutation_verifier_failed]

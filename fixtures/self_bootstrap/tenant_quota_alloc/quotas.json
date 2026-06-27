@@ -1,0 +1,7 @@
+{
+  "total_capacity": 100,
+  "tenants": {
+    "tenant_a": 40,
+    "tenant_b": 30
+  }
+}

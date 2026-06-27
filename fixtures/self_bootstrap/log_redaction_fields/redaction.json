@@ -1,0 +1,6 @@
+{
+  "redact_fields": [
+    "password",
+    "api_key"
+  ]
+}

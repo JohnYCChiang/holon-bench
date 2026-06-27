@@ -1,0 +1,6 @@
+{
+  "ci_runner": [
+    "fs:read",
+    "fs:write:workspace"
+  ]
+}

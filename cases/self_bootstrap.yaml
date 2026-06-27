@@ -302,3 +302,247 @@ cases:
       hard_gates: [patch_applies, tests_pass, scope_pass]
       soft_metrics: [functional_correctness, maintainability, observability]
     failure_tags: [missing_requirement, domain_rule_violation, backward_incompatibility, mutation_verifier_failed]
+
+  - id: self-boot-011
+    track: self_bootstrap
+    language: python
+    difficulty: easy
+    task_type: feature_flag_rollout
+    fixture: fixtures/self_bootstrap/feature_flag_rollout
+    user_request: >
+      The internal_metrics feature flag must become visible to the internal user
+      ops_admin, who is not on its allowlist. Add ops_admin to the allowlist in
+      flags.json without starting a percentage rollout to customers (keep
+      rollout_percent at 0) and without flipping the flag on globally. Edit only
+      flags.json.
+    constraints:
+      - is_enabled(internal_metrics, ops_admin) must be True.
+      - rollout_percent must stay 0 so regular customers remain off.
+      - Do not disable the flag or change unrelated flags.
+      - Do not edit engine.py or any test.
+    allowed_paths: [flags.json]
+    forbidden_paths: [README.md]
+    protected_paths: [engine.py, tests/**, hidden/**]
+    solution_paths: [flags.json]
+    verifier:
+      commands: [python3 -m unittest tests.test_flags]
+      hidden_commands: [python3 hidden/verify_flags.py]
+      mutation_commands: [python3 hidden/verify_flags_mutation.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [contract_compliance, minimality, observability]
+    failure_tags: [missing_requirement, wrong_edge_case, over_refactor, fake_success]
+
+  - id: self-boot-012
+    track: self_bootstrap
+    language: python
+    difficulty: easy
+    task_type: log_redaction_extend
+    fixture: fixtures/self_bootstrap/log_redaction_fields
+    user_request: >
+      The ssn field is leaking into logs because redaction.json does not list it.
+      Add ssn to redact_fields so it is masked, without over-redacting non-sensitive
+      fields such as username and without dropping the existing password / api_key
+      masking. Edit only redaction.json.
+    constraints:
+      - ssn must be redacted to ***.
+      - password and api_key must remain redacted.
+      - Non-sensitive fields like username must stay visible.
+      - Do not edit engine.py or any test.
+    allowed_paths: [redaction.json]
+    forbidden_paths: [README.md]
+    protected_paths: [engine.py, tests/**, hidden/**]
+    solution_paths: [redaction.json]
+    verifier:
+      commands: [python3 -m unittest tests.test_redaction]
+      hidden_commands: [python3 hidden/verify_redaction.py]
+      mutation_commands: [python3 hidden/verify_redaction_mutation.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [contract_compliance, minimality, observability]
+    failure_tags: [missing_requirement, over_refactor, backward_incompatibility, fake_success]
+
+  - id: self-boot-013
+    track: self_bootstrap
+    language: python
+    difficulty: medium
+    task_type: cache_ttl_config
+    fixture: fixtures/self_bootstrap/cache_ttl_policy
+    user_request: >
+      The volatile auth_token resource inherits the long default TTL, so stale
+      tokens are served. Give auth_token its own short TTL (greater than 0 and at
+      most 60 seconds) in ttl.json, without shortening the default or the long-lived
+      static_asset / user_profile entries. Edit only ttl.json.
+    constraints:
+      - get_ttl(auth_token) must be in the range 0 < ttl <= 60.
+      - default_ttl, static_asset, and user_profile must keep their current values.
+      - Do not globally lower the default to fix one resource.
+      - Do not edit engine.py or any test.
+    allowed_paths: [ttl.json]
+    forbidden_paths: [README.md]
+    protected_paths: [engine.py, tests/**, hidden/**]
+    solution_paths: [ttl.json]
+    verifier:
+      commands: [python3 -m unittest tests.test_ttl]
+      hidden_commands: [python3 hidden/verify_ttl.py]
+      mutation_commands: [python3 hidden/verify_ttl_mutation.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [contract_compliance, minimality, observability]
+    failure_tags: [missing_requirement, wrong_edge_case, over_refactor, fake_success]
+
+  - id: self-boot-014
+    track: self_bootstrap
+    language: python
+    difficulty: medium
+    task_type: alias_redirect_resolve
+    fixture: fixtures/self_bootstrap/alias_redirect_map
+    user_request: >
+      The deploy alias must resolve to the canonical release_v2, but its chain
+      dead-ends at ship. Add the missing hop in aliases.json so deploy -> ship ->
+      release -> release_v2. Do not repoint deploy directly to release_v2 (the
+      indirection is intentional), do not repoint the existing release alias, and
+      do not introduce a cycle. Edit only aliases.json.
+    constraints:
+      - resolve(deploy) must equal release_v2 via the ship -> release chain.
+      - The deploy and release edges must not be repointed.
+      - The alias graph must stay acyclic (resolve must not raise).
+      - Do not edit engine.py or any test.
+    allowed_paths: [aliases.json]
+    forbidden_paths: [README.md]
+    protected_paths: [engine.py, tests/**, hidden/**]
+    solution_paths: [aliases.json]
+    verifier:
+      commands: [python3 -m unittest tests.test_aliases]
+      hidden_commands: [python3 hidden/verify_aliases.py]
+      mutation_commands: [python3 hidden/verify_aliases_mutation.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, observability]
+    failure_tags: [missing_requirement, domain_rule_violation, over_refactor, mutation_verifier_failed]
+
+  - id: self-boot-015
+    track: self_bootstrap
+    language: python
+    difficulty: medium
+    task_type: tenant_quota_alloc
+    fixture: fixtures/self_bootstrap/tenant_quota_alloc
+    user_request: >
+      The new tenant tenant_c has no allocation and is starved (quota 0). Give it a
+      quota of at least 20 in quotas.json without over-committing the pool
+      (total_capacity is 100) and without reducing tenant_a (40) or tenant_b (30).
+      Do not inflate total_capacity. Edit only quotas.json.
+    constraints:
+      - quota_for(tenant_c) must be at least 20.
+      - tenant_a (40), tenant_b (30), and total_capacity (100) must be unchanged.
+      - The pool must not be over-committed (sum of quotas <= total_capacity).
+      - Do not edit engine.py or any test.
+    allowed_paths: [quotas.json]
+    forbidden_paths: [README.md]
+    protected_paths: [engine.py, tests/**, hidden/**]
+    solution_paths: [quotas.json]
+    verifier:
+      commands: [python3 -m unittest tests.test_quotas]
+      hidden_commands: [python3 hidden/verify_quotas.py]
+      mutation_commands: [python3 hidden/verify_quotas_mutation.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [contract_compliance, minimality, observability]
+    failure_tags: [missing_requirement, domain_rule_violation, over_refactor, mutation_verifier_failed]
+
+  - id: self-boot-016
+    track: self_bootstrap
+    language: python
+    difficulty: hard
+    task_type: sandbox_scope_grant
+    fixture: fixtures/self_bootstrap/sandbox_scope_grant
+    user_request: >
+      The ci_runner sandbox profile must be allowed to fetch from the package
+      registry (net:fetch:registry) but must stay denied all other network access,
+      in particular net:fetch:internal. Add the narrowest grant to scopes.json that
+      permits net:fetch:registry. Do not grant a broad scope such as net, net:fetch,
+      or *, and keep the existing fs grants. Edit only scopes.json.
+    constraints:
+      - allowed(ci_runner, net:fetch:registry) must be True.
+      - allowed(ci_runner, net:fetch:internal) must remain False.
+      - No broad grant (net, net:fetch, *) may be added; fs grants must be preserved.
+      - Do not edit engine.py or any test.
+    allowed_paths: [scopes.json]
+    forbidden_paths: [README.md]
+    protected_paths: [engine.py, tests/**, hidden/**]
+    solution_paths: [scopes.json]
+    verifier:
+      commands: [python3 -m unittest tests.test_scopes]
+      hidden_commands: [python3 hidden/verify_scopes.py]
+      mutation_commands: [python3 hidden/verify_scopes_mutation.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [contract_compliance, minimality, observability]
+    failure_tags: [missing_requirement, domain_rule_violation, over_refactor, mutation_verifier_failed]
+
+  - id: self-boot-017
+    track: self_bootstrap
+    language: python
+    difficulty: hard
+    task_type: circuit_breaker_repair
+    fixture: fixtures/self_bootstrap/circuit_breaker_trace
+    user_request: >
+      A recorded run (failed_run.json) tripped the circuit breaker even though its
+      failures were isolated blips (longest streak 2), because breaker.json sets
+      failure_threshold too low. Raise the threshold just enough that the recorded
+      run does not trip, while keeping it finite so a sustained failure streak still
+      trips. Do not change the recorded run. Edit only breaker.json.
+    constraints:
+      - The recorded run must not trip under the fixed threshold.
+      - The threshold must stay finite; a long failure streak must still trip.
+      - Do not edit engine.py, failed_run.json, or any test.
+    allowed_paths: [breaker.json]
+    forbidden_paths: [README.md, failed_run.json]
+    protected_paths: [engine.py, tests/**, hidden/**]
+    solution_paths: [breaker.json]
+    verifier:
+      commands: [python3 -m unittest tests.test_breaker]
+      hidden_commands: [python3 hidden/verify_breaker.py]
+      mutation_commands: [python3 hidden/verify_breaker_mutation.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, observability]
+    failure_tags: [missing_requirement, over_refactor, fake_success, mutation_verifier_failed]
+
+  - id: self-boot-018
+    track: self_bootstrap
+    language: python
+    difficulty: expert
+    task_type: approval_quorum_extend
+    fixture: fixtures/self_bootstrap/approval_quorum_rules
+    user_request: >
+      The sensitive prod_db_migration change type has no rule, so it falls back to
+      the permissive default where a single approval suffices. Add a
+      prod_db_migration rule to quorum.json that requires at least two approvals,
+      requires both a dba and a security approval, and forbids self-approval, while
+      leaving the existing code_change rule unweakened. Edit only quorum.json.
+    constraints:
+      - prod_db_migration must require min_approvals >= 2 and both dba and security roles.
+      - prod_db_migration must forbid self-approval (allow_self_approval false).
+      - A legitimate two-role quorum must still pass; the code_change rule must be preserved.
+      - Do not edit engine.py or any test.
+    allowed_paths: [quorum.json]
+    forbidden_paths: [README.md]
+    protected_paths: [engine.py, tests/**, hidden/**]
+    solution_paths: [quorum.json]
+    verifier:
+      commands: [python3 -m unittest tests.test_quorum]
+      hidden_commands: [python3 hidden/verify_quorum.py]
+      mutation_commands: [python3 hidden/verify_quorum_mutation.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, observability]
+    failure_tags: [missing_requirement, wrong_edge_case, domain_rule_violation, mutation_verifier_failed]

@@ -1,0 +1,4 @@
+{
+  "deploy": "ship",
+  "release": "release_v2"
+}
