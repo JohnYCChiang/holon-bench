@@ -17,6 +17,8 @@ cases:
     solution_paths: [server/room/room.go]
     verifier:
       commands: [go test ./server/room]
+      hidden_commands: [sh -c 'cp hidden/room_hidden_test.go server/room/room_hidden_test.go; trap "rm -f server/room/room_hidden_test.go" EXIT; go test ./server/room -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/room_mutation_test.go server/room/room_mutation_test.go; trap "rm -f server/room/room_mutation_test.go" EXIT; go test ./server/room -run Mutation -count=1']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
@@ -40,6 +42,7 @@ cases:
     verifier:
       commands: [go test ./server/session]
       hidden_commands: [sh -c 'cp hidden/reconnect_hidden_test.go server/session/reconnect_hidden_test.go; trap "rm -f server/session/reconnect_hidden_test.go" EXIT; go test ./server/session']
+      mutation_commands: [sh -c 'cp hidden/reconnect_mutation_test.go server/session/reconnect_mutation_test.go; trap "rm -f server/session/reconnect_mutation_test.go" EXIT; go test ./server/session -run Mutation -count=1']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
@@ -63,6 +66,7 @@ cases:
     verifier:
       commands: [go test ./server/tick -count=1]
       hidden_commands: [sh -c 'cp hidden/tick_loop_hidden_test.go server/tick/tick_loop_hidden_test.go; trap "rm -f server/tick/tick_loop_hidden_test.go" EXIT; go test ./server/tick -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/tick_loop_mutation_test.go server/tick/tick_loop_mutation_test.go; trap "rm -f server/tick/tick_loop_mutation_test.go" EXIT; go test ./server/tick -run Mutation -count=1']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
@@ -86,6 +90,7 @@ cases:
     verifier:
       commands: [go test ./server/sim]
       hidden_commands: [sh -c 'cp hidden/sim_hidden_test.go server/sim/sim_hidden_test.go; trap "rm -f server/sim/sim_hidden_test.go" EXIT; go test ./server/sim']
+      mutation_commands: [sh -c 'cp hidden/sim_mutation_test.go server/sim/sim_mutation_test.go; trap "rm -f server/sim/sim_mutation_test.go" EXIT; go test ./server/sim -run Mutation -count=1']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
@@ -157,6 +162,7 @@ cases:
     verifier:
       commands: [go test ./server/movement]
       hidden_commands: [sh -c 'cp hidden/movement_hidden_test.go server/movement/movement_hidden_test.go; trap "rm -f server/movement/movement_hidden_test.go" EXIT; go test ./server/movement -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/movement_mutation_test.go server/movement/movement_mutation_test.go; trap "rm -f server/movement/movement_mutation_test.go" EXIT; go test ./server/movement -run Mutation -count=1']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
@@ -179,6 +185,8 @@ cases:
     solution_paths: [server/replay/replay.go]
     verifier:
       commands: [go test ./server/replay]
+      hidden_commands: [sh -c 'cp hidden/replay_hidden_test.go server/replay/replay_hidden_test.go; trap "rm -f server/replay/replay_hidden_test.go" EXIT; go test ./server/replay -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/replay_mutation_test.go server/replay/replay_mutation_test.go; trap "rm -f server/replay/replay_mutation_test.go" EXIT; go test ./server/replay -run Mutation -count=1']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
@@ -201,6 +209,8 @@ cases:
     solution_paths: [server/sync/delta.go]
     verifier:
       commands: [go test ./server/sync]
+      hidden_commands: [sh -c 'cp hidden/delta_hidden_test.go server/sync/delta_hidden_test.go; trap "rm -f server/sync/delta_hidden_test.go" EXIT; go test ./server/sync -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/delta_mutation_test.go server/sync/delta_mutation_test.go; trap "rm -f server/sync/delta_mutation_test.go" EXIT; go test ./server/sync -run Mutation -count=1']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
@@ -223,6 +233,8 @@ cases:
     solution_paths: [server/lobby/lobby.go]
     verifier:
       commands: [go test ./server/lobby]
+      hidden_commands: [sh -c 'cp hidden/lobby_hidden_test.go server/lobby/lobby_hidden_test.go; trap "rm -f server/lobby/lobby_hidden_test.go" EXIT; go test ./server/lobby -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/lobby_mutation_test.go server/lobby/lobby_mutation_test.go; trap "rm -f server/lobby/lobby_mutation_test.go" EXIT; go test ./server/lobby -run Mutation -count=1']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
@@ -245,6 +257,8 @@ cases:
     solution_paths: [server/session/heartbeat.go]
     verifier:
       commands: [go test ./server/session]
+      hidden_commands: [sh -c 'cp hidden/heartbeat_hidden_test.go server/session/heartbeat_hidden_test.go; trap "rm -f server/session/heartbeat_hidden_test.go" EXIT; go test ./server/session -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/heartbeat_mutation_test.go server/session/heartbeat_mutation_test.go; trap "rm -f server/session/heartbeat_mutation_test.go" EXIT; go test ./server/session -run Mutation -count=1']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
@@ -267,6 +281,8 @@ cases:
     solution_paths: [server/snapshot/snapshot.go]
     verifier:
       commands: [go test ./server/snapshot]
+      hidden_commands: [sh -c 'cp hidden/snapshot_hidden_test.go server/snapshot/snapshot_hidden_test.go; trap "rm -f server/snapshot/snapshot_hidden_test.go" EXIT; go test ./server/snapshot -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/snapshot_mutation_test.go server/snapshot/snapshot_mutation_test.go; trap "rm -f server/snapshot/snapshot_mutation_test.go" EXIT; go test ./server/snapshot -run Mutation -count=1']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
@@ -289,6 +305,8 @@ cases:
     solution_paths: [server/combat/cooldown.go]
     verifier:
       commands: [go test ./server/combat]
+      hidden_commands: [sh -c 'cp hidden/cooldown_hidden_test.go server/combat/cooldown_hidden_test.go; trap "rm -f server/combat/cooldown_hidden_test.go" EXIT; go test ./server/combat -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/cooldown_mutation_test.go server/combat/cooldown_mutation_test.go; trap "rm -f server/combat/cooldown_mutation_test.go" EXIT; go test ./server/combat -run Mutation -count=1']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
@@ -311,6 +329,8 @@ cases:
     solution_paths: [server/replay/checksum.go]
     verifier:
       commands: [go test ./server/replay]
+      hidden_commands: [sh -c 'cp hidden/checksum_hidden_test.go server/replay/checksum_hidden_test.go; trap "rm -f server/replay/checksum_hidden_test.go" EXIT; go test ./server/replay -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/checksum_mutation_test.go server/replay/checksum_mutation_test.go; trap "rm -f server/replay/checksum_mutation_test.go" EXIT; go test ./server/replay -run Mutation -count=1']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
@@ -333,6 +353,8 @@ cases:
     solution_paths: [server/room/close.go]
     verifier:
       commands: [go test ./server/room]
+      hidden_commands: [sh -c 'cp hidden/close_hidden_test.go server/room/close_hidden_test.go; trap "rm -f server/room/close_hidden_test.go" EXIT; go test ./server/room -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/close_mutation_test.go server/room/close_mutation_test.go; trap "rm -f server/room/close_mutation_test.go" EXIT; go test ./server/room -run Mutation -count=1']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
