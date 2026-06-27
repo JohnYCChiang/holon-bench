@@ -1119,3 +1119,289 @@ cases:
       hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
       soft_metrics: [functional_correctness, contract_compliance, test_quality]
     failure_tags: [behavior_not_equivalent, golden_output_mismatch, wrong_edge_case, mutation_verifier_failed]
+
+  - id: martial-rpg-037
+    track: martial_rpg
+    language: go
+    difficulty: medium
+    task_type: parry_timing_window
+    fixture: fixtures/martial_rpg/parry_window
+    user_request: >
+      Resolve in internal/parry/parry.go trusts the client's parry claim and
+      applies raw damage that can drive HP negative. Make it authoritative: a
+      parry succeeds only when the hit lands in the active window
+      [ParryTick, ParryTick+ActiveFrames); a success negates all damage and
+      reflects it only within the perfect window (HitTick-ParryTick <
+      PerfectFrames); otherwise the non-negative damage applies and HP clamps at
+      0. Ignore ClientParried. Keep the Resolve signature.
+    constraints:
+      - The active window is half-open [ParryTick, ParryTick+ActiveFrames); ActiveFrames <= 0 never parries.
+      - A reflect happens only on an in-window parry and only when HitTick-ParryTick < PerfectFrames.
+      - Negative damage never heals; HP never goes negative; ClientParried is never trusted.
+      - Do not edit go.mod or the provided test.
+    allowed_paths: [internal/**]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/parry/parry_test.go, hidden/**]
+    solution_paths: [internal/parry/parry.go]
+    verifier:
+      commands: [go test ./internal/parry -count=1]
+      hidden_commands: ["sh -c 'cp hidden/parry_hidden_test.go internal/parry/parry_hidden_test.go; trap \"rm -f internal/parry/parry_hidden_test.go\" EXIT; go test ./internal/parry -run Hidden -count=1'"]
+      mutation_commands: ["sh -c 'cp hidden/parry_mutation_test.go internal/parry/parry_mutation_test.go; trap \"rm -f internal/parry/parry_mutation_test.go\" EXIT; go test ./internal/parry -run Mutation -count=1'"]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, test_quality]
+    failure_tags: [domain_rule_violation, state_sync_corruption, wrong_edge_case, mutation_verifier_failed]
+
+  - id: martial-rpg-038
+    track: martial_rpg
+    language: rust
+    difficulty: easy
+    task_type: lifesteal_heal_clamp
+    fixture: fixtures/martial_rpg/lifesteal_clamp
+    user_request: >
+      lifesteal in src/lib.rs heals the attacker for a raw percentage of the
+      damage dealt without clamping the percentage, heals on negative damage, and
+      lets hp grow past max_hp (and overflow). Make it authoritative: clamp
+      lifesteal_pct to [0,100], heal only on positive damage using integer
+      (floored) math, and cap the new hp at max_hp. Keep the lifesteal/Combatant
+      API.
+    constraints:
+      - lifesteal_pct is clamped to [0,100]; only positive damage heals.
+      - The heal uses integer floor math and never lets hp exceed max_hp.
+      - Negative damage or percentage grants nothing; no overflow or panic.
+      - Do not edit Cargo.toml or the provided test.
+    allowed_paths: [src/**]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/lifesteal.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test lifesteal]
+      hidden_commands: ["sh -c 'cp hidden/lifesteal_hidden.rs tests/lifesteal_hidden.rs; trap \"rm -f tests/lifesteal_hidden.rs\" EXIT; cargo test --test lifesteal_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/lifesteal_mutation.rs tests/lifesteal_mutation.rs; trap \"rm -f tests/lifesteal_mutation.rs\" EXIT; cargo test --test lifesteal_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [domain_rule_violation, wrong_edge_case, mutation_verifier_failed]
+
+  - id: martial-rpg-039
+    track: martial_rpg
+    language: go
+    difficulty: medium
+    task_type: threat_drop_on_death
+    fixture: fixtures/martial_rpg/threat_drop
+    user_request: >
+      Retarget in internal/retarget/retarget.go ignores the death and the Alive
+      flag and returns the first listed unit, trusting submission order. Make it
+      authoritative: a unit is targetable only if it is Alive and is not the unit
+      that just died (deadID); among targetable units return the highest Threat,
+      ties broken by lowest ID, or -1 when none qualify, without mutating the
+      input. Keep the Retarget signature.
+    constraints:
+      - Dead units and the just-died deadID are excluded from targeting.
+      - The highest-Threat living unit is chosen, ties broken by ascending ID.
+      - The result is order-independent, returns -1 when empty, and never mutates the input slice.
+      - Do not edit go.mod or the provided test.
+    allowed_paths: [internal/**]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/retarget/retarget_test.go, hidden/**]
+    solution_paths: [internal/retarget/retarget.go]
+    verifier:
+      commands: [go test ./internal/retarget -count=1]
+      hidden_commands: ["sh -c 'cp hidden/retarget_hidden_test.go internal/retarget/retarget_hidden_test.go; trap \"rm -f internal/retarget/retarget_hidden_test.go\" EXIT; go test ./internal/retarget -run Hidden -count=1'"]
+      mutation_commands: ["sh -c 'cp hidden/retarget_mutation_test.go internal/retarget/retarget_mutation_test.go; trap \"rm -f internal/retarget/retarget_mutation_test.go\" EXIT; go test ./internal/retarget -run Mutation -count=1'"]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [domain_rule_violation, state_sync_corruption, wrong_edge_case, mutation_verifier_failed]
+
+  - id: martial-rpg-040
+    track: martial_rpg
+    language: rust
+    difficulty: expert
+    task_type: deterministic_wave_spawn_budget
+    fixture: fixtures/martial_rpg/wave_spawn
+    user_request: >
+      WaveSpawner::plan in src/lib.rs spawns `budget` enemies regardless of cost
+      (blowing past the point budget) and advances its internal seed every call,
+      so the plan depends on call order and replay parity breaks. Make plan a pure
+      function of (seed, budget, costs): select only types with 0 < cost <=
+      remaining budget, seeded deterministically, until nothing is affordable, so
+      the total cost never exceeds budget. Keep the plan(&mut self, ...) signature.
+    constraints:
+      - The total cost of the plan never exceeds budget; only types with 0 < cost <= remaining are chosen.
+      - plan is pure in (seed, budget, costs) and independent of prior calls (replay parity).
+      - The same seed reproduces the plan; distinct seeds can diverge; empty/zero-cost cases terminate.
+      - Do not edit Cargo.toml or the provided test.
+    allowed_paths: [src/**]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/wave.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test wave]
+      hidden_commands: ["sh -c 'cp hidden/wave_hidden.rs tests/wave_hidden.rs; trap \"rm -f tests/wave_hidden.rs\" EXIT; cargo test --test wave_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/wave_mutation.rs tests/wave_mutation.rs; trap \"rm -f tests/wave_mutation.rs\" EXIT; cargo test --test wave_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, test_quality]
+    failure_tags: [behavior_not_equivalent, golden_output_mismatch, wrong_edge_case, mutation_verifier_failed]
+
+  - id: martial-rpg-041
+    track: martial_rpg
+    language: go
+    difficulty: easy
+    task_type: hitstop_frame_accumulation
+    fixture: fixtures/martial_rpg/hitstop_frames
+    user_request: >
+      Apply in internal/hitstop/hitstop.go trusts the client's frozen counter and
+      never clamps it. Make it authoritative: when a hit lands (HitFreeze > 0) the
+      freeze counter accumulates, clamped to Max; otherwise it ticks down by one,
+      never below 0. A negative Max is treated as 0 and ClientFrozen is ignored.
+      Keep the Apply signature.
+    constraints:
+      - A hit (HitFreeze > 0) adds freeze frames, clamped to max(Max,0).
+      - With no hit the counter ticks down by one and never goes below 0.
+      - ClientFrozen is never trusted; the counter stays within [0, max(Max,0)].
+      - Do not edit go.mod or the provided test.
+    allowed_paths: [internal/**]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/hitstop/hitstop_test.go, hidden/**]
+    solution_paths: [internal/hitstop/hitstop.go]
+    verifier:
+      commands: [go test ./internal/hitstop -count=1]
+      hidden_commands: ["sh -c 'cp hidden/hitstop_hidden_test.go internal/hitstop/hitstop_hidden_test.go; trap \"rm -f internal/hitstop/hitstop_hidden_test.go\" EXIT; go test ./internal/hitstop -run Hidden -count=1'"]
+      mutation_commands: ["sh -c 'cp hidden/hitstop_mutation_test.go internal/hitstop/hitstop_mutation_test.go; trap \"rm -f internal/hitstop/hitstop_mutation_test.go\" EXIT; go test ./internal/hitstop -run Mutation -count=1'"]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [domain_rule_violation, state_sync_corruption, wrong_edge_case, mutation_verifier_failed]
+
+  - id: martial-rpg-042
+    track: martial_rpg
+    language: rust
+    difficulty: hard
+    task_type: projectile_ricochet_count
+    fixture: fixtures/martial_rpg/projectile_ricochet
+    user_request: >
+      ricochet_chain in src/lib.rs ignores range and the bounce cap, never marks
+      targets as hit, and walks the slice in raw order so a target can be hit
+      repeatedly. Make it authoritative: starting at origin, repeatedly jump to
+      the nearest not-yet-hit target within max_range (squared distance, ties by
+      lowest index), stopping when none are in range or after max_bounces hits, so
+      no target is hit twice. Keep the ricochet_chain signature.
+    constraints:
+      - Each hop goes to the nearest unhit target within max_range^2, ties broken by lowest index.
+      - No target appears twice; the chain length never exceeds max_bounces or the target count.
+      - A negative max_range reaches nothing; the result is deterministic.
+      - Do not edit Cargo.toml or the provided test.
+    allowed_paths: [src/**]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/ricochet.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test ricochet]
+      hidden_commands: ["sh -c 'cp hidden/ricochet_hidden.rs tests/ricochet_hidden.rs; trap \"rm -f tests/ricochet_hidden.rs\" EXIT; cargo test --test ricochet_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/ricochet_mutation.rs tests/ricochet_mutation.rs; trap \"rm -f tests/ricochet_mutation.rs\" EXIT; cargo test --test ricochet_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [domain_rule_violation, wrong_edge_case, golden_output_mismatch, mutation_verifier_failed]
+
+  - id: martial-rpg-043
+    track: martial_rpg
+    language: go
+    difficulty: medium
+    task_type: cooldown_reduction_cap
+    fixture: fixtures/martial_rpg/cooldown_reduction
+    user_request: >
+      Effective in internal/cdr/cdr.go trusts the client's claimed cooldown and
+      does no CDR math. Make it authoritative: stack only positive reduction
+      percentages additively, cap the combined CDR at maxCDR (itself clamped to
+      [0,100]), compute base*(100-cdr)/100 with integer floor, clamp the result to
+      [0,base], and ignore clientCooldown. Keep the Effective signature.
+    constraints:
+      - Only positive reductions stack; the combined CDR is capped at clamp(maxCDR,0,100).
+      - The effective cooldown is base*(100-cdr)/100 floored, clamped to [0,base].
+      - clientCooldown is never trusted; more CDR never increases the cooldown.
+      - Do not edit go.mod or the provided test.
+    allowed_paths: [internal/**]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/cdr/cdr_test.go, hidden/**]
+    solution_paths: [internal/cdr/cdr.go]
+    verifier:
+      commands: [go test ./internal/cdr -count=1]
+      hidden_commands: ["sh -c 'cp hidden/cdr_hidden_test.go internal/cdr/cdr_hidden_test.go; trap \"rm -f internal/cdr/cdr_hidden_test.go\" EXIT; go test ./internal/cdr -run Hidden -count=1'"]
+      mutation_commands: ["sh -c 'cp hidden/cdr_mutation_test.go internal/cdr/cdr_mutation_test.go; trap \"rm -f internal/cdr/cdr_mutation_test.go\" EXIT; go test ./internal/cdr -run Mutation -count=1'"]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, test_quality]
+    failure_tags: [domain_rule_violation, state_sync_corruption, wrong_edge_case, mutation_verifier_failed]
+
+  - id: martial-rpg-044
+    track: martial_rpg
+    language: rust
+    difficulty: medium
+    task_type: energy_shield_absorb_order
+    fixture: fixtures/martial_rpg/energy_shield
+    user_request: >
+      absorb in src/lib.rs applies damage straight to hp, ignoring the energy
+      shield, and underflows. Make it authoritative: incoming damage is absorbed
+      by the shield first and only the overflow spills onto hp, both pools
+      saturate at 0, and negative damage heals nothing. Keep the absorb/Defense
+      API.
+    constraints:
+      - Damage hits the shield first; only the remainder reduces hp.
+      - Both shield and hp saturate at 0; negative damage does nothing.
+      - Total absorbed equals min(damage, shield+hp); hp is untouched while shield remains.
+      - Do not edit Cargo.toml or the provided test.
+    allowed_paths: [src/**]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/eshield.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test eshield]
+      hidden_commands: ["sh -c 'cp hidden/eshield_hidden.rs tests/eshield_hidden.rs; trap \"rm -f tests/eshield_hidden.rs\" EXIT; cargo test --test eshield_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/eshield_mutation.rs tests/eshield_mutation.rs; trap \"rm -f tests/eshield_mutation.rs\" EXIT; cargo test --test eshield_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [domain_rule_violation, wrong_edge_case, state_sync_corruption, mutation_verifier_failed]
+
+  - id: martial-rpg-045
+    track: martial_rpg
+    language: rust
+    difficulty: hard
+    task_type: grid_line_of_sight
+    fixture: fixtures/martial_rpg/line_of_sight
+    user_request: >
+      has_los in src/lib.rs ignores blockers entirely and always reports clear
+      sight. Make it authoritative: trace the integer line between the two cells
+      and return false if any intermediate cell is blocked; out-of-bounds
+      endpoints are not visible, the same cell is trivially visible, endpoints
+      themselves never block, and the result is symmetric. Keep the has_los
+      signature.
+    constraints:
+      - Sight is blocked only by intermediate blocked cells; the endpoints never block.
+      - Out-of-bounds endpoints return false; the same cell returns true.
+      - The result is deterministic and symmetric: has_los(g,a,b) == has_los(g,b,a).
+      - Do not edit Cargo.toml or the provided test.
+    allowed_paths: [src/**]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/los.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test los]
+      hidden_commands: ["sh -c 'cp hidden/los_hidden.rs tests/los_hidden.rs; trap \"rm -f tests/los_hidden.rs\" EXIT; cargo test --test los_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/los_mutation.rs tests/los_mutation.rs; trap \"rm -f tests/los_mutation.rs\" EXIT; cargo test --test los_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [domain_rule_violation, wrong_edge_case, golden_output_mismatch, mutation_verifier_failed]

@@ -1151,3 +1151,358 @@ cases:
       hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
       soft_metrics: [functional_correctness, minimality, maintainability]
     failure_tags: [wrong_edge_case, missing_requirement, over_refactor, mutation_verifier_failed]
+
+  - id: oss-maint-039
+    track: oss_maintenance
+    language: python
+    difficulty: easy
+    task_type: roman_numeral_convert_repair
+    fixture: fixtures/oss_maintenance/roman_numeral
+    user_request: >
+      A user reports (see BUG.md) that roman_to_int adds every symbol's value and
+      never subtracts, so subtractive pairs like IV read as 6 instead of 4.
+      Reproduce, fix the subtractive-notation root cause minimally, and leave
+      behind a regression test that pins the defect.
+    constraints:
+      - Preserve roman_to_int(s) as the public API returning an int.
+      - Subtractive pairs (IV, IX, XL, XC, CD, CM) reduce the total; additive numerals still sum.
+      - An empty string is 0; a character outside IVXLCDM raises ValueError.
+      - Add a regression test at exactly tests/test_regression.py that catches this bug.
+    allowed_paths: [src/**, tests/**]
+    forbidden_paths: [BUG.md]
+    protected_paths: [tests/test_acceptance.py, hidden/**]
+    solution_paths: [src/roman.py, tests/test_regression.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_acceptance]
+      hidden_commands: [python3 -m unittest hidden.test_roman_hidden]
+      mutation_commands: [python3 hidden/check_regression.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, test_quality]
+    failure_tags: [missing_test, wrong_edge_case, over_refactor, hidden_verifier_failed]
+
+  - id: oss-maint-040
+    track: oss_maintenance
+    language: python
+    difficulty: medium
+    task_type: jaccard_similarity_repair
+    fixture: fixtures/oss_maintenance/jaccard_similarity
+    user_request: >
+      A user reports (see BUG.md) that jaccard divides by len(a)+len(b), which
+      double-counts shared elements, so overlapping inputs score too low and two
+      empty inputs crash. Reproduce, fix the denominator to use the true union
+      size minimally, and leave behind a regression test.
+    constraints:
+      - Preserve jaccard(a, b) as the public API returning a float in [0, 1].
+      - The denominator is the number of distinct elements in either input; duplicates within an input are ignored.
+      - Two empty inputs are identical, so jaccard([], []) is 1.0 (no division-by-zero crash).
+      - Add a regression test at exactly tests/test_regression.py that catches this bug.
+    allowed_paths: [src/**, tests/**]
+    forbidden_paths: [BUG.md]
+    protected_paths: [tests/test_acceptance.py, hidden/**]
+    solution_paths: [src/jaccard.py, tests/test_regression.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_acceptance]
+      hidden_commands: [python3 -m unittest hidden.test_jaccard_hidden]
+      mutation_commands: [python3 hidden/check_regression.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, test_quality]
+    failure_tags: [missing_test, wrong_edge_case, missing_requirement, hidden_verifier_failed]
+
+  - id: oss-maint-041
+    track: oss_maintenance
+    language: python
+    difficulty: hard
+    task_type: csv_quoted_newline_repair
+    fixture: fixtures/oss_maintenance/csv_quoted_newline
+    user_request: >
+      A user reports (see BUG.md) that parse_csv splits on every comma and
+      newline, tearing apart quoted fields and leaving the quote characters in
+      place. Reproduce, fix the parser minimally so quoted fields protect their
+      contents, and leave behind a regression test.
+    constraints:
+      - Preserve parse_csv(text) as the public API returning a list of rows (each a list of string fields).
+      - A double-quoted field may contain commas and newlines literally; a doubled quote "" is a single literal quote; wrapping quotes are stripped.
+      - An empty string parses to []; a trailing newline does not add an empty row.
+      - Add a regression test at exactly tests/test_regression.py that catches this bug.
+    allowed_paths: [src/**, tests/**]
+    forbidden_paths: [BUG.md]
+    protected_paths: [tests/test_acceptance.py, hidden/**]
+    solution_paths: [src/csvparse.py, tests/test_regression.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_acceptance]
+      hidden_commands: [python3 -m unittest hidden.test_csv_hidden]
+      mutation_commands: [python3 hidden/check_regression.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, test_quality]
+    failure_tags: [missing_test, wrong_edge_case, missing_requirement, hidden_verifier_failed]
+
+  - id: oss-maint-042
+    track: oss_maintenance
+    language: python
+    difficulty: medium
+    task_type: fraction_reduce_repair
+    fixture: fixtures/oss_maintenance/fraction_reduce
+    user_request: >
+      A user reports (see BUG.md) that reduce_fraction divides by the gcd but
+      never normalizes the sign, so a negative denominator survives (1/-2 stays
+      (1, -2)). Reproduce, fix the sign normalization minimally, and leave behind
+      a regression test.
+    constraints:
+      - Preserve reduce_fraction(num, den) as the public API returning a (numerator, denominator) tuple.
+      - The reduced denominator is positive and the numerator carries the sign; (0, 5) and (0, -5) both reduce to (0, 1).
+      - A zero denominator raises ZeroDivisionError.
+      - Add a regression test at exactly tests/test_regression.py that catches this bug.
+    allowed_paths: [src/**, tests/**]
+    forbidden_paths: [BUG.md]
+    protected_paths: [tests/test_acceptance.py, hidden/**]
+    solution_paths: [src/fraction.py, tests/test_regression.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_acceptance]
+      hidden_commands: [python3 -m unittest hidden.test_fraction_hidden]
+      mutation_commands: [python3 hidden/check_regression.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, test_quality]
+    failure_tags: [missing_test, wrong_edge_case, over_refactor, hidden_verifier_failed]
+
+  - id: oss-maint-043
+    track: oss_maintenance
+    language: go
+    difficulty: easy
+    task_type: bitset_popcount_repair
+    fixture: fixtures/oss_maintenance/go_bitset_popcount
+    user_request: >
+      A user reports (see BUG.md) that PopCount only iterates bit positions 0..31,
+      so any set bit in the upper half of a uint64 is never counted. Reproduce,
+      fix the loop bound minimally so all 64 bits are counted, and leave behind a
+      regression test.
+    constraints:
+      - Preserve the PopCount(x uint64) int signature.
+      - Every one of the 64 bit positions is counted; PopCount(0) is 0 and PopCount(^uint64(0)) is 64.
+      - Do not change go.mod or the provided acceptance test.
+    allowed_paths: [internal/**]
+    forbidden_paths: [BUG.md, go.mod]
+    protected_paths: [internal/bitset/bitset_test.go, hidden/**]
+    solution_paths: [internal/bitset/bitset.go]
+    verifier:
+      commands: [go test ./internal/bitset -count=1]
+      hidden_commands: ["sh -c 'cp hidden/bitset_hidden_test.go internal/bitset/bitset_hidden_test.go; trap \"rm -f internal/bitset/bitset_hidden_test.go\" EXIT; go test ./internal/bitset -run Hidden -count=1'"]
+      mutation_commands: ["sh -c 'cp hidden/bitset_mutation_test.go internal/bitset/bitset_mutation_test.go; trap \"rm -f internal/bitset/bitset_mutation_test.go\" EXIT; go test ./internal/bitset -run Mutation -count=1'"]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, test_quality]
+    failure_tags: [wrong_edge_case, missing_test, over_refactor, mutation_verifier_failed]
+
+  - id: oss-maint-044
+    track: oss_maintenance
+    language: go
+    difficulty: medium
+    task_type: duration_format_repair
+    fixture: fixtures/oss_maintenance/go_duration_format
+    user_request: >
+      A user reports (see BUG.md) that Format shows the total minutes instead of
+      minutes-within-the-hour, so Format(3661) yields "1h61m1s". Reproduce, fix
+      the minutes computation minimally so minutes and seconds wrap at 60, and
+      leave behind a regression test.
+    constraints:
+      - Preserve the Format(seconds int) string signature and the "<H>h<M>m<S>s" shape.
+      - Minutes and seconds are each 0..59; the hours component carries any whole hours and does NOT wrap (Format(86400) is "24h0m0s").
+      - Do not change go.mod or the provided acceptance test.
+    allowed_paths: [internal/**]
+    forbidden_paths: [BUG.md, go.mod]
+    protected_paths: [internal/durfmt/durfmt_test.go, hidden/**]
+    solution_paths: [internal/durfmt/durfmt.go]
+    verifier:
+      commands: [go test ./internal/durfmt -count=1]
+      hidden_commands: ["sh -c 'cp hidden/durfmt_hidden_test.go internal/durfmt/durfmt_hidden_test.go; trap \"rm -f internal/durfmt/durfmt_hidden_test.go\" EXIT; go test ./internal/durfmt -run Hidden -count=1'"]
+      mutation_commands: ["sh -c 'cp hidden/durfmt_mutation_test.go internal/durfmt/durfmt_mutation_test.go; trap \"rm -f internal/durfmt/durfmt_mutation_test.go\" EXIT; go test ./internal/durfmt -run Mutation -count=1'"]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, test_quality]
+    failure_tags: [wrong_edge_case, missing_requirement, missing_test, mutation_verifier_failed]
+
+  - id: oss-maint-045
+    track: oss_maintenance
+    language: go
+    difficulty: hard
+    task_type: topo_sort_stable_repair
+    fixture: fixtures/oss_maintenance/go_topo_sort_stable
+    user_request: >
+      A user reports (see BUG.md) that Sort breaks ties alphabetically instead of
+      by input order, so it is not a stable topological sort. Reproduce, fix the
+      tie-break minimally so ready nodes are emitted in input order while edges
+      and cycle detection still hold, and leave behind a regression test.
+    constraints:
+      - Preserve the Sort(nodes, edges) signature, the ErrCycle sentinel, and cycle detection.
+      - When several nodes are simultaneously ready, emit them in their original order within nodes.
+      - The result honours all edges; a cycle returns ErrCycle.
+      - Do not change go.mod or the provided acceptance test.
+    allowed_paths: [internal/**]
+    forbidden_paths: [BUG.md, go.mod]
+    protected_paths: [internal/toposort/toposort_test.go, hidden/**]
+    solution_paths: [internal/toposort/toposort.go]
+    verifier:
+      commands: [go test ./internal/toposort -count=1]
+      hidden_commands: ["sh -c 'cp hidden/toposort_hidden_test.go internal/toposort/toposort_hidden_test.go; trap \"rm -f internal/toposort/toposort_hidden_test.go\" EXIT; go test ./internal/toposort -run Hidden -count=1'"]
+      mutation_commands: ["sh -c 'cp hidden/toposort_mutation_test.go internal/toposort/toposort_mutation_test.go; trap \"rm -f internal/toposort/toposort_mutation_test.go\" EXIT; go test ./internal/toposort -run Mutation -count=1'"]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, test_quality]
+    failure_tags: [wrong_edge_case, missing_requirement, missing_test, mutation_verifier_failed]
+
+  - id: oss-maint-046
+    track: oss_maintenance
+    language: go
+    difficulty: medium
+    task_type: weekday_of_date_repair
+    fixture: fixtures/oss_maintenance/go_weekday_date
+    user_request: >
+      A user reports (see BUG.md) that Weekday is off by one for January and
+      February dates because Sakamoto's previous-year adjustment is missing.
+      Reproduce, fix the month-boundary handling minimally, and leave behind a
+      regression test.
+    constraints:
+      - Preserve the Weekday(year, month, day) string signature and the day-name set.
+      - Only January and February take the previous-year adjustment; March-onward dates are unchanged.
+      - All dates resolve to the correct Gregorian weekday.
+      - Do not change go.mod or the provided acceptance test.
+    allowed_paths: [internal/**]
+    forbidden_paths: [BUG.md, go.mod]
+    protected_paths: [internal/weekday/weekday_test.go, hidden/**]
+    solution_paths: [internal/weekday/weekday.go]
+    verifier:
+      commands: [go test ./internal/weekday -count=1]
+      hidden_commands: ["sh -c 'cp hidden/weekday_hidden_test.go internal/weekday/weekday_hidden_test.go; trap \"rm -f internal/weekday/weekday_hidden_test.go\" EXIT; go test ./internal/weekday -run Hidden -count=1'"]
+      mutation_commands: ["sh -c 'cp hidden/weekday_mutation_test.go internal/weekday/weekday_mutation_test.go; trap \"rm -f internal/weekday/weekday_mutation_test.go\" EXIT; go test ./internal/weekday -run Mutation -count=1'"]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, test_quality]
+    failure_tags: [wrong_edge_case, domain_rule_violation, missing_test, mutation_verifier_failed]
+
+  - id: oss-maint-047
+    track: oss_maintenance
+    language: rust
+    difficulty: easy
+    task_type: gray_code_increment_repair
+    fixture: fixtures/oss_maintenance/rust_gray_code
+    user_request: >
+      A user reports (see BUG.md) that gray_decode does a single XOR, undoing only
+      one reflection level, so it is not the inverse of gray_encode for values
+      that need more folds. Reproduce, fix the decode to fold in every higher bit
+      minimally, and leave behind a regression test.
+    constraints:
+      - Preserve the gray_encode(u32) -> u32 and gray_decode(u32) -> u32 signatures.
+      - gray_decode inverts gray_encode for all values, including high-order ones; gray_decode(0) is 0.
+      - Do not edit Cargo.toml or the provided acceptance test.
+    allowed_paths: [src/**]
+    forbidden_paths: [BUG.md, Cargo.toml]
+    protected_paths: [tests/gray.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test gray]
+      hidden_commands: ["sh -c 'cp hidden/gray_hidden.rs tests/gray_hidden.rs; trap \"rm -f tests/gray_hidden.rs\" EXIT; cargo test --test gray_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/gray_mutation.rs tests/gray_mutation.rs; trap \"rm -f tests/gray_mutation.rs\" EXIT; cargo test --test gray_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, test_quality]
+    failure_tags: [wrong_edge_case, missing_test, over_refactor, mutation_verifier_failed]
+
+  - id: oss-maint-048
+    track: oss_maintenance
+    language: rust
+    difficulty: medium
+    task_type: base64_padding_repair
+    fixture: fixtures/oss_maintenance/rust_base64_padding
+    user_request: >
+      A user reports (see BUG.md) that base64 encode omits the trailing characters
+      of a short chunk instead of writing '=' padding, so output length is no
+      longer a multiple of four. Reproduce, fix the padding minimally, and leave
+      behind a regression test.
+    constraints:
+      - Preserve the encode(&[u8]) -> String signature and the standard RFC 4648 alphabet.
+      - A 2-byte tail gets one '='; a 1-byte tail gets two '='; full chunks take no padding; encode(b"") is "".
+      - Output length is always a multiple of four; do not edit Cargo.toml or the provided acceptance test.
+    allowed_paths: [src/**]
+    forbidden_paths: [BUG.md, Cargo.toml]
+    protected_paths: [tests/base64.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test base64]
+      hidden_commands: ["sh -c 'cp hidden/base64_hidden.rs tests/base64_hidden.rs; trap \"rm -f tests/base64_hidden.rs\" EXIT; cargo test --test base64_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/base64_mutation.rs tests/base64_mutation.rs; trap \"rm -f tests/base64_mutation.rs\" EXIT; cargo test --test base64_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, test_quality]
+    failure_tags: [wrong_edge_case, missing_requirement, missing_test, mutation_verifier_failed]
+
+  - id: oss-maint-049
+    track: oss_maintenance
+    language: rust
+    difficulty: hard
+    task_type: levenshtein_distance_repair
+    fixture: fixtures/oss_maintenance/rust_levenshtein
+    user_request: >
+      A user reports (see BUG.md) that distance indexes the raw UTF-8 bytes, so a
+      multibyte character counts as several edits (distance("café","cafe") is 2).
+      Reproduce, fix the function to compare by char minimally, and leave behind a
+      regression test.
+    constraints:
+      - Preserve the distance(&str, &str) -> usize signature.
+      - Edits are counted over Unicode scalar values (chars); a single multibyte character, even a 4-byte emoji, is one edit.
+      - The classic ASCII cases still hold (kitten -> sitting is 3); do not edit Cargo.toml or the provided acceptance test.
+    allowed_paths: [src/**]
+    forbidden_paths: [BUG.md, Cargo.toml]
+    protected_paths: [tests/levenshtein.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test levenshtein]
+      hidden_commands: ["sh -c 'cp hidden/levenshtein_hidden.rs tests/levenshtein_hidden.rs; trap \"rm -f tests/levenshtein_hidden.rs\" EXIT; cargo test --test levenshtein_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/levenshtein_mutation.rs tests/levenshtein_mutation.rs; trap \"rm -f tests/levenshtein_mutation.rs\" EXIT; cargo test --test levenshtein_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, test_quality]
+    failure_tags: [wrong_edge_case, missing_test, backward_incompatibility, mutation_verifier_failed]
+
+  - id: oss-maint-050
+    track: oss_maintenance
+    language: rust
+    difficulty: expert
+    task_type: priority_merge_klists_repair
+    fixture: fixtures/oss_maintenance/rust_priority_merge
+    user_request: >
+      A user reports (see BUG.md) that merge_k never pushes the next element of a
+      popped list back onto the heap, so every list contributes only its first
+      element and the rest are dropped. Reproduce, fix the heap advance minimally
+      while keeping the stable ordering, and leave behind a regression test.
+    constraints:
+      - Preserve the merge_k(Vec<Vec<(i32, u32)>>) -> Vec<(i32, u32)> signature.
+      - Every element survives exactly once; the output is ascending by key.
+      - The merge is stable: for equal keys, earlier lists come first and within a list original order is preserved.
+      - Do not edit Cargo.toml or the provided acceptance test.
+    allowed_paths: [src/**]
+    forbidden_paths: [BUG.md, Cargo.toml]
+    protected_paths: [tests/merge.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test merge]
+      hidden_commands: ["sh -c 'cp hidden/merge_hidden.rs tests/merge_hidden.rs; trap \"rm -f tests/merge_hidden.rs\" EXIT; cargo test --test merge_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/merge_mutation.rs tests/merge_mutation.rs; trap \"rm -f tests/merge_mutation.rs\" EXIT; cargo test --test merge_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, test_quality]
+    failure_tags: [wrong_edge_case, missing_requirement, state_sync_corruption, mutation_verifier_failed]
