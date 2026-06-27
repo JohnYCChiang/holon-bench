@@ -30,6 +30,8 @@ cases:
         - python3 -m unittest discover -s tests
       hidden_commands:
         - python3 hidden/verify_policy.py
+      mutation_commands:
+        - python3 hidden/verify_policy_mutation.py
       timeout_seconds: 30
       semantic_checks: [graph_context_used]
     scoring:
@@ -73,6 +75,8 @@ cases:
         - python3 -m unittest discover -s tests
       hidden_commands:
         - python3 hidden/verify_review.py
+      mutation_commands:
+        - python3 hidden/verify_review_mutation.py
       timeout_seconds: 30
       semantic_checks: [graph_relation_used]
     scoring:
@@ -112,6 +116,8 @@ cases:
         - python3 -m unittest discover -s tests
       hidden_commands:
         - python3 hidden/verify_scope.py
+      mutation_commands:
+        - python3 hidden/verify_scope_mutation.py
       timeout_seconds: 30
       semantic_checks: [project_scoped_graph_context]
     scoring:
