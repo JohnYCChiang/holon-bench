@@ -1,0 +1,4 @@
+{
+  "max_attempts": 3,
+  "retryable_failures": ["timeout"]
+}

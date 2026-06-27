@@ -1,0 +1,5 @@
+{
+  "public_api_break": "critical",
+  "unsafe_path": "critical",
+  "over_refactor": "warning"
+}

@@ -44,3 +44,23 @@ tracks:
     phase_1_cases: 10
     full_cases: 50
     role_focus: [patch_worker, porting_worker, game_system_worker]
+  oss_maintenance:
+    language: mixed
+    phase_1_cases: 3
+    full_cases: 50
+    role_focus: [patch_worker, reviewer]
+  self_bootstrap:
+    language: python
+    phase_1_cases: 3
+    full_cases: 30
+    role_focus: [planner, reviewer, contract_worker]
+  ddd_first:
+    language: python
+    phase_1_cases: 3
+    full_cases: 40
+    role_focus: [contract_worker, patch_worker, planner]
+  martial_rpg:
+    language: mixed
+    phase_1_cases: 3
+    full_cases: 45
+    role_focus: [game_system_worker, reviewer]

@@ -1,0 +1,7 @@
+{
+  "name": "review-pipeline",
+  "stages": [
+    {"name": "build", "gates": ["compiles"]},
+    {"name": "visible", "gates": ["tests_pass", "scope_pass"]}
+  ]
+}

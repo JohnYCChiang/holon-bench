@@ -1,0 +1,89 @@
+track: martial_rpg
+cases:
+  - id: martial-rpg-001
+    track: martial_rpg
+    language: rust
+    difficulty: medium
+    task_type: fixed_timestep_combat
+    fixture: fixtures/martial_rpg/fixed_timestep_combat
+    user_request: >
+      The fixed-timestep tick in src/lib.rs underflows the cooldown when it is
+      already 0 and lets stamina regenerate past max_stamina. Fix tick so it is
+      bounds-safe and deterministic, keeping the public Combatant API.
+    constraints:
+      - cooldown must saturate at 0, never wrap.
+      - stamina regen must never exceed max_stamina.
+      - Preserve the Combatant API and use_ability semantics.
+      - Do not edit Cargo.toml or the provided test.
+    allowed_paths: [src/**]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/combat.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test combat]
+      hidden_commands: ["sh -c 'cp hidden/combat_hidden.rs tests/combat_hidden.rs; trap \"rm -f tests/combat_hidden.rs\" EXIT; cargo test --test combat_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/combat_mutation.rs tests/combat_mutation.rs; trap \"rm -f tests/combat_mutation.rs\" EXIT; cargo test --test combat_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [domain_rule_violation, wrong_edge_case, over_refactor, mutation_verifier_failed]
+
+  - id: martial-rpg-002
+    track: martial_rpg
+    language: go
+    difficulty: hard
+    task_type: authoritative_hit_resolution
+    fixture: fixtures/martial_rpg/authoritative_hit
+    user_request: >
+      The server's Resolve trusts the client-supplied ClientDamage and can drive
+      HP negative. Make damage authoritative — computed from AttackerPower minus
+      TargetArmor, floored at 0 — and clamp HP at 0. Keep the Resolve signature.
+    constraints:
+      - Never trust ClientDamage; compute damage from server stats only.
+      - Damage floors at 0 (armor >= power deals nothing).
+      - Target HP must never go negative.
+      - Do not edit go.mod or the provided test.
+    allowed_paths: [internal/**]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/combat/combat_test.go, hidden/**]
+    solution_paths: [internal/combat/combat.go]
+    verifier:
+      commands: [go test ./internal/combat -count=1]
+      hidden_commands: ["sh -c 'cp hidden/combat_hidden_test.go internal/combat/combat_hidden_test.go; trap \"rm -f internal/combat/combat_hidden_test.go\" EXIT; go test ./internal/combat -run Hidden -count=1'"]
+      mutation_commands: ["sh -c 'cp hidden/combat_mutation_test.go internal/combat/combat_mutation_test.go; trap \"rm -f internal/combat/combat_mutation_test.go\" EXIT; go test ./internal/combat -run Mutation -count=1'"]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, test_quality]
+    failure_tags: [domain_rule_violation, state_sync_corruption, missing_requirement, mutation_verifier_failed]
+
+  - id: martial-rpg-003
+    track: martial_rpg
+    language: rust
+    difficulty: expert
+    task_type: replay_checksum_parity
+    fixture: fixtures/martial_rpg/replay_checksum
+    user_request: >
+      replay_checksum folds events in network-delivery order, so the same replay
+      delivered in a different order yields a different checksum and replay parity
+      breaks. Make the checksum authoritative by folding events in ascending
+      entity_id order (stable for ties), without making it commutative.
+    constraints:
+      - Checksum must be independent of delivery order for distinct entity ids.
+      - Ordering for equal entity ids is stable (input order preserved).
+      - Distinct replays must still produce distinct checksums (no trivial constant).
+      - Do not edit Cargo.toml or the provided test.
+    allowed_paths: [src/**]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/replay.rs, hidden/**]
+    solution_paths: [src/lib.rs]
+    verifier:
+      commands: [cargo test --test replay]
+      hidden_commands: ["sh -c 'cp hidden/replay_hidden.rs tests/replay_hidden.rs; trap \"rm -f tests/replay_hidden.rs\" EXIT; cargo test --test replay_hidden'"]
+      mutation_commands: ["sh -c 'cp hidden/replay_mutation.rs tests/replay_mutation.rs; trap \"rm -f tests/replay_mutation.rs\" EXIT; cargo test --test replay_mutation'"]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, test_quality]
+    failure_tags: [golden_output_mismatch, behavior_not_equivalent, wrong_edge_case, mutation_verifier_failed]

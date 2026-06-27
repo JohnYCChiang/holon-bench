@@ -1,0 +1,89 @@
+track: oss_maintenance
+cases:
+  - id: oss-maint-001
+    track: oss_maintenance
+    language: python
+    difficulty: medium
+    task_type: config_keyerror_repair
+    fixture: fixtures/oss_maintenance/config_merge_keyerror
+    user_request: >
+      A user reports a KeyError crash (see BUG.md) when merge_config receives an
+      override that omits the optional limits section. Reproduce, fix the root
+      cause minimally, and leave behind a regression test that pins the defect.
+    constraints:
+      - Preserve merge_config(base, override) as the public API and its return shape.
+      - A missing optional limits section must contribute 0, not crash.
+      - Do not mutate the input mappings.
+      - Add a regression test at exactly tests/test_regression.py that catches this bug.
+    allowed_paths: [src/**, tests/**]
+    forbidden_paths: [BUG.md]
+    protected_paths: [tests/test_acceptance.py, hidden/**]
+    solution_paths: [src/config.py, tests/test_regression.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_acceptance]
+      hidden_commands: [python3 -m unittest hidden.test_config_hidden]
+      mutation_commands: [python3 hidden/check_regression.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, observability]
+    failure_tags: [missing_test, wrong_edge_case, over_refactor, hidden_verifier_failed]
+
+  - id: oss-maint-002
+    track: oss_maintenance
+    language: python
+    difficulty: hard
+    task_type: report_ordering_repair
+    fixture: fixtures/oss_maintenance/report_severity_ordering
+    user_request: >
+      A user reports (see BUG.md) that render_report orders multi-digit severities
+      lexicographically, so a severity-10 finding sorts below severity-9. Reproduce,
+      fix the ordering contract minimally, and leave behind a regression test.
+    constraints:
+      - Highest severity first; ties broken by name ascending.
+      - Severity must be ordered numerically, not as a string.
+      - Do not mutate the input list.
+      - Add a regression test at exactly tests/test_regression.py that catches this bug.
+    allowed_paths: [src/**, tests/**]
+    forbidden_paths: [BUG.md]
+    protected_paths: [tests/test_acceptance.py, hidden/**]
+    solution_paths: [src/report.py, tests/test_regression.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_acceptance]
+      hidden_commands: [python3 -m unittest hidden.test_report_hidden]
+      mutation_commands: [python3 hidden/check_regression.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, test_quality]
+    failure_tags: [missing_test, wrong_edge_case, over_refactor, hidden_verifier_failed]
+
+  - id: oss-maint-003
+    track: oss_maintenance
+    language: go
+    difficulty: expert
+    task_type: goroutine_leak_repair
+    fixture: fixtures/oss_maintenance/go_stream_cancel_leak
+    user_request: >
+      A service owner reports a goroutine leak (see BUG.md): worker.Stream's
+      producer blocks forever on send and ignores ctx when the caller stops
+      reading. Reproduce the leak, fix the root cause minimally, and leave behind
+      a regression test. Keep Stream's signature and in-order delivery contract.
+    constraints:
+      - On context cancellation the producer goroutine must stop and return.
+      - Preserve Stream(ctx, n) signature and ordered 0..n-1 delivery when fully read.
+      - Do not change go.mod or the provided acceptance test.
+      - The provided leak and delivery suites must stay green after the fix.
+    allowed_paths: [internal/**]
+    forbidden_paths: [BUG.md, go.mod]
+    protected_paths: [internal/worker/worker_test.go, hidden/**]
+    solution_paths: [internal/worker/worker.go]
+    verifier:
+      commands: [go test ./internal/worker -run TestStream -count=1]
+      hidden_commands: ["sh -c 'cp hidden/worker_hidden_test.go internal/worker/worker_hidden_test.go; trap \"rm -f internal/worker/worker_hidden_test.go\" EXIT; go test ./internal/worker -run Hidden -count=1'"]
+      mutation_commands: ["sh -c 'cp hidden/worker_mutation_test.go internal/worker/worker_mutation_test.go; trap \"rm -f internal/worker/worker_mutation_test.go\" EXIT; go test ./internal/worker -run Mutation -count=1'"]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, test_quality]
+    failure_tags: [goroutine_leak, cancellation_ignored, missing_test, mutation_verifier_failed]

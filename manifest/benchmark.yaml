@@ -2,8 +2,8 @@ id: holon-bench-v0.1
 name: Holon Benchmark v0.1
 phase: phase_2_compact_core
 case_count_target:
-  phase_1: 48
-  phase_2: 119
+  phase_1: 60
+  phase_2: 131
   phase_3: 365
   phase_4: 500
 purpose: >
@@ -27,3 +27,7 @@ case_files:
   - cases/flutter_cross_platform.yaml
   - cases/graph_memory_workflow.yaml
   - cases/repair_needed.yaml
+  - cases/oss_maintenance.yaml
+  - cases/self_bootstrap.yaml
+  - cases/ddd_first.yaml
+  - cases/martial_rpg.yaml

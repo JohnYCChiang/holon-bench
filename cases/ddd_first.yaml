@@ -1,0 +1,89 @@
+track: ddd_first
+cases:
+  - id: ddd-first-001
+    track: ddd_first
+    language: python
+    difficulty: medium
+    task_type: value_object_aggregate
+    fixture: fixtures/ddd_first/orders_value_object
+    user_request: >
+      Implement the Ordering domain in src/orders.py so the scenarios pass: a
+      value-object Money with by-value equality and currency-safe addition, and an
+      Order aggregate that enforces a single currency and positive quantities and
+      computes a correct total. Follow DOMAIN.md.
+    constraints:
+      - Money is immutable and compares by value.
+      - All order line items must share the order currency; quantities must be positive.
+      - Cross-currency operations raise ValueError.
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/orders.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_orders_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_orders_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [domain_rule_violation, missing_requirement, wrong_edge_case, over_refactor]
+
+  - id: ddd-first-002
+    track: ddd_first
+    language: python
+    difficulty: hard
+    task_type: aggregate_invariant_flow
+    fixture: fixtures/ddd_first/account_invariants
+    user_request: >
+      Implement BankAccount in src/account.py so balance and daily-limit invariants
+      hold across a sequence of deposit/withdraw commands. A rejected command must
+      not mutate state. Follow DOMAIN.md.
+    constraints:
+      - Balance may never go negative; overdraw raises ValueError.
+      - Cumulative withdrawals may not exceed daily_limit, enforced across commands.
+      - Amounts must be positive; rejected commands leave state unchanged.
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/account.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_account_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_account_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, minimality]
+    failure_tags: [domain_rule_violation, missing_requirement, backward_incompatibility, hidden_verifier_failed]
+
+  - id: ddd-first-003
+    track: ddd_first
+    language: python
+    difficulty: expert
+    task_type: domain_event_policy
+    fixture: fixtures/ddd_first/inventory_events
+    user_request: >
+      Implement Inventory in src/inventory.py so reservations never drive stock
+      negative, a StockDepleted domain event is emitted exactly once per depletion,
+      and the reorder policy restocks idempotently. Follow DOMAIN.md.
+    constraints:
+      - Reserving more than available raises ValueError and does not mutate state.
+      - StockDepleted is emitted exactly once per depletion, recurring only after restock.
+      - apply_reorder_policy is idempotent — no duplicate Reordered events.
+      - Do not edit DOMAIN.md or any test.
+    allowed_paths: [src/**]
+    forbidden_paths: [DOMAIN.md]
+    protected_paths: [tests/**, hidden/**]
+    solution_paths: [src/inventory.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_scenarios]
+      hidden_commands: [python3 -m unittest hidden.test_inventory_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_inventory_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, test_quality]
+    failure_tags: [domain_rule_violation, missing_requirement, state_sync_corruption, mutation_verifier_failed]

@@ -1,0 +1,90 @@
+track: self_bootstrap
+cases:
+  - id: self-boot-001
+    track: self_bootstrap
+    language: python
+    difficulty: medium
+    task_type: workflow_stage_extend
+    fixture: fixtures/self_bootstrap/missing_hidden_stage
+    user_request: >
+      The review pipeline accepts submissions that fail the hidden regression
+      suite because workflow.json has no stage gating on hidden_pass. Extend the
+      workflow definition so hidden regressions are rejected, without weakening
+      the existing build/visible gates. Edit only workflow.json.
+    constraints:
+      - Add a stage that gates on hidden_pass.
+      - Preserve the existing compiles/tests_pass/scope_pass gates.
+      - Do not edit engine.py or any test.
+    allowed_paths: [workflow.json]
+    forbidden_paths: [README.md]
+    protected_paths: [engine.py, tests/**, hidden/**]
+    solution_paths: [workflow.json]
+    verifier:
+      commands: [python3 -m unittest tests.test_pipeline]
+      hidden_commands: [python3 hidden/verify_pipeline.py]
+      mutation_commands: [python3 hidden/verify_pipeline_mutation.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [contract_compliance, minimality, observability]
+    failure_tags: [missing_requirement, hidden_verifier_failed, over_refactor, fake_success]
+
+  - id: self-boot-002
+    track: self_bootstrap
+    language: python
+    difficulty: hard
+    task_type: retry_policy_repair
+    fixture: fixtures/self_bootstrap/retry_policy_trace
+    user_request: >
+      A recorded run (failed_run.json) never converged. Diagnose from the trace
+      why the retry policy gave up and fix policy.json so the run converges,
+      without making fatal failures retryable and without removing the attempt
+      budget. Edit only policy.json.
+    constraints:
+      - The recorded flaky_test trace must converge under the fixed policy.
+      - Genuinely fatal failures (e.g. compile_fail) must remain non-retryable.
+      - Keep a finite max_attempts budget; preserve the existing retryable classes.
+      - Do not edit engine.py, failed_run.json, or any test.
+    allowed_paths: [policy.json]
+    forbidden_paths: [README.md, failed_run.json]
+    protected_paths: [engine.py, tests/**, hidden/**]
+    solution_paths: [policy.json]
+    verifier:
+      commands: [python3 -m unittest tests.test_retry]
+      hidden_commands: [python3 hidden/verify_retry.py]
+      mutation_commands: [python3 hidden/verify_retry_mutation.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, observability]
+    failure_tags: [missing_requirement, over_refactor, fake_success, mutation_verifier_failed]
+
+  - id: self-boot-003
+    track: self_bootstrap
+    language: python
+    difficulty: hard
+    task_type: severity_map_extend
+    fixture: fixtures/self_bootstrap/severity_map_extend
+    user_request: >
+      A new failure mode, state_sync_corruption, must be treated as critical so
+      submissions exhibiting it are blocked. Extend severity.json to classify it
+      as critical without downgrading any tag that is already critical. Edit only
+      severity.json.
+    constraints:
+      - state_sync_corruption must map to critical and block.
+      - No previously-critical tag may be downgraded.
+      - Do not promote unrelated warning tags.
+      - Do not edit engine.py or any test.
+    allowed_paths: [severity.json]
+    forbidden_paths: [README.md]
+    protected_paths: [engine.py, tests/**, hidden/**]
+    solution_paths: [severity.json]
+    verifier:
+      commands: [python3 -m unittest tests.test_severity]
+      hidden_commands: [python3 hidden/verify_severity.py]
+      mutation_commands: [python3 hidden/verify_severity_mutation.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [contract_compliance, maintainability, observability]
+    failure_tags: [missing_requirement, backward_incompatibility, over_refactor, mutation_verifier_failed]
