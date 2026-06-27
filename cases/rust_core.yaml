@@ -600,3 +600,243 @@ cases:
       hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
       soft_metrics: [functional_correctness, contract_compliance, maintainability]
     failure_tags: [wrong_edge_case, missing_requirement]
+  - id: rs-core-111
+    track: rust_core
+    language: rust
+    difficulty: easy
+    task_type: cow_usage
+    fixture: fixtures/rust/cow_normalize
+    user_request: Return a Cow that only allocates when a tab actually needs replacing.
+    constraints:
+      - Do not allocate when the input contains no tab.
+      - Replace each tab with four spaces.
+      - Preserve the public normalize signature.
+    allowed_paths: [src/text.rs, tests/text.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/text.rs, hidden/**]
+    solution_paths: [src/text.rs]
+    verifier:
+      commands: [cargo test --test text]
+      hidden_commands: [sh -c 'cp hidden/text_hidden.rs tests/text_hidden.rs; trap "rm -f tests/text_hidden.rs" EXIT; cargo test --test text_hidden']
+      mutation_commands: [sh -c 'cp hidden/text_mutation.rs tests/text_mutation.rs; trap "rm -f tests/text_mutation.rs" EXIT; cargo test --test text_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [missing_requirement, wrong_edge_case]
+  - id: rs-core-112
+    track: rust_core
+    language: rust
+    difficulty: medium
+    task_type: slice_pattern
+    fixture: fixtures/rust/slice_classify
+    user_request: Classify slices of length two and longer correctly using slice patterns.
+    constraints:
+      - A two element slice is a Pair.
+      - A slice of three or more is a Span carrying first, last, and length.
+      - Do not collapse longer slices into a Pair.
+    allowed_paths: [src/classify.rs, tests/classify.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/classify.rs, hidden/**]
+    solution_paths: [src/classify.rs]
+    verifier:
+      commands: [cargo test --test classify]
+      hidden_commands: [sh -c 'cp hidden/classify_hidden.rs tests/classify_hidden.rs; trap "rm -f tests/classify_hidden.rs" EXIT; cargo test --test classify_hidden']
+      mutation_commands: [sh -c 'cp hidden/classify_mutation.rs tests/classify_mutation.rs; trap "rm -f tests/classify_mutation.rs" EXIT; cargo test --test classify_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, minimality]
+    failure_tags: [wrong_edge_case, missing_requirement]
+  - id: rs-core-113
+    track: rust_core
+    language: rust
+    difficulty: medium
+    task_type: enum_dispatch
+    fixture: fixtures/rust/stack_eval
+    user_request: Fix the RPN evaluator so subtraction order is correct and underflow returns a typed error.
+    constraints:
+      - Subtraction computes left minus right.
+      - Popping an empty stack returns Underflow instead of panicking.
+      - An empty program returns Empty.
+    allowed_paths: [src/machine.rs, tests/machine.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/machine.rs, hidden/**]
+    solution_paths: [src/machine.rs]
+    verifier:
+      commands: [cargo test --test machine]
+      hidden_commands: [sh -c 'cp hidden/machine_hidden.rs tests/machine_hidden.rs; trap "rm -f tests/machine_hidden.rs" EXIT; cargo test --test machine_hidden']
+      mutation_commands: [sh -c 'cp hidden/machine_mutation.rs tests/machine_mutation.rs; trap "rm -f tests/machine_mutation.rs" EXIT; cargo test --test machine_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement]
+  - id: rs-core-114
+    track: rust_core
+    language: rust
+    difficulty: easy
+    task_type: saturating_arithmetic
+    fixture: fixtures/rust/saturating_counter
+    user_request: Apply counter deltas with saturating arithmetic instead of wrapping casts.
+    constraints:
+      - Values saturate at 255 on overflow.
+      - Values saturate at 0 on underflow.
+      - Empty deltas return the start value.
+    allowed_paths: [src/counter.rs, tests/counter.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/counter.rs, hidden/**]
+    solution_paths: [src/counter.rs]
+    verifier:
+      commands: [cargo test --test counter]
+      hidden_commands: [sh -c 'cp hidden/counter_hidden.rs tests/counter_hidden.rs; trap "rm -f tests/counter_hidden.rs" EXIT; cargo test --test counter_hidden']
+      mutation_commands: [sh -c 'cp hidden/counter_mutation.rs tests/counter_mutation.rs; trap "rm -f tests/counter_mutation.rs" EXIT; cargo test --test counter_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement]
+  - id: rs-core-115
+    track: rust_core
+    language: rust
+    difficulty: medium
+    task_type: vec_retain_dedup
+    fixture: fixtures/rust/dedup_clean
+    user_request: Order the retain and dedup steps so non-positive removal cannot leave uncollapsed duplicates.
+    constraints:
+      - Drop non-positive values first.
+      - Then collapse consecutive duplicates.
+      - Operate in place and preserve order.
+    allowed_paths: [src/cleanup.rs, tests/cleanup.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/cleanup.rs, hidden/**]
+    solution_paths: [src/cleanup.rs]
+    verifier:
+      commands: [cargo test --test cleanup]
+      hidden_commands: [sh -c 'cp hidden/cleanup_hidden.rs tests/cleanup_hidden.rs; trap "rm -f tests/cleanup_hidden.rs" EXIT; cargo test --test cleanup_hidden']
+      mutation_commands: [sh -c 'cp hidden/cleanup_mutation.rs tests/cleanup_mutation.rs; trap "rm -f tests/cleanup_mutation.rs" EXIT; cargo test --test cleanup_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement]
+  - id: rs-core-116
+    track: rust_core
+    language: rust
+    difficulty: easy
+    task_type: from_into_chain
+    fixture: fixtures/rust/time_convert
+    user_request: Implement the Hours to Seconds conversion by chaining through Minutes.
+    constraints:
+      - Hours to Seconds must equal Hours to Minutes to Seconds.
+      - Do not change the existing Minutes or Seconds conversions.
+      - Preserve the public unit types.
+    allowed_paths: [src/convert.rs, tests/convert.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/convert.rs, hidden/**]
+    solution_paths: [src/convert.rs]
+    verifier:
+      commands: [cargo test --test convert]
+      hidden_commands: [sh -c 'cp hidden/convert_hidden.rs tests/convert_hidden.rs; trap "rm -f tests/convert_hidden.rs" EXIT; cargo test --test convert_hidden']
+      mutation_commands: [sh -c 'cp hidden/convert_mutation.rs tests/convert_mutation.rs; trap "rm -f tests/convert_mutation.rs" EXIT; cargo test --test convert_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement]
+  - id: rs-core-117
+    track: rust_core
+    language: rust
+    difficulty: hard
+    task_type: binary_heap_topk
+    fixture: fixtures/rust/top_k
+    user_request: Return the k largest values in descending order using the binary heap.
+    constraints:
+      - Output must be sorted descending.
+      - Preserve duplicate values.
+      - k greater than the length returns all values.
+    allowed_paths: [src/topk.rs, tests/topk.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/topk.rs, hidden/**]
+    solution_paths: [src/topk.rs]
+    verifier:
+      commands: [cargo test --test topk]
+      hidden_commands: [sh -c 'cp hidden/topk_hidden.rs tests/topk_hidden.rs; trap "rm -f tests/topk_hidden.rs" EXIT; cargo test --test topk_hidden']
+      mutation_commands: [sh -c 'cp hidden/topk_mutation.rs tests/topk_mutation.rs; trap "rm -f tests/topk_mutation.rs" EXIT; cargo test --test topk_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, minimality]
+    failure_tags: [wrong_edge_case, missing_requirement]
+  - id: rs-core-118
+    track: rust_core
+    language: rust
+    difficulty: medium
+    task_type: deref_target
+    fixture: fixtures/rust/deref_stack
+    user_request: Fix the Deref implementation so the wrapper exposes the whole backing slice.
+    constraints:
+      - Deref must return the full slice including the bottom element.
+      - An empty stack must not panic on deref.
+      - Preserve the public Stack API.
+    allowed_paths: [src/stack.rs, tests/stack.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/stack.rs, hidden/**]
+    solution_paths: [src/stack.rs]
+    verifier:
+      commands: [cargo test --test stack]
+      hidden_commands: [sh -c 'cp hidden/stack_hidden.rs tests/stack_hidden.rs; trap "rm -f tests/stack_hidden.rs" EXIT; cargo test --test stack_hidden']
+      mutation_commands: [sh -c 'cp hidden/stack_mutation.rs tests/stack_mutation.rs; trap "rm -f tests/stack_mutation.rs" EXIT; cargo test --test stack_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, minimality]
+    failure_tags: [wrong_edge_case, public_api_break]
+  - id: rs-core-119
+    track: rust_core
+    language: rust
+    difficulty: expert
+    task_type: phantom_typestate
+    fixture: fixtures/rust/typestate_light
+    user_request: Fix the typestate transition so green advances to yellow rather than skipping back to red.
+    constraints:
+      - The phase cycle is red, green, yellow, then red.
+      - Use the PhantomData typestate markers; do not add runtime state fields.
+      - Keep each phase color accessor intact.
+    allowed_paths: [src/light.rs, tests/light.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/light.rs, hidden/**]
+    solution_paths: [src/light.rs]
+    verifier:
+      commands: [cargo test --test light]
+      hidden_commands: [sh -c 'cp hidden/light_hidden.rs tests/light_hidden.rs; trap "rm -f tests/light_hidden.rs" EXIT; cargo test --test light_hidden']
+      mutation_commands: [sh -c 'cp hidden/light_mutation.rs tests/light_mutation.rs; trap "rm -f tests/light_mutation.rs" EXIT; cargo test --test light_mutation']
+      timeout_seconds: 90
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [domain_rule_violation, wrong_edge_case]
+  - id: rs-core-120
+    track: rust_core
+    language: rust
+    difficulty: hard
+    task_type: closure_capture
+    fixture: fixtures/rust/closure_accumulator
+    user_request: Make the returned closure accumulate state across calls instead of recomputing from the start.
+    constraints:
+      - Each call adds its argument to a persistent running total.
+      - Separate accumulators must not share state.
+      - Preserve the make_accumulator signature.
+    allowed_paths: [src/acc.rs, tests/acc.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/acc.rs, hidden/**]
+    solution_paths: [src/acc.rs]
+    verifier:
+      commands: [cargo test --test acc]
+      hidden_commands: [sh -c 'cp hidden/acc_hidden.rs tests/acc_hidden.rs; trap "rm -f tests/acc_hidden.rs" EXIT; cargo test --test acc_hidden']
+      mutation_commands: [sh -c 'cp hidden/acc_mutation.rs tests/acc_mutation.rs; trap "rm -f tests/acc_mutation.rs" EXIT; cargo test --test acc_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, minimality]
+    failure_tags: [missing_requirement, wrong_edge_case]
