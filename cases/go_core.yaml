@@ -600,3 +600,243 @@ cases:
       hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
       soft_metrics: [functional_correctness, maintainability]
     failure_tags: [race_condition, wrong_edge_case, hidden_verifier_failed, mutation_verifier_failed]
+  - id: go-core-111
+    track: go_core
+    language: go
+    difficulty: easy
+    task_type: defer_order
+    fixture: fixtures/go/defer_lifo
+    user_request: Return the registered names in the LIFO order their deferred closes actually run.
+    constraints:
+      - Deferred closes run last-in-first-out, so the result must be the reverse of names.
+      - Do not change the exported Shutdown signature's parameter type.
+      - Return a non-nil slice for empty input.
+    allowed_paths: [internal/lifo/**, internal/lifo/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/lifo/*_test.go]
+    solution_paths: [internal/lifo/lifo.go]
+    verifier:
+      commands: [go test ./internal/lifo]
+      hidden_commands: [sh -c 'cp hidden/lifo_hidden_test.go internal/lifo/lifo_hidden_test.go; trap "rm -f internal/lifo/lifo_hidden_test.go" EXIT; go test ./internal/lifo -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/lifo_mutation_test.go internal/lifo/lifo_mutation_test.go; trap "rm -f internal/lifo/lifo_mutation_test.go" EXIT; go test ./internal/lifo -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement]
+  - id: go-core-112
+    track: go_core
+    language: go
+    difficulty: medium
+    task_type: error_inspection
+    fixture: fixtures/go/error_as_status
+    user_request: Recover the HTTP status code from anywhere in the wrapped error chain, not just the top-level error.
+    constraints:
+      - Find an *HTTPError at any depth using errors.As.
+      - Return 200 for nil and 500 when no HTTPError is present.
+      - Do not change the exported StatusCode or HTTPError API.
+    allowed_paths: [internal/apierr/**, internal/apierr/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/apierr/*_test.go]
+    solution_paths: [internal/apierr/apierr.go]
+    verifier:
+      commands: [go test ./internal/apierr]
+      hidden_commands: [sh -c 'cp hidden/apierr_hidden_test.go internal/apierr/apierr_hidden_test.go; trap "rm -f internal/apierr/apierr_hidden_test.go" EXIT; go test ./internal/apierr -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/apierr_mutation_test.go internal/apierr/apierr_mutation_test.go; trap "rm -f internal/apierr/apierr_mutation_test.go" EXIT; go test ./internal/apierr -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement]
+  - id: go-core-113
+    track: go_core
+    language: go
+    difficulty: medium
+    task_type: struct_tag_parse
+    fixture: fixtures/go/struct_tag_columns
+    user_request: Derive column names from db struct tags, skipping db:"-" and ignoring unexported fields.
+    constraints:
+      - Use the db struct tag, falling back to the field name when no tag is present.
+      - Skip fields tagged db:"-" and skip unexported fields.
+      - Accept both a struct value and a pointer to struct.
+    allowed_paths: [internal/columns/**, internal/columns/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/columns/*_test.go]
+    solution_paths: [internal/columns/columns.go]
+    verifier:
+      commands: [go test ./internal/columns]
+      hidden_commands: [sh -c 'cp hidden/columns_hidden_test.go internal/columns/columns_hidden_test.go; trap "rm -f internal/columns/columns_hidden_test.go" EXIT; go test ./internal/columns -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/columns_mutation_test.go internal/columns/columns_mutation_test.go; trap "rm -f internal/columns/columns_mutation_test.go" EXIT; go test ./internal/columns -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [missing_requirement, wrong_edge_case]
+  - id: go-core-114
+    track: go_core
+    language: go
+    difficulty: hard
+    task_type: atomic_counter
+    fixture: fixtures/go/atomic_counter
+    user_request: Make the shared counter safe for concurrent Inc and Add so no updates are lost.
+    constraints:
+      - Race detector must pass.
+      - Do not lose increments under concurrency.
+      - Preserve the exported Inc, Add, and Value signatures.
+    allowed_paths: [internal/metrics/**, internal/metrics/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/metrics/*_test.go]
+    solution_paths: [internal/metrics/metrics.go]
+    verifier:
+      commands: [go test -race ./internal/metrics]
+      hidden_commands: [sh -c 'cp hidden/metrics_hidden_test.go internal/metrics/metrics_hidden_test.go; trap "rm -f internal/metrics/metrics_hidden_test.go" EXIT; go test -race ./internal/metrics -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/metrics_mutation_test.go internal/metrics/metrics_mutation_test.go; trap "rm -f internal/metrics/metrics_mutation_test.go" EXIT; go test -race ./internal/metrics -run Mutation -count=1']
+      timeout_seconds: 90
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [race_condition, missing_requirement]
+  - id: go-core-115
+    track: go_core
+    language: go
+    difficulty: easy
+    task_type: utf8_boundary
+    fixture: fixtures/go/utf8_truncate
+    user_request: Truncate strings to a byte budget without splitting a multi-byte rune.
+    constraints:
+      - The result must always be valid UTF-8.
+      - Never exceed the max byte budget.
+      - Preserve the exported Truncate signature.
+    allowed_paths: [pkg/truncate/**, pkg/truncate/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [pkg/truncate/*_test.go]
+    solution_paths: [pkg/truncate/truncate.go]
+    verifier:
+      commands: [go test ./pkg/truncate]
+      hidden_commands: [sh -c 'cp hidden/truncate_hidden_test.go pkg/truncate/truncate_hidden_test.go; trap "rm -f pkg/truncate/truncate_hidden_test.go" EXIT; go test ./pkg/truncate -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/truncate_mutation_test.go pkg/truncate/truncate_mutation_test.go; trap "rm -f pkg/truncate/truncate_mutation_test.go" EXIT; go test ./pkg/truncate -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass]
+      soft_metrics: [functional_correctness, test_quality]
+    failure_tags: [wrong_edge_case, missing_requirement]
+  - id: go-core-116
+    track: go_core
+    language: go
+    difficulty: hard
+    task_type: io_reader
+    fixture: fixtures/go/frame_reader
+    user_request: Read full fixed-size frames even when the underlying reader returns short reads.
+    constraints:
+      - Keep reading until size bytes are read; do not assume one Read returns everything.
+      - Return io.ErrUnexpectedEOF on a partial frame and io.EOF on an empty stream.
+      - Preserve the exported ReadFrame signature.
+    allowed_paths: [internal/framing/**, internal/framing/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/framing/*_test.go]
+    solution_paths: [internal/framing/framing.go]
+    verifier:
+      commands: [go test ./internal/framing]
+      hidden_commands: [sh -c 'cp hidden/framing_hidden_test.go internal/framing/framing_hidden_test.go; trap "rm -f internal/framing/framing_hidden_test.go" EXIT; go test ./internal/framing -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/framing_mutation_test.go internal/framing/framing_mutation_test.go; trap "rm -f internal/framing/framing_mutation_test.go" EXIT; go test ./internal/framing -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement]
+  - id: go-core-117
+    track: go_core
+    language: go
+    difficulty: hard
+    task_type: buffered_fanin
+    fixture: fixtures/go/fanin_collect
+    user_request: Fan in several input channels and close the output exactly once after all inputs drain.
+    constraints:
+      - Do not close the output channel before all workers finish.
+      - Preserve every value, including duplicates, and do not leak goroutines.
+      - Race detector must pass.
+    allowed_paths: [internal/fanin/**, internal/fanin/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/fanin/*_test.go]
+    solution_paths: [internal/fanin/fanin.go]
+    verifier:
+      commands: [go test -race ./internal/fanin]
+      hidden_commands: [sh -c 'cp hidden/fanin_hidden_test.go internal/fanin/fanin_hidden_test.go; trap "rm -f internal/fanin/fanin_hidden_test.go" EXIT; go test -race ./internal/fanin -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/fanin_mutation_test.go internal/fanin/fanin_mutation_test.go; trap "rm -f internal/fanin/fanin_mutation_test.go" EXIT; go test -race ./internal/fanin -run Mutation -count=1']
+      timeout_seconds: 90
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [race_condition, goroutine_leak, deadlock]
+  - id: go-core-118
+    track: go_core
+    language: go
+    difficulty: medium
+    task_type: multi_key_sort
+    fixture: fixtures/go/leaderboard_sort
+    user_request: Rank players by tier ascending, then score descending, then name ascending.
+    constraints:
+      - Apply all three sort keys in order.
+      - Do not mutate the input slice.
+      - Keep the exported Rank signature.
+    allowed_paths: [internal/board/**, internal/board/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/board/*_test.go]
+    solution_paths: [internal/board/board.go]
+    verifier:
+      commands: [go test ./internal/board]
+      hidden_commands: [sh -c 'cp hidden/board_hidden_test.go internal/board/board_hidden_test.go; trap "rm -f internal/board/board_hidden_test.go" EXIT; go test ./internal/board -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/board_mutation_test.go internal/board/board_mutation_test.go; trap "rm -f internal/board/board_mutation_test.go" EXIT; go test ./internal/board -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement]
+  - id: go-core-119
+    track: go_core
+    language: go
+    difficulty: medium
+    task_type: json_number_precision
+    fixture: fixtures/go/json_int_precision
+    user_request: Decode large integer JSON ids without floating-point precision loss.
+    constraints:
+      - Preserve full int64 precision for ids beyond 2^53.
+      - Return an error for missing or non-numeric ids.
+      - Do not change the exported ParseID signature.
+    allowed_paths: [pkg/bignum/**, pkg/bignum/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [pkg/bignum/*_test.go]
+    solution_paths: [pkg/bignum/bignum.go]
+    verifier:
+      commands: [go test ./pkg/bignum]
+      hidden_commands: [sh -c 'cp hidden/bignum_hidden_test.go pkg/bignum/bignum_hidden_test.go; trap "rm -f pkg/bignum/bignum_hidden_test.go" EXIT; go test ./pkg/bignum -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/bignum_mutation_test.go pkg/bignum/bignum_mutation_test.go; trap "rm -f pkg/bignum/bignum_mutation_test.go" EXIT; go test ./pkg/bignum -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
+      soft_metrics: [contract_compliance, functional_correctness]
+    failure_tags: [wrong_edge_case, backward_incompatibility]
+  - id: go-core-120
+    track: go_core
+    language: go
+    difficulty: expert
+    task_type: concurrency_pipeline
+    fixture: fixtures/go/bounded_map
+    user_request: Map inputs concurrently with bounded parallelism, preserving order and returning the first error.
+    constraints:
+      - Run at most parallelism workers at once and return results in input order.
+      - Return the first fn error (cancelling remaining work) or ctx.Err on cancellation.
+      - Do not leak goroutines and pass the race detector.
+    allowed_paths: [internal/pipeline/**, internal/pipeline/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [internal/pipeline/*_test.go]
+    solution_paths: [internal/pipeline/pipeline.go]
+    verifier:
+      commands: [go test -race ./internal/pipeline -count=1]
+      hidden_commands: [sh -c 'cp hidden/pipeline_hidden_test.go internal/pipeline/pipeline_hidden_test.go; trap "rm -f internal/pipeline/pipeline_hidden_test.go" EXIT; go test -race ./internal/pipeline -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/pipeline_mutation_test.go internal/pipeline/pipeline_mutation_test.go; trap "rm -f internal/pipeline/pipeline_mutation_test.go" EXIT; go test -race ./internal/pipeline -run Mutation -count=1']
+      timeout_seconds: 90
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [race_condition, cancellation_ignored, goroutine_leak, hidden_verifier_failed]
