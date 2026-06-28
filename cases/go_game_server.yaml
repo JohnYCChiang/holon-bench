@@ -1080,3 +1080,123 @@ cases:
       hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
       soft_metrics: [functional_correctness, test_quality, maintainability]
     failure_tags: [state_sync_corruption, fake_success, hidden_verifier_failed]
+  - id: go-game-131
+    track: go_game_server
+    language: go
+    difficulty: easy
+    task_type: spectator_handoff
+    fixture: fixtures/go_game/spectator_handoff
+    user_request: Hand off spectators to a live player when the player they follow leaves.
+    constraints:
+      - Spectators of a departed player move to the oldest remaining live player.
+      - When no players remain, affected spectators become idle.
+      - Unrelated spectators and unknown leaves never change targets.
+    allowed_paths: [server/spectate/**, server/spectate/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/spectate/*_test.go, hidden/**]
+    solution_paths: [server/spectate/spectate.go]
+    verifier:
+      commands: [go test ./server/spectate]
+      hidden_commands: [sh -c 'cp hidden/spectate_hidden_test.go server/spectate/spectate_hidden_test.go; trap "rm -f server/spectate/spectate_hidden_test.go" EXIT; go test ./server/spectate -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/spectate_mutation_test.go server/spectate/spectate_mutation_test.go; trap "rm -f server/spectate/spectate_mutation_test.go" EXIT; go test ./server/spectate -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, observability]
+    failure_tags: [state_sync_corruption, wrong_edge_case]
+  - id: go-game-132
+    track: go_game_server
+    language: go
+    difficulty: medium
+    task_type: weather_cycle
+    fixture: fixtures/go_game/weather_cycle
+    user_request: Drive a deterministic weather cycle where each phase holds for its full duration.
+    constraints:
+      - At(tick) is a pure function so replays and late joiners agree.
+      - Each phase holds constant for Duration ticks before advancing.
+      - The cycle is periodic with period Duration times the phase count.
+    allowed_paths: [server/weather/**, server/weather/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/weather/*_test.go, hidden/**]
+    solution_paths: [server/weather/cycle.go]
+    verifier:
+      commands: [go test ./server/weather]
+      hidden_commands: [sh -c 'cp hidden/cycle_hidden_test.go server/weather/cycle_hidden_test.go; trap "rm -f server/weather/cycle_hidden_test.go" EXIT; go test ./server/weather -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/cycle_mutation_test.go server/weather/cycle_mutation_test.go; trap "rm -f server/weather/cycle_mutation_test.go" EXIT; go test ./server/weather -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [golden_output_mismatch, wrong_edge_case, flaky_test]
+  - id: go-game-133
+    track: go_game_server
+    language: go
+    difficulty: medium
+    task_type: vote_skip_threshold
+    fixture: fixtures/go_game/vote_skip
+    user_request: Trigger a vote-skip only on a supermajority of currently present players.
+    constraints:
+      - A skip passes when votes times Den is at least present count times Num.
+      - Only present players may vote and each counts at most once.
+      - A player who leaves takes their vote and presence with them.
+    allowed_paths: [server/skipvote/**, server/skipvote/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/skipvote/*_test.go, hidden/**]
+    solution_paths: [server/skipvote/skip.go]
+    verifier:
+      commands: [go test ./server/skipvote]
+      hidden_commands: [sh -c 'cp hidden/skip_hidden_test.go server/skipvote/skip_hidden_test.go; trap "rm -f server/skipvote/skip_hidden_test.go" EXIT; go test ./server/skipvote -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/skip_mutation_test.go server/skipvote/skip_mutation_test.go; trap "rm -f server/skipvote/skip_mutation_test.go" EXIT; go test ./server/skipvote -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, observability]
+    failure_tags: [domain_rule_violation, wrong_edge_case, mutation_verifier_failed]
+  - id: go-game-134
+    track: go_game_server
+    language: go
+    difficulty: hard
+    task_type: loadout_validation
+    fixture: fixtures/go_game/loadout
+    user_request: Validate player loadouts against catalog, uniqueness, and weight rules.
+    constraints:
+      - Every item id must be registered in the catalog.
+      - An item flagged unique may not appear more than once.
+      - Total weight must not exceed the validator capacity.
+    allowed_paths: [server/loadout/**, server/loadout/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/loadout/*_test.go, hidden/**]
+    solution_paths: [server/loadout/loadout.go]
+    verifier:
+      commands: [go test ./server/loadout]
+      hidden_commands: [sh -c 'cp hidden/loadout_hidden_test.go server/loadout/loadout_hidden_test.go; trap "rm -f server/loadout/loadout_hidden_test.go" EXIT; go test ./server/loadout -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/loadout_mutation_test.go server/loadout/loadout_mutation_test.go; trap "rm -f server/loadout/loadout_mutation_test.go" EXIT; go test ./server/loadout -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, test_quality, maintainability]
+    failure_tags: [domain_rule_violation, wrong_edge_case, hidden_verifier_failed]
+  - id: go-game-135
+    track: go_game_server
+    language: go
+    difficulty: expert
+    task_type: crit_confirm
+    fixture: fixtures/go_game/crit_confirm
+    user_request: Resolve seeded critical hits so combat damage is replay-deterministic.
+    constraints:
+      - The RNG advances exactly once per attack so the seed reproduces the stream.
+      - The same seed and ordered attacks always yield identical damage and crits.
+      - A crit deals base times CritMult; a non-crit deals exactly base.
+    allowed_paths: [server/crit/**, server/crit/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/crit/*_test.go, hidden/**]
+    solution_paths: [server/crit/crit.go]
+    verifier:
+      commands: [go test ./server/crit -count=1]
+      hidden_commands: [sh -c 'cp hidden/crit_hidden_test.go server/crit/crit_hidden_test.go; trap "rm -f server/crit/crit_hidden_test.go" EXIT; go test ./server/crit -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/crit_mutation_test.go server/crit/crit_mutation_test.go; trap "rm -f server/crit/crit_mutation_test.go" EXIT; go test ./server/crit -run Mutation -count=1']
+      timeout_seconds: 90
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, test_quality, maintainability]
+    failure_tags: [flaky_test, golden_output_mismatch, state_sync_corruption, hidden_verifier_failed]

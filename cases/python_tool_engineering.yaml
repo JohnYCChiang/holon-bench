@@ -964,3 +964,303 @@ cases:
       hard_gates: [patch_applies, tests_pass, schema_valid, scope_pass]
       soft_metrics: [functional_correctness, observability, maintainability]
     failure_tags: [backward_incompatibility, wrong_edge_case, missing_requirement, fake_success, hidden_verifier_failed]
+  - id: py-tool-123
+    track: python_tool_engineering
+    language: python
+    difficulty: medium
+    task_type: semaphore_concurrency_limit
+    fixture: fixtures/python/semaphore_limit
+    user_request: >
+      Bound concurrent slot usage with a deterministic semaphore that rejects acquisitions beyond capacity and tracks peak usage.
+    constraints:
+      - Never let active holders exceed the configured capacity.
+      - Reject duplicate acquire and release-of-unheld with machine-readable reasons.
+      - Preserve acquisition order and report peak concurrency.
+    allowed_paths: [src/semaphore_tool/**, tests/test_semaphore_limit.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_semaphore_limit.py]
+    solution_paths: [src/semaphore_tool/limit.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_semaphore_limit]
+      hidden_commands: [python3 -m unittest hidden.test_semaphore_limit_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_semaphore_limit_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, observability, contract_compliance]
+    failure_tags: [wrong_edge_case, response_schema_break, fake_success]
+  - id: py-tool-124
+    track: python_tool_engineering
+    language: python
+    difficulty: medium
+    task_type: event_debounce
+    fixture: fixtures/python/event_debounce
+    user_request: >
+      Collapse bursts of timestamped events into trailing-edge debounced emissions separated by a quiet window.
+    constraints:
+      - Order events by timestamp with a stable index tie-break.
+      - Start a new burst only when the gap strictly exceeds the window.
+      - Report bursts and dropped counts; reject invalid windows and events.
+    allowed_paths: [src/debounce_tool/**, tests/test_event_debounce.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_event_debounce.py]
+    solution_paths: [src/debounce_tool/debounce.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_event_debounce]
+      hidden_commands: [python3 -m unittest hidden.test_event_debounce_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_event_debounce_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, contract_compliance, observability]
+    failure_tags: [wrong_edge_case, response_schema_break, missing_requirement]
+  - id: py-tool-125
+    track: python_tool_engineering
+    language: python
+    difficulty: hard
+    task_type: json_patch_apply
+    fixture: fixtures/python/json_patch_apply
+    user_request: >
+      Apply add, remove, and replace JSON-pointer operations to a document without mutating the input and with structured path errors.
+    constraints:
+      - Deep-copy the input; never mutate the caller's document.
+      - Replace and remove must fail with not_found on missing targets.
+      - Support nested dict and list pointers including list append.
+    allowed_paths: [src/jsonpatch_tool/**, tests/test_json_patch_apply.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_json_patch_apply.py, hidden/**]
+    solution_paths: [src/jsonpatch_tool/apply.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_json_patch_apply]
+      hidden_commands: [python3 -m unittest hidden.test_json_patch_apply_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_json_patch_apply_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, observability, maintainability]
+    failure_tags: [wrong_edge_case, fake_success, response_schema_break]
+  - id: py-tool-126
+    track: python_tool_engineering
+    language: python
+    difficulty: medium
+    task_type: csv_dialect_sniff
+    fixture: fixtures/python/csv_dialect_sniff
+    user_request: >
+      Sniff a CSV sample to detect its delimiter, column count, and whether the first row is a header.
+    constraints:
+      - Choose the delimiter that yields a consistent multi-column split, not always comma.
+      - Detect headers from a non-numeric first row over numeric data rows.
+      - Return a machine-readable error for an empty sample.
+    allowed_paths: [src/csvsniff_tool/**, tests/test_csv_dialect_sniff.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_csv_dialect_sniff.py]
+    solution_paths: [src/csvsniff_tool/sniff.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_csv_dialect_sniff]
+      hidden_commands: [python3 -m unittest hidden.test_csv_dialect_sniff_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_csv_dialect_sniff_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, contract_compliance, observability]
+    failure_tags: [wrong_edge_case, response_schema_break, missing_requirement]
+  - id: py-tool-127
+    track: python_tool_engineering
+    language: python
+    difficulty: medium
+    task_type: secret_entropy_check
+    fixture: fixtures/python/entropy_classifier
+    user_request: >
+      Classify a string as a likely secret using Shannon entropy and a minimum-length threshold.
+    constraints:
+      - Compute true Shannon entropy in bits per character, not a distinct-ratio.
+      - Flag likely_secret only when both length and entropy thresholds are met.
+      - Return a machine-readable error for non-string input.
+    allowed_paths: [src/entropy_tool/**, tests/test_entropy_classifier.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_entropy_classifier.py]
+    solution_paths: [src/entropy_tool/check.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_entropy_classifier]
+      hidden_commands: [python3 -m unittest hidden.test_entropy_classifier_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_entropy_classifier_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, observability, minimality]
+    failure_tags: [wrong_edge_case, response_schema_break, missing_requirement]
+  - id: py-tool-128
+    track: python_tool_engineering
+    language: python
+    difficulty: medium
+    task_type: url_sanitizer
+    fixture: fixtures/python/url_sanitizer
+    user_request: >
+      Normalize a URL by stripping credentials, lowercasing the host, dropping default ports, and sorting query parameters.
+    constraints:
+      - Remove userinfo and report removed_credentials accurately.
+      - Lowercase scheme and host but preserve path case; drop only default ports.
+      - Return a machine-readable error for non-http(s) schemes.
+    allowed_paths: [src/urlsan_tool/**, tests/test_url_sanitizer.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_url_sanitizer.py]
+    solution_paths: [src/urlsan_tool/sanitize.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_url_sanitizer]
+      hidden_commands: [python3 -m unittest hidden.test_url_sanitizer_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_url_sanitizer_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid]
+      soft_metrics: [contract_compliance, observability, functional_correctness]
+    failure_tags: [wrong_edge_case, response_schema_break, missing_requirement]
+  - id: py-tool-129
+    track: python_tool_engineering
+    language: python
+    difficulty: easy
+    task_type: mime_type_detect
+    fixture: fixtures/python/mime_sniff
+    user_request: >
+      Detect a payload's MIME type from magic bytes, falling back to extension and then a default.
+    constraints:
+      - Prefer magic-byte detection over the filename extension.
+      - Fall back to extension, then application/octet-stream as default.
+      - Return a machine-readable error for non-bytes input.
+    allowed_paths: [src/mime_tool/**, tests/test_mime_sniff.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_mime_sniff.py]
+    solution_paths: [src/mime_tool/detect.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_mime_sniff]
+      hidden_commands: [python3 -m unittest hidden.test_mime_sniff_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_mime_sniff_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, contract_compliance, minimality]
+    failure_tags: [wrong_edge_case, response_schema_break, missing_requirement]
+  - id: py-tool-130
+    track: python_tool_engineering
+    language: python
+    difficulty: hard
+    task_type: archive_member_safety
+    fixture: fixtures/python/archive_member_safety
+    user_request: >
+      Validate archive member names and link targets, rejecting absolute paths, parent traversal, and symlink escapes.
+    constraints:
+      - Reject absolute paths and any member that normalizes outside the root.
+      - Detect symlink targets that escape the extraction root.
+      - Return a structured error for an invalid member name.
+    allowed_paths: [src/tarsafe_tool/**, tests/test_archive_member_safety.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_archive_member_safety.py, hidden/**]
+    solution_paths: [src/tarsafe_tool/check.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_archive_member_safety]
+      hidden_commands: [python3 -m unittest hidden.test_archive_member_safety_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_archive_member_safety_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, safety_pass, scope_pass]
+      soft_metrics: [functional_correctness, observability, maintainability]
+    failure_tags: [unsafe_path, wrong_edge_case, missing_requirement]
+  - id: py-tool-131
+    track: python_tool_engineering
+    language: python
+    difficulty: expert
+    task_type: subcommand_parser
+    fixture: fixtures/python/subcommand_parser
+    user_request: >
+      Parse argv into a subcommand and its options from a spec, validating flags, values, and required options.
+    constraints:
+      - Support --opt value, --opt=value, and boolean flags defaulting to false.
+      - Reject unknown commands, unknown options, missing values, and missing required options.
+      - Report the first error as a machine-readable code; no_command for empty argv.
+    allowed_paths: [src/argparse_tool/**, tests/test_subcommand_parser.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_subcommand_parser.py, hidden/**]
+    solution_paths: [src/argparse_tool/parse.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_subcommand_parser]
+      hidden_commands: [python3 -m unittest hidden.test_subcommand_parser_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_subcommand_parser_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid, scope_pass]
+      soft_metrics: [functional_correctness, observability, contract_compliance]
+    failure_tags: [wrong_edge_case, response_schema_break, missing_requirement, fake_success, hidden_verifier_failed]
+  - id: py-tool-132
+    track: python_tool_engineering
+    language: python
+    difficulty: medium
+    task_type: signal_cleanup_registry
+    fixture: fixtures/python/cleanup_registry
+    user_request: >
+      Run registered cleanup handlers in LIFO order exactly once, continuing past failures and reporting each error.
+    constraints:
+      - Run handlers in reverse registration order.
+      - Continue running remaining handlers when one raises and record its error.
+      - Run the full set only once; repeated calls are no-ops.
+    allowed_paths: [src/cleanup_tool/**, tests/test_cleanup_registry.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_cleanup_registry.py, hidden/**]
+    solution_paths: [src/cleanup_tool/registry.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_cleanup_registry]
+      hidden_commands: [python3 -m unittest hidden.test_cleanup_registry_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_cleanup_registry_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, observability, maintainability]
+    failure_tags: [resource_leak, wrong_edge_case, fake_success]
+  - id: py-tool-133
+    track: python_tool_engineering
+    language: python
+    difficulty: easy
+    task_type: deterministic_temp_name
+    fixture: fixtures/python/deterministic_tempname
+    user_request: >
+      Build a deterministic temp filename from a prefix, seed, and suffix using a stable digest and no path separators.
+    constraints:
+      - Derive the digest from sha256, never Python's built-in hash.
+      - Reject prefixes or suffixes containing path separators or null bytes.
+      - Produce identical names for identical inputs across processes.
+    allowed_paths: [src/tempname_tool/**, tests/test_deterministic_tempname.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_deterministic_tempname.py]
+    solution_paths: [src/tempname_tool/name.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_deterministic_tempname]
+      hidden_commands: [python3 -m unittest hidden.test_deterministic_tempname_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_deterministic_tempname_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, minimality, observability]
+    failure_tags: [non_idempotent_tool, fake_success, response_schema_break]
+  - id: py-tool-134
+    track: python_tool_engineering
+    language: python
+    difficulty: easy
+    task_type: batch_chunker
+    fixture: fixtures/python/batch_chunker
+    user_request: >
+      Split a list into consecutive fixed-size batches, preserving order and the final partial batch.
+    constraints:
+      - Never drop the trailing partial batch.
+      - Preserve item order with no loss or duplication.
+      - Return a machine-readable error for a non-positive size.
+    allowed_paths: [src/chunk_tool/**, tests/test_batch_chunker.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_batch_chunker.py]
+    solution_paths: [src/chunk_tool/chunk.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_batch_chunker]
+      hidden_commands: [python3 -m unittest hidden.test_batch_chunker_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_batch_chunker_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement, response_schema_break]
