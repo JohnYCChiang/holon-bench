@@ -23,8 +23,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import pathlib
 import re
+import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -89,8 +92,11 @@ def render_artifact(files: list[tuple[str, list[str]]]) -> str:
 
 
 def gen_mutants(files: list[tuple[str, list[str]]], cap: int) -> list[tuple[str, str]]:
-    """Yield (description, artifact_text) — each with exactly one token mutated."""
-    mutants = []
+    """Return up to `cap` (description, artifact_text) mutants, sampled EVENLY
+    across all mutable sites (not just the first `cap`) so a small cap still
+    covers late-file logic."""
+    # 1) collect all candidate sites (cheap — no artifact rendering yet)
+    sites = []  # (fi, li, name, start, end, repl, line)
     for fi, (path, lines) in enumerate(files):
         if _is_test_file(path):
             continue  # mutate the source logic, not an authored test
@@ -110,38 +116,59 @@ def gen_mutants(files: list[tuple[str, list[str]]], cap: int) -> list[tuple[str,
                 m = pattern.search(line)
                 if not m or _inside_string(line, m.start()):
                     continue
-                mutated_line = line[: m.start()] + repl + line[m.end():]
-                if mutated_line == line:
+                if line[: m.start()] + repl + line[m.end():] == line:
                     continue
-                new_files = [(p, list(ls)) for p, ls in files]
-                new_files[fi][1][li] = mutated_line
-                desc = f"{path}:{li + 1} {name} [{line.strip()[:60]}]"
-                mutants.append((desc, render_artifact(new_files)))
-                if len(mutants) >= cap:
-                    return mutants
+                sites.append((fi, li, name, m.start(), m.end(), repl, line))
+    # 2) even stride down to the cap
+    if cap and len(sites) > cap:
+        step = len(sites) / cap
+        sites = [sites[int(i * step)] for i in range(cap)]
+    # 3) render only the chosen mutants
+    mutants = []
+    for fi, li, name, start, end, repl, line in sites:
+        new_files = [(p, list(ls)) for p, ls in files]
+        new_files[fi][1][li] = line[:start] + repl + line[end:]
+        desc = f"{files[fi][0]}:{li + 1} {name} [{line.strip()[:60]}]"
+        mutants.append((desc, render_artifact(new_files)))
     return mutants
 
 
-def run_mutant(root: pathlib.Path, case_id: str, artifact_text: str, work: pathlib.Path) -> dict:
+def run_mutant(root: pathlib.Path, case_id: str, artifact_text: str, work: pathlib.Path, timeout: int = 25) -> dict:
+    """Run one mutant through run_case. The work dir is ALWAYS removed before
+    returning (immediate cleanup) so temp never accumulates across the sweep —
+    this is what prevents RAM/tmpfs from filling up and freezing the box."""
     work.mkdir(parents=True, exist_ok=True)
-    art = work / "mutant.txt"
-    art.write_text(artifact_text, encoding="utf-8")
-    out = work / "result.json"
-    subprocess.run(
-        [
-            sys.executable, str(root / "runners" / "run_case.py"), case_id,
-            "--model", "mutant", "--artifact-file", str(art),
-            "--bench-root", str(root), "--work-root", str(work / "ws"), "--out", str(out),
-        ],
-        capture_output=True, text=True,
-    )
-    if not out.exists():
-        return {"survived": False, "killer": "run_error"}
-    hard = json.loads(out.read_text(encoding="utf-8")).get("hard_gates", {})
-    if hard and all(hard.values()):
-        return {"survived": True, "killer": None}
-    killer = "compile" if hard.get("compiles") is False else "test"
-    return {"survived": False, "killer": killer}
+    try:
+        art = work / "mutant.txt"
+        art.write_text(artifact_text, encoding="utf-8")
+        out = work / "result.json"
+        proc = subprocess.Popen(
+            [
+                sys.executable, str(root / "runners" / "run_case.py"), case_id,
+                "--model", "mutant", "--artifact-file", str(art),
+                "--bench-root", str(root), "--work-root", str(work / "ws"), "--out", str(out),
+            ],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True,
+        )
+        try:
+            proc.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            # a mutation that hangs is a behaviour change -> killed. Kill the whole
+            # process group so cargo/go/flutter grandchildren don't linger.
+            try:
+                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+            except (ProcessLookupError, PermissionError):
+                pass
+            proc.wait()
+            return {"survived": False, "killer": "timeout"}
+        if not out.exists():
+            return {"survived": False, "killer": "run_error"}
+        hard = json.loads(out.read_text(encoding="utf-8")).get("hard_gates", {})
+        if hard and all(hard.values()):
+            return {"survived": True, "killer": None}
+        return {"survived": False, "killer": "compile" if hard.get("compiles") is False else "test"}
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
 
 
 def main() -> int:
@@ -150,6 +177,7 @@ def main() -> int:
     parser.add_argument("--track")
     parser.add_argument("--case")
     parser.add_argument("--max-mutants", type=int, default=8)
+    parser.add_argument("--timeout", type=int, default=25, help="per-mutant timeout (s); longer for compiled tracks")
     parser.add_argument("--out", default="reports/mutation_test.json")
     args = parser.parse_args()
 
@@ -160,15 +188,45 @@ def main() -> int:
     if args.case:
         cases = [c for c in cases if c.get("id") == args.case]
     solutions = root / "solutions"
+    out_path = root / args.out
+    out_path.parent.mkdir(parents=True, exist_ok=True)
 
     rows = []
     survivors = []
     total_mut = total_killed = 0
+    done_ids = set()
+    # resume a partial/killed run: reload already-scored cases and skip them
+    if out_path.exists():
+        try:
+            prev = json.loads(out_path.read_text(encoding="utf-8"))
+            rows = prev.get("per_case", [])
+            survivors = prev.get("survivors", [])
+            total_mut = int(prev.get("total_mutants", 0) or 0)
+            total_killed = int(prev.get("total_killed", 0) or 0)
+            done_ids = {r["case_id"] for r in rows}
+        except (json.JSONDecodeError, OSError, KeyError):
+            pass
+
+    def write_report(complete: bool) -> None:
+        out_path.write_text(json.dumps({
+            "complete": complete,
+            "cases": len(rows),
+            "total_mutants": total_mut,
+            "total_killed": total_killed,
+            "overall_mutation_score": round(total_killed / total_mut, 3) if total_mut else None,
+            "survivor_count": len(survivors),
+            "survivors": survivors,
+            "per_case": rows,
+        }, indent=2), encoding="utf-8")
+
     mut_idx = 0
     with tempfile.TemporaryDirectory(prefix="mut-") as temp:
         tmp = pathlib.Path(temp)
-        for case in cases:
+        total = len(cases)
+        for ci, case in enumerate(cases, 1):
             cid = case["id"]
+            if cid in done_ids:
+                continue
             sol = solutions / f"{cid}.txt"
             if not sol.exists():
                 continue
@@ -178,7 +236,7 @@ def main() -> int:
             case_survivors = []
             for desc, text in mutants:
                 mut_idx += 1
-                res = run_mutant(root, cid, text, tmp / f"m{mut_idx}")
+                res = run_mutant(root, cid, text, tmp / f"m{mut_idx}", timeout=args.timeout)
                 if res["survived"]:
                     case_survivors.append(desc)
                     survivors.append({"case_id": cid, "mutation": desc})
@@ -194,24 +252,12 @@ def main() -> int:
                 "killed": killed, "killed_by_compile": comp, "survived": len(case_survivors),
                 "mutation_score": score, "survivors": case_survivors,
             })
+            write_report(complete=False)  # persist after EVERY case → kill-safe
+            print(f"[{ci}/{total}] {cid} mutants={len(mutants)} score={score} survivors={len(case_survivors)}", file=sys.stderr, flush=True)
 
-    report = {
-        "cases": len(rows),
-        "total_mutants": total_mut,
-        "total_killed": total_killed,
-        "overall_mutation_score": round(total_killed / total_mut, 3) if total_mut else None,
-        "survivor_count": len(survivors),
-        "survivors": survivors,
-        "per_case": rows,
-    }
-    out_path = root / args.out
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
-
+    write_report(complete=True)
     print(f"mutation_test: {len(rows)} cases, {total_mut} mutants, "
-          f"score {report['overall_mutation_score']}, {len(survivors)} survivors", file=sys.stderr)
-    for s in survivors[:15]:
-        print(f"  SURVIVED {s['case_id']}: {s['mutation']}", file=sys.stderr)
+          f"score {round(total_killed / total_mut, 3) if total_mut else None}, {len(survivors)} survivors", file=sys.stderr)
     return 0
 
 
