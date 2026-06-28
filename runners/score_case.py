@@ -69,19 +69,52 @@ def main() -> int:
             + score_bool(hard_gates.get("scope_pass")) * 0.25
         )
 
+    # game_system / cross_platform are track-specific roles (mirroring porting_signal):
+    # they only carry signal on the tracks that exercise them, else 0.0.
+    game_signal = 0.0
+    if result["track"] in ("go_game_server", "martial_rpg", "rust_bevy"):
+        # tick/state correctness (tests) + deterministic state under hidden cases
+        # (hidden_pass) + boundary/authority potency (mutation_pass).
+        game_signal = (
+            score_bool(hard_gates.get("tests_pass")) * 0.4
+            + score_bool(hard_gates.get("hidden_pass")) * 0.3
+            + score_bool(hard_gates.get("mutation_pass")) * 0.3
+        )
+    cross_platform_signal = 0.0
+    if result["track"] == "flutter_cross_platform":
+        # widget/logic tests + platform/async-lifecycle edge cases (hidden) +
+        # platform-abstraction discipline (scope).
+        cross_platform_signal = (
+            score_bool(hard_gates.get("tests_pass")) * 0.4
+            + score_bool(hard_gates.get("hidden_pass")) * 0.3
+            + score_bool(hard_gates.get("scope_pass")) * 0.3
+        )
+
     role_signals = {
         "contract_worker": score_bool(hard_gates.get("schema_valid")) * 0.5 + score_bool(hard_gates.get("scope_pass")) * 0.5,
         "patch_worker": score_bool(hard_gates.get("patch_applies")) * 0.3 + score_bool(hard_gates.get("tests_pass")) * 0.7,
-        "reviewer": 0.0,
-        "planner": 0.0,
+        # reviewer: scope-violation detection (scope_pass) + semantic-bug detection /
+        # behaviour preservation (hidden_pass) + risk identification via regression tests.
+        "reviewer": (
+            score_bool(hard_gates.get("scope_pass")) * 0.4
+            + score_bool(hard_gates.get("hidden_pass")) * 0.4
+            + score_bool(diff.get("has_regression_test_signal")) * 0.2
+        ),
+        # planner: correct decomposition shows as first-pass success (no repair needed) +
+        # scope-boundary accuracy + verifier awareness (tests pass).
+        "planner": (
+            score_bool(first_pass) * 0.4
+            + score_bool(hard_gates.get("scope_pass")) * 0.3
+            + score_bool(hard_gates.get("tests_pass")) * 0.3
+        ),
         "tool_maker": (
             score_bool(hard_gates.get("schema_valid")) * 0.4
             + score_bool(hard_gates.get("tests_pass")) * 0.4
             + score_bool(diff.get("has_regression_test_signal")) * 0.2
         ),
         "porting_worker": porting_signal,
-        "game_system_worker": 0.0,
-        "cross_platform_app_worker": 0.0,
+        "game_system_worker": game_signal,
+        "cross_platform_app_worker": cross_platform_signal,
     }
 
     score = {
