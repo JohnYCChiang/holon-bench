@@ -64,9 +64,9 @@ cases:
     protected_paths: [server/tick/*_test.go, hidden/**]
     solution_paths: [server/tick/loop.go]
     verifier:
-      commands: [go test ./server/tick -count=1]
-      hidden_commands: [sh -c 'cp hidden/tick_loop_hidden_test.go server/tick/tick_loop_hidden_test.go; trap "rm -f server/tick/tick_loop_hidden_test.go" EXIT; go test ./server/tick -run Hidden -count=1']
-      mutation_commands: [sh -c 'cp hidden/tick_loop_mutation_test.go server/tick/tick_loop_mutation_test.go; trap "rm -f server/tick/tick_loop_mutation_test.go" EXIT; go test ./server/tick -run Mutation -count=1']
+      commands: [go test -race ./server/tick -count=1]
+      hidden_commands: [sh -c 'cp hidden/tick_loop_hidden_test.go server/tick/tick_loop_hidden_test.go; trap "rm -f server/tick/tick_loop_hidden_test.go" EXIT; go test -race ./server/tick -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/tick_loop_mutation_test.go server/tick/tick_loop_mutation_test.go; trap "rm -f server/tick/tick_loop_mutation_test.go" EXIT; go test -race ./server/tick -run Mutation -count=1']
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, safety_pass]

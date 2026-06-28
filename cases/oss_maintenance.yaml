@@ -79,9 +79,9 @@ cases:
     protected_paths: [internal/worker/worker_test.go, hidden/**]
     solution_paths: [internal/worker/worker.go]
     verifier:
-      commands: [go test ./internal/worker -run TestStream -count=1]
-      hidden_commands: ["sh -c 'cp hidden/worker_hidden_test.go internal/worker/worker_hidden_test.go; trap \"rm -f internal/worker/worker_hidden_test.go\" EXIT; go test ./internal/worker -run Hidden -count=1'"]
-      mutation_commands: ["sh -c 'cp hidden/worker_mutation_test.go internal/worker/worker_mutation_test.go; trap \"rm -f internal/worker/worker_mutation_test.go\" EXIT; go test ./internal/worker -run Mutation -count=1'"]
+      commands: [go test -race ./internal/worker -run TestStream -count=1]
+      hidden_commands: ["sh -c 'cp hidden/worker_hidden_test.go internal/worker/worker_hidden_test.go; trap \"rm -f internal/worker/worker_hidden_test.go\" EXIT; go test -race ./internal/worker -run Hidden -count=1'"]
+      mutation_commands: ["sh -c 'cp hidden/worker_mutation_test.go internal/worker/worker_mutation_test.go; trap \"rm -f internal/worker/worker_mutation_test.go\" EXIT; go test -race ./internal/worker -run Mutation -count=1'"]
       timeout_seconds: 60
     scoring:
       hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
