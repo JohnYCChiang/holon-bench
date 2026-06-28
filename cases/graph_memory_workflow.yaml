@@ -124,3 +124,369 @@ cases:
       hard_gates: [patch_applies, tests_pass, scope_pass, semantic_pass]
       soft_metrics: [functional_correctness, contract_compliance, observability]
     failure_tags: [wrong_project_memory, stale_memory_used, graph_context_not_used]
+
+  - id: kg-use-004
+    track: graph_memory_workflow
+    language: python
+    difficulty: medium
+    task_type: active_graph_policy_recall
+    fixture: fixtures/python/graph_tax_region
+    user_request: >
+      Update compute_tax so it applies the stored region-specific tax rates. The
+      repository ships only the legacy flat rate; recover the per-region policy
+      from project memory if it is not present in source files.
+    constraints:
+      - Preserve compute_tax(order) as the public API returning an int in minor units.
+      - Missing or unknown regions must keep the legacy flat-rate fallback.
+      - Do not hard-code unrelated examples from visible tests.
+    knowledge_seed:
+      - name: Regional Tax Rate Schedule
+        kind: decision
+        description: >
+          Tax is computed in basis points by region: us-ca=725, us-or=0,
+          eu-de=1900, eu-fr=2000, as amount * bps // 10000. Use the legacy flat
+          1000 bps only when the region is missing or unrecognized.
+    allowed_paths: [src/tax.py, tests/**]
+    forbidden_paths: [README.md]
+    protected_paths: [hidden/**]
+    solution_paths: [src/tax.py]
+    verifier:
+      commands:
+        - python3 -m unittest discover -s tests
+      hidden_commands:
+        - python3 hidden/verify_tax.py
+      mutation_commands:
+        - python3 hidden/verify_tax_mutation.py
+      timeout_seconds: 30
+      semantic_checks: [graph_context_used]
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass, semantic_pass]
+      soft_metrics: [functional_correctness, contract_compliance, observability]
+    failure_tags: [graph_context_not_used, graph_tool_not_called, wrong_edge_case]
+
+  - id: kg-use-005
+    track: graph_memory_workflow
+    language: python
+    difficulty: hard
+    task_type: active_graph_policy_recall
+    fixture: fixtures/python/graph_retention_window
+    user_request: >
+      Extend retention_days to honor the stored data-class retention windows. The
+      tiered windows are not written in source; recover them from project memory
+      before implementing behavior.
+    constraints:
+      - Preserve retention_days(record) as the public API returning an int.
+      - Unknown or missing data classes keep the legacy 30-day default.
+      - Do not hard-code unrelated examples from visible tests.
+    knowledge_seed:
+      - name: Data Retention Tier Policy
+        kind: requirement
+        description: >
+          Retention in days by data class: legal=2555, financial=2190, pii=730,
+          telemetry=90. Any unrecognized or absent class falls back to the legacy
+          30-day default.
+    allowed_paths: [src/retention.py, tests/**]
+    forbidden_paths: [README.md]
+    protected_paths: [hidden/**]
+    solution_paths: [src/retention.py]
+    verifier:
+      commands:
+        - python3 -m unittest discover -s tests
+      hidden_commands:
+        - python3 hidden/verify_retention.py
+      mutation_commands:
+        - python3 hidden/verify_retention_mutation.py
+      timeout_seconds: 30
+      semantic_checks: [graph_context_used]
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass, semantic_pass]
+      soft_metrics: [functional_correctness, contract_compliance, observability]
+    failure_tags: [graph_context_not_used, graph_tool_not_called, wrong_edge_case]
+
+  - id: kg-use-006
+    track: graph_memory_workflow
+    language: python
+    difficulty: hard
+    task_type: graph_relation_following
+    fixture: fixtures/python/graph_escalation_contact
+    user_request: >
+      Extend escalate with the stored severity-escalation policy. The escalation
+      contact is recorded as a related requirement and must be recovered from
+      project memory before implementing behavior.
+    constraints:
+      - Preserve escalate(incident) as the public API returning a string.
+      - Non-critical incidents keep the legacy default queue.
+      - The escalation rule is not present in source files.
+    knowledge_seed:
+      - name: Sev1 Production Escalation
+        kind: decision
+        description: >
+          Severity 1 incidents in the production environment must page the
+          on-call lead with the exact target "page:oncall-lead".
+        relates_to: [Oncall Lead Contact Requirement]
+      - name: Oncall Lead Contact Requirement
+        kind: requirement
+        description: >
+          The on-call lead is only paged for production severity 1 incidents; all
+          other incidents stay on "page:default-queue".
+    allowed_paths: [src/escalation.py, tests/**]
+    forbidden_paths: [README.md]
+    protected_paths: [hidden/**]
+    solution_paths: [src/escalation.py]
+    verifier:
+      commands:
+        - python3 -m unittest discover -s tests
+      hidden_commands:
+        - python3 hidden/verify_escalation.py
+      mutation_commands:
+        - python3 hidden/verify_escalation_mutation.py
+      timeout_seconds: 30
+      semantic_checks: [graph_relation_used]
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass, semantic_pass]
+      soft_metrics: [functional_correctness, maintainability, observability]
+    failure_tags: [graph_context_not_used, graph_relation_ignored, missing_requirement]
+
+  - id: kg-use-007
+    track: graph_memory_workflow
+    language: python
+    difficulty: medium
+    task_type: active_graph_policy_recall
+    fixture: fixtures/python/graph_naming_convention
+    user_request: >
+      Update resource_name to follow the stored project naming convention. The
+      convention is not duplicated in source files; recover it from project memory
+      if needed.
+    constraints:
+      - Preserve resource_name(spec) as the public API returning a string.
+      - When env or team is missing, keep the legacy bare-name fallback unchanged.
+      - Do not hard-code unrelated examples from visible tests.
+    knowledge_seed:
+      - name: Resource Naming Convention
+        kind: decision
+        description: >
+          Resource names are formatted as "{env}-{team}-{name}" and lower-cased
+          when both env and team are present. If either is missing, return the
+          bare name unchanged (legacy behavior).
+    allowed_paths: [src/naming.py, tests/**]
+    forbidden_paths: [README.md]
+    protected_paths: [hidden/**]
+    solution_paths: [src/naming.py]
+    verifier:
+      commands:
+        - python3 -m unittest discover -s tests
+      hidden_commands:
+        - python3 hidden/verify_naming.py
+      mutation_commands:
+        - python3 hidden/verify_naming_mutation.py
+      timeout_seconds: 30
+      semantic_checks: [graph_context_used]
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass, semantic_pass]
+      soft_metrics: [functional_correctness, contract_compliance, observability]
+    failure_tags: [graph_context_not_used, graph_tool_not_called, wrong_edge_case]
+
+  - id: kg-use-008
+    track: graph_memory_workflow
+    language: python
+    difficulty: hard
+    task_type: active_graph_policy_recall
+    fixture: fixtures/python/graph_currency_rounding
+    user_request: >
+      Extend format_amount to apply the stored per-currency precision policy. The
+      currency exponents are not present in source files; recover them from
+      project memory before implementing behavior.
+    constraints:
+      - Preserve format_amount(amount, currency) as the public API returning a string.
+      - Keep ROUND_HALF_UP rounding and the two-decimal default for other currencies.
+      - Do not hard-code unrelated examples from visible tests.
+    knowledge_seed:
+      - name: Currency Precision Policy
+        kind: decision
+        description: >
+          Decimal places by currency: JPY=0, BHD=3, KWD=3, all others default to
+          2. Amounts are quantized with ROUND_HALF_UP to the currency exponent and
+          returned as a fixed-point string.
+    allowed_paths: [src/money.py, tests/**]
+    forbidden_paths: [README.md]
+    protected_paths: [hidden/**]
+    solution_paths: [src/money.py]
+    verifier:
+      commands:
+        - python3 -m unittest discover -s tests
+      hidden_commands:
+        - python3 hidden/verify_money.py
+      mutation_commands:
+        - python3 hidden/verify_money_mutation.py
+      timeout_seconds: 30
+      semantic_checks: [graph_context_used]
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass, semantic_pass]
+      soft_metrics: [functional_correctness, contract_compliance, observability]
+    failure_tags: [graph_context_not_used, graph_tool_not_called, wrong_edge_case]
+
+  - id: kg-use-009
+    track: graph_memory_workflow
+    language: python
+    difficulty: hard
+    task_type: graph_relation_following
+    fixture: fixtures/python/graph_approval_threshold
+    user_request: >
+      Extend needs_approval with the stored spend-approval policy. The threshold
+      and the privileged-role exemption are recorded as related nodes and must be
+      recovered from project memory before implementing behavior.
+    constraints:
+      - Preserve needs_approval(request) as the public API returning a bool.
+      - Small spend stays auto-approved; the rule is not present in source files.
+      - Do not hard-code unrelated examples from visible tests.
+    knowledge_seed:
+      - name: Spend Threshold Policy
+        kind: decision
+        description: >
+          Spend requests strictly above 5000 require approval. The threshold value
+          itself does not require approval.
+        relates_to: [Privileged Role Requirement]
+      - name: Privileged Role Requirement
+        kind: requirement
+        description: >
+          The "director" role is privileged and exempt from approval for any
+          amount; all other roles are subject to the threshold.
+    allowed_paths: [src/approval.py, tests/**]
+    forbidden_paths: [README.md]
+    protected_paths: [hidden/**]
+    solution_paths: [src/approval.py]
+    verifier:
+      commands:
+        - python3 -m unittest discover -s tests
+      hidden_commands:
+        - python3 hidden/verify_approval.py
+      mutation_commands:
+        - python3 hidden/verify_approval_mutation.py
+      timeout_seconds: 30
+      semantic_checks: [graph_relation_used]
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass, semantic_pass]
+      soft_metrics: [functional_correctness, maintainability, observability]
+    failure_tags: [graph_context_not_used, graph_relation_ignored, missing_requirement]
+
+  - id: kg-use-010
+    track: graph_memory_workflow
+    language: python
+    difficulty: medium
+    task_type: project_scoped_memory
+    fixture: fixtures/python/graph_residency_routing
+    user_request: >
+      Update residency_endpoint to use the data-residency endpoint recorded for
+      this project. Do not use the generic global residency default when project
+      memory has a more specific deployment decision.
+    constraints:
+      - Preserve residency_endpoint() as a zero-argument function returning a string.
+      - The current project decision must override generic/global memory.
+      - Return a plain string.
+    cognitive_recall: true
+    knowledge_seed:
+      - name: Global Residency Default
+        kind: decision
+        scope: global
+        description: 'Generic fallback residency endpoint is "residency: us-global-1".'
+      - name: Project EU Residency Decision
+        kind: decision
+        description: 'Current project residency endpoint is "residency: eu-frankfurt-1".'
+    allowed_paths: [src/residency.py, tests/**]
+    forbidden_paths: [README.md]
+    protected_paths: [hidden/**]
+    solution_paths: [src/residency.py]
+    verifier:
+      commands:
+        - python3 -m unittest discover -s tests
+      hidden_commands:
+        - python3 hidden/verify_residency.py
+      mutation_commands:
+        - python3 hidden/verify_residency_mutation.py
+      timeout_seconds: 30
+      semantic_checks: [project_scoped_graph_context]
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass, semantic_pass]
+      soft_metrics: [functional_correctness, contract_compliance, observability]
+    failure_tags: [wrong_project_memory, stale_memory_used, graph_context_not_used]
+
+  - id: kg-use-011
+    track: graph_memory_workflow
+    language: python
+    difficulty: medium
+    task_type: project_scoped_memory
+    fixture: fixtures/python/graph_feature_flag
+    user_request: >
+      Update payments_v2_enabled to reflect the rollout decision recorded for this
+      project. Do not fall back to the disabled global default when project memory
+      has a more specific rollout decision.
+    constraints:
+      - Preserve payments_v2_enabled() as a zero-argument function returning a bool.
+      - The current project decision must override generic/global memory.
+      - Return a plain bool.
+    cognitive_recall: true
+    knowledge_seed:
+      - name: Global Feature Default
+        kind: decision
+        scope: global
+        description: 'Generic global default for payments v2 is disabled (False).'
+      - name: Project Payments V2 Rollout
+        kind: decision
+        description: 'Current project has enabled payments v2 (True).'
+    allowed_paths: [src/feature.py, tests/**]
+    forbidden_paths: [README.md]
+    protected_paths: [hidden/**]
+    solution_paths: [src/feature.py]
+    verifier:
+      commands:
+        - python3 -m unittest discover -s tests
+      hidden_commands:
+        - python3 hidden/verify_feature.py
+      mutation_commands:
+        - python3 hidden/verify_feature_mutation.py
+      timeout_seconds: 30
+      semantic_checks: [project_scoped_graph_context]
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass, semantic_pass]
+      soft_metrics: [functional_correctness, contract_compliance, observability]
+    failure_tags: [wrong_project_memory, stale_memory_used, graph_context_not_used]
+
+  - id: kg-use-012
+    track: graph_memory_workflow
+    language: python
+    difficulty: hard
+    task_type: active_graph_policy_recall
+    fixture: fixtures/python/graph_sla_tier
+    user_request: >
+      Extend sla_minutes to apply the stored SLA tier mapping. The priority and
+      plan rules are not present in source files; recover them from project memory
+      before implementing behavior.
+    constraints:
+      - Preserve sla_minutes(ticket) as the public API returning an int.
+      - Unknown or missing priorities keep the legacy default window.
+      - Do not hard-code unrelated examples from visible tests.
+    knowledge_seed:
+      - name: SLA Tier Mapping
+        kind: decision
+        description: >
+          Response minutes by priority: p1=30, p2=120, p3=240, p4=1440. An
+          enterprise plan halves the mapped window (integer floor). Unknown or
+          missing priorities fall back to the legacy 600-minute default,
+          regardless of plan.
+    allowed_paths: [src/sla.py, tests/**]
+    forbidden_paths: [README.md]
+    protected_paths: [hidden/**]
+    solution_paths: [src/sla.py]
+    verifier:
+      commands:
+        - python3 -m unittest discover -s tests
+      hidden_commands:
+        - python3 hidden/verify_sla.py
+      mutation_commands:
+        - python3 hidden/verify_sla_mutation.py
+      timeout_seconds: 30
+      semantic_checks: [graph_context_used]
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass, semantic_pass]
+      soft_metrics: [functional_correctness, contract_compliance, observability]
+    failure_tags: [graph_context_not_used, graph_tool_not_called, wrong_edge_case]

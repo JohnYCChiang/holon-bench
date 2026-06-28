@@ -604,3 +604,292 @@ cases:
       hard_gates: [patch_applies, compiles, tests_pass, safety_pass, semantic_pass]
       soft_metrics: [platform_compatibility, maintainability]
     failure_tags: [dart_io_on_web, desktop_assumption, hidden_verifier_failed]
+  - id: flutter-111
+    track: flutter_cross_platform
+    language: dart
+    difficulty: easy
+    task_type: multi_selection
+    fixture: fixtures/flutter/multi_select
+    user_request: Make the multi-select controller toggle, accumulate, and clear selections correctly.
+    constraints:
+      - Toggling a selected id removes it.
+      - selectAll adds ids without dropping the existing selection.
+      - Preserve selection order by first selection.
+    allowed_paths: [lib/state/**, test/state/**]
+    forbidden_paths: [pubspec.yaml]
+    protected_paths: [test/state/**, hidden/**]
+    solution_paths: [lib/state/multi_select_controller.dart]
+    verifier:
+      commands: [flutter test test/state]
+      hidden_commands: [sh -c 'cp hidden/multi_select_controller_hidden_test.dart test/state/multi_select_controller_hidden_test.dart; trap "rm -f test/state/multi_select_controller_hidden_test.dart" EXIT; flutter test test/state/multi_select_controller_hidden_test.dart']
+      mutation_commands: [sh -c 'cp hidden/multi_select_controller_mutation_test.dart test/state/multi_select_controller_mutation_test.dart; trap "rm -f test/state/multi_select_controller_mutation_test.dart" EXIT; flutter test test/state/multi_select_controller_mutation_test.dart']
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [wrong_edge_case, state_sync_corruption]
+  - id: flutter-112
+    track: flutter_cross_platform
+    language: dart
+    difficulty: medium
+    task_type: currency_formatting
+    fixture: fixtures/flutter/currency_input_format
+    user_request: Format integer cents into a grouped currency string with two decimals.
+    constraints:
+      - Group the dollar part in threes and always show two decimal places.
+      - Place a negative sign before the currency symbol.
+      - Honor a custom symbol argument.
+    allowed_paths: [lib/format/**, test/format/**]
+    forbidden_paths: [pubspec.yaml]
+    protected_paths: [test/format/**, hidden/**]
+    solution_paths: [lib/format/currency_formatter.dart]
+    verifier:
+      commands: [flutter test test/format]
+      hidden_commands: [sh -c 'cp hidden/currency_formatter_hidden_test.dart test/format/currency_formatter_hidden_test.dart; trap "rm -f test/format/currency_formatter_hidden_test.dart" EXIT; flutter test test/format/currency_formatter_hidden_test.dart']
+      mutation_commands: [sh -c 'cp hidden/currency_formatter_mutation_test.dart test/format/currency_formatter_mutation_test.dart; trap "rm -f test/format/currency_formatter_mutation_test.dart" EXIT; flutter test test/format/currency_formatter_mutation_test.dart']
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement]
+  - id: flutter-113
+    track: flutter_cross_platform
+    language: dart
+    difficulty: easy
+    task_type: duration_formatting
+    fixture: fixtures/flutter/countdown_format
+    user_request: Format a remaining-seconds count as a zero-padded countdown clock.
+    constraints:
+      - Show MM:SS under an hour and H:MM:SS at or above an hour.
+      - Zero-pad minutes and seconds but not the hours.
+      - Clamp negative input to zero.
+    allowed_paths: [lib/format/**, test/format/**]
+    forbidden_paths: [pubspec.yaml]
+    protected_paths: [test/format/**, hidden/**]
+    solution_paths: [lib/format/countdown_formatter.dart]
+    verifier:
+      commands: [flutter test test/format]
+      hidden_commands: [sh -c 'cp hidden/countdown_formatter_hidden_test.dart test/format/countdown_formatter_hidden_test.dart; trap "rm -f test/format/countdown_formatter_hidden_test.dart" EXIT; flutter test test/format/countdown_formatter_hidden_test.dart']
+      mutation_commands: [sh -c 'cp hidden/countdown_formatter_mutation_test.dart test/format/countdown_formatter_mutation_test.dart; trap "rm -f test/format/countdown_formatter_mutation_test.dart" EXIT; flutter test test/format/countdown_formatter_mutation_test.dart']
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement]
+  - id: flutter-114
+    track: flutter_cross_platform
+    language: dart
+    difficulty: medium
+    task_type: wizard_validation
+    fixture: fixtures/flutter/stepper_wizard
+    user_request: Gate wizard navigation so forward movement requires valid steps.
+    constraints:
+      - next advances only when the current step is valid and not at the end.
+      - back is blocked at the first step.
+      - A forward jump requires every intermediate step to be valid.
+    allowed_paths: [lib/state/**, test/state/**]
+    forbidden_paths: [pubspec.yaml]
+    protected_paths: [test/state/**, hidden/**]
+    solution_paths: [lib/state/wizard_controller.dart]
+    verifier:
+      commands: [flutter test test/state]
+      hidden_commands: [sh -c 'cp hidden/wizard_controller_hidden_test.dart test/state/wizard_controller_hidden_test.dart; trap "rm -f test/state/wizard_controller_hidden_test.dart" EXIT; flutter test test/state/wizard_controller_hidden_test.dart']
+      mutation_commands: [sh -c 'cp hidden/wizard_controller_mutation_test.dart test/state/wizard_controller_mutation_test.dart; trap "rm -f test/state/wizard_controller_mutation_test.dart" EXIT; flutter test test/state/wizard_controller_mutation_test.dart']
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance]
+    failure_tags: [wrong_edge_case, missing_requirement]
+  - id: flutter-115
+    track: flutter_cross_platform
+    language: dart
+    difficulty: medium
+    task_type: tab_state_retention
+    fixture: fixtures/flutter/tab_retention
+    user_request: Retain each tab's scroll offset across tab switches.
+    constraints:
+      - saveOffset writes to the currently active tab only.
+      - Unseen tabs default to a zero offset.
+      - Reject switching to an out-of-range tab.
+    allowed_paths: [lib/state/**, test/state/**]
+    forbidden_paths: [pubspec.yaml]
+    protected_paths: [test/state/**, hidden/**]
+    solution_paths: [lib/state/tab_state_store.dart]
+    verifier:
+      commands: [flutter test test/state]
+      hidden_commands: [sh -c 'cp hidden/tab_state_store_hidden_test.dart test/state/tab_state_store_hidden_test.dart; trap "rm -f test/state/tab_state_store_hidden_test.dart" EXIT; flutter test test/state/tab_state_store_hidden_test.dart']
+      mutation_commands: [sh -c 'cp hidden/tab_state_store_mutation_test.dart test/state/tab_state_store_mutation_test.dart; trap "rm -f test/state/tab_state_store_mutation_test.dart" EXIT; flutter test test/state/tab_state_store_mutation_test.dart']
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [state_sync_corruption, wrong_edge_case]
+  - id: flutter-116
+    track: flutter_cross_platform
+    language: dart
+    difficulty: medium
+    task_type: history_dedupe
+    fixture: fixtures/flutter/search_history
+    user_request: Keep a most-recent-first search history that dedupes and caps entries.
+    constraints:
+      - Trim queries and ignore blank input.
+      - Dedupe case-insensitively and move repeats to the front.
+      - Cap the list and drop the oldest entry.
+    allowed_paths: [lib/state/**, test/state/**]
+    forbidden_paths: [pubspec.yaml]
+    protected_paths: [test/state/**, hidden/**]
+    solution_paths: [lib/state/search_history.dart]
+    verifier:
+      commands: [flutter test test/state]
+      hidden_commands: [sh -c 'cp hidden/search_history_hidden_test.dart test/state/search_history_hidden_test.dart; trap "rm -f test/state/search_history_hidden_test.dart" EXIT; flutter test test/state/search_history_hidden_test.dart']
+      mutation_commands: [sh -c 'cp hidden/search_history_mutation_test.dart test/state/search_history_mutation_test.dart; trap "rm -f test/state/search_history_mutation_test.dart" EXIT; flutter test test/state/search_history_mutation_test.dart']
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement]
+  - id: flutter-117
+    track: flutter_cross_platform
+    language: dart
+    difficulty: hard
+    task_type: optimistic_update
+    fixture: fixtures/flutter/optimistic_like
+    user_request: Apply a like optimistically and roll back when the commit fails.
+    constraints:
+      - Update liked and count before awaiting the commit.
+      - Restore the previous liked flag and count if the commit throws.
+      - Return whether the commit succeeded.
+    allowed_paths: [lib/state/**, test/state/**]
+    forbidden_paths: [pubspec.yaml]
+    protected_paths: [test/state/**, hidden/**]
+    solution_paths: [lib/state/like_controller.dart]
+    verifier:
+      commands: [flutter test test/state]
+      hidden_commands: [sh -c 'cp hidden/like_controller_hidden_test.dart test/state/like_controller_hidden_test.dart; trap "rm -f test/state/like_controller_hidden_test.dart" EXIT; flutter test test/state/like_controller_hidden_test.dart']
+      mutation_commands: [sh -c 'cp hidden/like_controller_mutation_test.dart test/state/like_controller_mutation_test.dart; trap "rm -f test/state/like_controller_mutation_test.dart" EXIT; flutter test test/state/like_controller_mutation_test.dart']
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass]
+      soft_metrics: [functional_correctness, maintainability, test_quality]
+    failure_tags: [state_sync_corruption, wrong_edge_case]
+  - id: flutter-118
+    track: flutter_cross_platform
+    language: dart
+    difficulty: hard
+    task_type: dismiss_undo
+    fixture: fixtures/flutter/dismiss_undo
+    user_request: Support swipe-dismiss with an undo that restores the item at its original index.
+    constraints:
+      - undo restores the most recently dismissed item at its original index.
+      - Only the most recent dismissal is undoable.
+      - Dismissing an out-of-range index throws.
+    allowed_paths: [lib/list/**, test/list/**]
+    forbidden_paths: [pubspec.yaml]
+    protected_paths: [test/list/**, hidden/**]
+    solution_paths: [lib/list/dismiss_undo.dart]
+    verifier:
+      commands: [flutter test test/list]
+      hidden_commands: [sh -c 'cp hidden/dismiss_undo_hidden_test.dart test/list/dismiss_undo_hidden_test.dart; trap "rm -f test/list/dismiss_undo_hidden_test.dart" EXIT; flutter test test/list/dismiss_undo_hidden_test.dart']
+      mutation_commands: [sh -c 'cp hidden/dismiss_undo_mutation_test.dart test/list/dismiss_undo_mutation_test.dart; trap "rm -f test/list/dismiss_undo_mutation_test.dart" EXIT; flutter test test/list/dismiss_undo_mutation_test.dart']
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass]
+      soft_metrics: [functional_correctness, contract_compliance]
+    failure_tags: [wrong_edge_case, state_sync_corruption]
+  - id: flutter-119
+    track: flutter_cross_platform
+    language: dart
+    difficulty: medium
+    task_type: panel_accordion_state
+    fixture: fixtures/flutter/expansion_panel
+    user_request: Track expansion panel state, supporting single-open accordion mode.
+    constraints:
+      - Toggling an open panel closes it.
+      - In single-open mode opening a panel closes the others.
+      - collapseAll closes every panel.
+    allowed_paths: [lib/state/**, test/state/**]
+    forbidden_paths: [pubspec.yaml]
+    protected_paths: [test/state/**, hidden/**]
+    solution_paths: [lib/state/expansion_state.dart]
+    verifier:
+      commands: [flutter test test/state]
+      hidden_commands: [sh -c 'cp hidden/expansion_state_hidden_test.dart test/state/expansion_state_hidden_test.dart; trap "rm -f test/state/expansion_state_hidden_test.dart" EXIT; flutter test test/state/expansion_state_hidden_test.dart']
+      mutation_commands: [sh -c 'cp hidden/expansion_state_mutation_test.dart test/state/expansion_state_mutation_test.dart; trap "rm -f test/state/expansion_state_mutation_test.dart" EXIT; flutter test test/state/expansion_state_mutation_test.dart']
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [wrong_edge_case, state_sync_corruption]
+  - id: flutter-120
+    track: flutter_cross_platform
+    language: dart
+    difficulty: medium
+    task_type: input_masking
+    fixture: fixtures/flutter/input_mask
+    user_request: Apply a '#'-placeholder mask to the digits of an input string.
+    constraints:
+      - Strip non-digit characters before filling the mask.
+      - Stop emitting once the available digits run out.
+      - Drop digits that exceed the mask length.
+    allowed_paths: [lib/format/**, test/format/**]
+    forbidden_paths: [pubspec.yaml]
+    protected_paths: [test/format/**, hidden/**]
+    solution_paths: [lib/format/input_mask.dart]
+    verifier:
+      commands: [flutter test test/format]
+      hidden_commands: [sh -c 'cp hidden/input_mask_hidden_test.dart test/format/input_mask_hidden_test.dart; trap "rm -f test/format/input_mask_hidden_test.dart" EXIT; flutter test test/format/input_mask_hidden_test.dart']
+      mutation_commands: [sh -c 'cp hidden/input_mask_mutation_test.dart test/format/input_mask_mutation_test.dart; trap "rm -f test/format/input_mask_mutation_test.dart" EXIT; flutter test test/format/input_mask_mutation_test.dart']
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement]
+  - id: flutter-121
+    track: flutter_cross_platform
+    language: dart
+    difficulty: hard
+    task_type: platform_clipboard_abstraction
+    fixture: fixtures/flutter/clipboard_trap
+    user_request: Replace direct dart:io clipboard access with an injected platform-neutral ClipboardSink.
+    constraints:
+      - Shared code must not import dart:io.
+      - The service must depend on an injected ClipboardSink boundary.
+      - Preserve the recorded-history API.
+    allowed_paths: [lib/clipboard/**, test/platform/**]
+    forbidden_paths: [pubspec.yaml]
+    protected_paths: [test/platform/**, hidden/**]
+    solution_paths: [lib/clipboard/clipboard_service.dart, lib/clipboard/clipboard_sink.dart]
+    verifier:
+      commands: [flutter test test/platform]
+      hidden_commands: [python3 hidden/verify_clipboard_abstraction.py]
+      mutation_commands: [python3 hidden/verify_clipboard_mutation.py]
+      semantic_checks: [no_dart_io_in_web_path]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass, semantic_pass]
+      soft_metrics: [platform_compatibility, maintainability]
+    failure_tags: [dart_io_on_web, desktop_assumption, hidden_verifier_failed]
+  - id: flutter-122
+    track: flutter_cross_platform
+    language: dart
+    difficulty: expert
+    task_type: viewport_windowing
+    fixture: fixtures/flutter/viewport_window
+    user_request: Compute the visible item index range for a uniformly-sized virtualized list.
+    constraints:
+      - Include any item whose extent intersects the viewport.
+      - Apply overscan and clamp the range to the item count.
+      - Return an empty range for an empty list.
+    allowed_paths: [lib/list/**, test/list/**]
+    forbidden_paths: [pubspec.yaml]
+    protected_paths: [test/list/**, hidden/**]
+    solution_paths: [lib/list/viewport_window.dart]
+    verifier:
+      commands: [flutter test test/list]
+      hidden_commands: [sh -c 'cp hidden/viewport_window_hidden_test.dart test/list/viewport_window_hidden_test.dart; trap "rm -f test/list/viewport_window_hidden_test.dart" EXIT; flutter test test/list/viewport_window_hidden_test.dart']
+      mutation_commands: [sh -c 'cp hidden/viewport_window_mutation_test.dart test/list/viewport_window_mutation_test.dart; trap "rm -f test/list/viewport_window_mutation_test.dart" EXIT; flutter test test/list/viewport_window_mutation_test.dart']
+      timeout_seconds: 150
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass]
+      soft_metrics: [functional_correctness, maintainability, test_quality]
+    failure_tags: [wrong_edge_case, missing_requirement]

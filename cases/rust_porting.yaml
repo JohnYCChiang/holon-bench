@@ -625,3 +625,303 @@ cases:
       hard_gates: [patch_applies, compiles, tests_pass, schema_valid, scope_pass, semantic_pass]
       soft_metrics: [functional_correctness, test_quality, contract_compliance]
     failure_tags: [behavior_not_equivalent, wrong_edge_case, error_taxonomy_mismatch, hidden_verifier_failed]
+  - id: rs-port-111
+    track: rust_porting
+    language: rust
+    difficulty: easy
+    task_type: slug_generator_port
+    fixture: fixtures/rust_porting/slug_generator
+    user_request: Port the Python slug generator to Rust.
+    constraints:
+      - Lowercase and replace runs of non-alphanumerics with a single hyphen.
+      - Strip leading and trailing hyphens.
+      - Output must match the Python reference exactly.
+    allowed_paths: [rust/src/slug.rs]
+    forbidden_paths: [python/**, Cargo.toml]
+    protected_paths: [python/**, rust/tests/**, rust/Cargo.toml, rust/Cargo.lock, hidden/**]
+    solution_paths: [rust/src/slug.rs]
+    verifier:
+      commands: [cargo test --manifest-path rust/Cargo.toml --test slug_parity]
+      hidden_commands: [sh -c 'cp hidden/slug_hidden.rs rust/tests/slug_hidden.rs; trap "rm -f rust/tests/slug_hidden.rs" EXIT; cargo test --manifest-path rust/Cargo.toml --test slug_hidden']
+      mutation_commands: [sh -c 'cp hidden/slug_mutation.rs rust/tests/slug_mutation.rs; trap "rm -f rust/tests/slug_mutation.rs" EXIT; cargo test --manifest-path rust/Cargo.toml --test slug_mutation']
+      semantic_checks: [python_rust_output_equivalence]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid, scope_pass, semantic_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [golden_output_mismatch, behavior_not_equivalent]
+  - id: rs-port-112
+    track: rust_porting
+    language: rust
+    difficulty: easy
+    task_type: ordinal_suffix_port
+    fixture: fixtures/rust_porting/ordinal_suffix
+    user_request: Port the Python ordinal suffix formatter to Rust.
+    constraints:
+      - Use st, nd, rd, and th suffixes.
+      - Numbers ending in 11, 12, or 13 always take th.
+      - Preserve the sign and spacing of the reference.
+    allowed_paths: [rust/src/ordinal.rs]
+    forbidden_paths: [python/**, Cargo.toml]
+    protected_paths: [python/**, rust/tests/**, rust/Cargo.toml, rust/Cargo.lock, hidden/**]
+    solution_paths: [rust/src/ordinal.rs]
+    verifier:
+      commands: [cargo test --manifest-path rust/Cargo.toml --test ordinal_parity]
+      hidden_commands: [sh -c 'cp hidden/ordinal_hidden.rs rust/tests/ordinal_hidden.rs; trap "rm -f rust/tests/ordinal_hidden.rs" EXIT; cargo test --manifest-path rust/Cargo.toml --test ordinal_hidden']
+      mutation_commands: [sh -c 'cp hidden/ordinal_mutation.rs rust/tests/ordinal_mutation.rs; trap "rm -f rust/tests/ordinal_mutation.rs" EXIT; cargo test --manifest-path rust/Cargo.toml --test ordinal_mutation']
+      semantic_checks: [python_rust_output_equivalence]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid, scope_pass, semantic_pass]
+      soft_metrics: [functional_correctness, contract_compliance, minimality]
+    failure_tags: [behavior_not_equivalent, wrong_edge_case]
+  - id: rs-port-113
+    track: rust_porting
+    language: rust
+    difficulty: easy
+    task_type: color_hex_port
+    fixture: fixtures/rust_porting/color_hex
+    user_request: Port the Python hex color to RGB converter to Rust.
+    constraints:
+      - Accept 3- and 6-digit hex with an optional leading hash.
+      - Expand the short form by doubling each digit.
+      - Invalid input maps to error.
+    allowed_paths: [rust/src/color.rs]
+    forbidden_paths: [python/**, Cargo.toml]
+    protected_paths: [python/**, rust/tests/**, rust/Cargo.toml, rust/Cargo.lock, hidden/**]
+    solution_paths: [rust/src/color.rs]
+    verifier:
+      commands: [cargo test --manifest-path rust/Cargo.toml --test color_parity]
+      hidden_commands: [sh -c 'cp hidden/color_hidden.rs rust/tests/color_hidden.rs; trap "rm -f rust/tests/color_hidden.rs" EXIT; cargo test --manifest-path rust/Cargo.toml --test color_hidden']
+      mutation_commands: [sh -c 'cp hidden/color_mutation.rs rust/tests/color_mutation.rs; trap "rm -f rust/tests/color_mutation.rs" EXIT; cargo test --manifest-path rust/Cargo.toml --test color_mutation']
+      semantic_checks: [python_rust_output_equivalence]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid, scope_pass, semantic_pass]
+      soft_metrics: [functional_correctness, maintainability, observability]
+    failure_tags: [behavior_not_equivalent, wrong_edge_case]
+  - id: rs-port-114
+    track: rust_porting
+    language: rust
+    difficulty: medium
+    task_type: base32_encode_port
+    fixture: fixtures/rust_porting/base32_encode
+    user_request: Port the Python base32 encoder to Rust.
+    constraints:
+      - Use the RFC 4648 standard alphabet.
+      - Pad partial groups with equals signs.
+      - Encode the raw input bytes.
+    allowed_paths: [rust/src/base32.rs]
+    forbidden_paths: [python/**, Cargo.toml]
+    protected_paths: [python/**, rust/tests/**, rust/Cargo.toml, rust/Cargo.lock, hidden/**]
+    solution_paths: [rust/src/base32.rs]
+    verifier:
+      commands: [cargo test --manifest-path rust/Cargo.toml --test base32_parity]
+      hidden_commands: [sh -c 'cp hidden/base32_hidden.rs rust/tests/base32_hidden.rs; trap "rm -f rust/tests/base32_hidden.rs" EXIT; cargo test --manifest-path rust/Cargo.toml --test base32_hidden']
+      mutation_commands: [sh -c 'cp hidden/base32_mutation.rs rust/tests/base32_mutation.rs; trap "rm -f rust/tests/base32_mutation.rs" EXIT; cargo test --manifest-path rust/Cargo.toml --test base32_mutation']
+      semantic_checks: [python_rust_output_equivalence]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid, scope_pass, semantic_pass]
+      soft_metrics: [functional_correctness, contract_compliance, test_quality]
+    failure_tags: [golden_output_mismatch, behavior_not_equivalent, wrong_edge_case]
+  - id: rs-port-115
+    track: rust_porting
+    language: rust
+    difficulty: medium
+    task_type: path_join_port
+    fixture: fixtures/rust_porting/path_join
+    user_request: Port the Python POSIX path joiner to Rust.
+    constraints:
+      - An absolute segment resets the accumulated path.
+      - Avoid duplicate separators around trailing slashes.
+      - Join segments with forward slashes.
+    allowed_paths: [rust/src/pathjoin.rs]
+    forbidden_paths: [python/**, Cargo.toml]
+    protected_paths: [python/**, rust/tests/**, rust/Cargo.toml, rust/Cargo.lock, hidden/**]
+    solution_paths: [rust/src/pathjoin.rs]
+    verifier:
+      commands: [cargo test --manifest-path rust/Cargo.toml --test path_join_parity]
+      hidden_commands: [sh -c 'cp hidden/path_join_hidden.rs rust/tests/path_join_hidden.rs; trap "rm -f rust/tests/path_join_hidden.rs" EXIT; cargo test --manifest-path rust/Cargo.toml --test path_join_hidden']
+      mutation_commands: [sh -c 'cp hidden/path_join_mutation.rs rust/tests/path_join_mutation.rs; trap "rm -f rust/tests/path_join_mutation.rs" EXIT; cargo test --manifest-path rust/Cargo.toml --test path_join_mutation']
+      semantic_checks: [python_rust_output_equivalence]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid, scope_pass, semantic_pass]
+      soft_metrics: [functional_correctness, maintainability, contract_compliance]
+    failure_tags: [behavior_not_equivalent, wrong_edge_case]
+  - id: rs-port-116
+    track: rust_porting
+    language: rust
+    difficulty: medium
+    task_type: number_format_port
+    fixture: fixtures/rust_porting/number_format
+    user_request: Port the Python thousands-separator number formatter to Rust.
+    constraints:
+      - Group digits in threes with commas.
+      - Preserve a leading minus sign.
+      - Non-numeric input maps to error.
+    allowed_paths: [rust/src/numfmt.rs]
+    forbidden_paths: [python/**, Cargo.toml]
+    protected_paths: [python/**, rust/tests/**, rust/Cargo.toml, rust/Cargo.lock, hidden/**]
+    solution_paths: [rust/src/numfmt.rs]
+    verifier:
+      commands: [cargo test --manifest-path rust/Cargo.toml --test number_format_parity]
+      hidden_commands: [sh -c 'cp hidden/number_format_hidden.rs rust/tests/number_format_hidden.rs; trap "rm -f rust/tests/number_format_hidden.rs" EXIT; cargo test --manifest-path rust/Cargo.toml --test number_format_hidden']
+      mutation_commands: [sh -c 'cp hidden/number_format_mutation.rs rust/tests/number_format_mutation.rs; trap "rm -f rust/tests/number_format_mutation.rs" EXIT; cargo test --manifest-path rust/Cargo.toml --test number_format_mutation']
+      semantic_checks: [python_rust_output_equivalence]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid, scope_pass, semantic_pass]
+      soft_metrics: [functional_correctness, minimality, observability]
+    failure_tags: [golden_output_mismatch, behavior_not_equivalent]
+  - id: rs-port-117
+    track: rust_porting
+    language: rust
+    difficulty: medium
+    task_type: env_expand_port
+    fixture: fixtures/rust_porting/env_expand
+    user_request: Port the Python environment variable expander to Rust.
+    constraints:
+      - Expand both $NAME and braced forms.
+      - A double dollar is a literal dollar.
+      - Unknown names expand to empty.
+    allowed_paths: [rust/src/envexpand.rs]
+    forbidden_paths: [python/**, Cargo.toml]
+    protected_paths: [python/**, rust/tests/**, rust/Cargo.toml, rust/Cargo.lock, hidden/**]
+    solution_paths: [rust/src/envexpand.rs]
+    verifier:
+      commands: [cargo test --manifest-path rust/Cargo.toml --test env_expand_parity]
+      hidden_commands: [sh -c 'cp hidden/env_expand_hidden.rs rust/tests/env_expand_hidden.rs; trap "rm -f rust/tests/env_expand_hidden.rs" EXIT; cargo test --manifest-path rust/Cargo.toml --test env_expand_hidden']
+      mutation_commands: [sh -c 'cp hidden/env_expand_mutation.rs rust/tests/env_expand_mutation.rs; trap "rm -f rust/tests/env_expand_mutation.rs" EXIT; cargo test --manifest-path rust/Cargo.toml --test env_expand_mutation']
+      semantic_checks: [python_rust_output_equivalence]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid, scope_pass, semantic_pass]
+      soft_metrics: [functional_correctness, contract_compliance, observability]
+    failure_tags: [behavior_not_equivalent, missing_requirement]
+  - id: rs-port-118
+    track: rust_porting
+    language: rust
+    difficulty: medium
+    task_type: ini_parser_port
+    fixture: fixtures/rust_porting/ini_parser
+    user_request: Port the Python INI parser to Rust serde_json.
+    constraints:
+      - Trim whitespace around keys and values.
+      - Lines starting with semicolon or hash are comments.
+      - Emit a sorted JSON object of sections.
+    allowed_paths: [rust/src/ini.rs]
+    forbidden_paths: [python/**, Cargo.toml]
+    protected_paths: [python/**, rust/tests/**, rust/Cargo.toml, rust/Cargo.lock, hidden/**]
+    solution_paths: [rust/src/ini.rs]
+    verifier:
+      commands: [cargo test --manifest-path rust/Cargo.toml --test ini_parser_parity]
+      hidden_commands: [sh -c 'cp hidden/ini_parser_hidden.rs rust/tests/ini_parser_hidden.rs; trap "rm -f rust/tests/ini_parser_hidden.rs" EXIT; cargo test --manifest-path rust/Cargo.toml --test ini_parser_hidden']
+      mutation_commands: [sh -c 'cp hidden/ini_parser_mutation.rs rust/tests/ini_parser_mutation.rs; trap "rm -f rust/tests/ini_parser_mutation.rs" EXIT; cargo test --manifest-path rust/Cargo.toml --test ini_parser_mutation']
+      semantic_checks: [python_rust_json_equivalence]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid, scope_pass, semantic_pass]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [behavior_not_equivalent, golden_output_mismatch, hidden_verifier_failed]
+  - id: rs-port-119
+    track: rust_porting
+    language: rust
+    difficulty: medium
+    task_type: csv_writer_port
+    fixture: fixtures/rust_porting/csv_writer
+    user_request: Port the Python CSV row writer to Rust.
+    constraints:
+      - Quote fields containing a comma or a quote.
+      - Double embedded quotes.
+      - Join fields with commas.
+    allowed_paths: [rust/src/csv.rs]
+    forbidden_paths: [python/**, Cargo.toml]
+    protected_paths: [python/**, rust/tests/**, rust/Cargo.toml, rust/Cargo.lock, hidden/**]
+    solution_paths: [rust/src/csv.rs]
+    verifier:
+      commands: [cargo test --manifest-path rust/Cargo.toml --test csv_writer_parity]
+      hidden_commands: [sh -c 'cp hidden/csv_writer_hidden.rs rust/tests/csv_writer_hidden.rs; trap "rm -f rust/tests/csv_writer_hidden.rs" EXIT; cargo test --manifest-path rust/Cargo.toml --test csv_writer_hidden']
+      mutation_commands: [sh -c 'cp hidden/csv_writer_mutation.rs rust/tests/csv_writer_mutation.rs; trap "rm -f rust/tests/csv_writer_mutation.rs" EXIT; cargo test --manifest-path rust/Cargo.toml --test csv_writer_mutation']
+      semantic_checks: [python_rust_output_equivalence]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid, scope_pass, semantic_pass]
+      soft_metrics: [functional_correctness, contract_compliance, minimality]
+    failure_tags: [golden_output_mismatch, behavior_not_equivalent, wrong_edge_case]
+  - id: rs-port-120
+    track: rust_porting
+    language: rust
+    difficulty: hard
+    task_type: ascii_table_port
+    fixture: fixtures/rust_porting/ascii_table
+    user_request: Port the Python ASCII table renderer to Rust.
+    constraints:
+      - Pad each column to its widest cell.
+      - Separate the header with a dashed rule.
+      - Match the reference layout exactly.
+    allowed_paths: [rust/src/table.rs]
+    forbidden_paths: [python/**, Cargo.toml]
+    protected_paths: [python/**, rust/tests/**, rust/Cargo.toml, rust/Cargo.lock, hidden/**]
+    solution_paths: [rust/src/table.rs]
+    verifier:
+      commands: [cargo test --manifest-path rust/Cargo.toml --test ascii_table_parity]
+      hidden_commands: [sh -c 'cp hidden/ascii_table_hidden.rs rust/tests/ascii_table_hidden.rs; trap "rm -f rust/tests/ascii_table_hidden.rs" EXIT; cargo test --manifest-path rust/Cargo.toml --test ascii_table_hidden']
+      mutation_commands: [sh -c 'cp hidden/ascii_table_mutation.rs rust/tests/ascii_table_mutation.rs; trap "rm -f rust/tests/ascii_table_mutation.rs" EXIT; cargo test --manifest-path rust/Cargo.toml --test ascii_table_mutation']
+      semantic_checks: [python_rust_output_equivalence]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid, scope_pass, semantic_pass]
+      soft_metrics: [functional_correctness, observability, maintainability]
+    failure_tags: [behavior_not_equivalent, golden_output_mismatch, hidden_verifier_failed]
+  - id: rs-port-121
+    track: rust_porting
+    language: rust
+    difficulty: hard
+    task_type: url_builder_port
+    fixture: fixtures/rust_porting/url_builder
+    user_request: Port the Python URL builder to Rust.
+    constraints:
+      - Sort query parameters by key.
+      - Percent-encode reserved characters.
+      - Omit the question mark when there are no parameters.
+    allowed_paths: [rust/src/url.rs]
+    forbidden_paths: [python/**, Cargo.toml]
+    protected_paths: [python/**, rust/tests/**, rust/Cargo.toml, rust/Cargo.lock, hidden/**]
+    solution_paths: [rust/src/url.rs]
+    verifier:
+      commands: [cargo test --manifest-path rust/Cargo.toml --test url_builder_parity]
+      hidden_commands: [sh -c 'cp hidden/url_builder_hidden.rs rust/tests/url_builder_hidden.rs; trap "rm -f rust/tests/url_builder_hidden.rs" EXIT; cargo test --manifest-path rust/Cargo.toml --test url_builder_hidden']
+      mutation_commands: [sh -c 'cp hidden/url_builder_mutation.rs rust/tests/url_builder_mutation.rs; trap "rm -f rust/tests/url_builder_mutation.rs" EXIT; cargo test --manifest-path rust/Cargo.toml --test url_builder_mutation']
+      semantic_checks: [python_rust_output_equivalence]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid, scope_pass, semantic_pass]
+      soft_metrics: [functional_correctness, contract_compliance, test_quality]
+    failure_tags: [behavior_not_equivalent, wrong_edge_case, hidden_verifier_failed]
+  - id: rs-port-122
+    track: rust_porting
+    language: rust
+    difficulty: expert
+    task_type: json_pointer_port
+    fixture: fixtures/rust_porting/json_pointer
+    user_request: Port the Python JSON Pointer resolver to Rust serde_json.
+    constraints:
+      - Unescape tilde-one to slash and tilde-zero to tilde.
+      - An empty pointer returns the whole document.
+      - Missing locations map to a not_found error object.
+    allowed_paths: [rust/src/pointer.rs]
+    forbidden_paths: [python/**, Cargo.toml]
+    protected_paths: [python/**, rust/tests/**, rust/Cargo.toml, rust/Cargo.lock, hidden/**]
+    solution_paths: [rust/src/pointer.rs]
+    verifier:
+      commands: [cargo test --manifest-path rust/Cargo.toml --test json_pointer_parity]
+      hidden_commands: [sh -c 'cp hidden/json_pointer_hidden.rs rust/tests/json_pointer_hidden.rs; trap "rm -f rust/tests/json_pointer_hidden.rs" EXIT; cargo test --manifest-path rust/Cargo.toml --test json_pointer_hidden']
+      mutation_commands: [sh -c 'cp hidden/json_pointer_mutation.rs rust/tests/json_pointer_mutation.rs; trap "rm -f rust/tests/json_pointer_mutation.rs" EXIT; cargo test --manifest-path rust/Cargo.toml --test json_pointer_mutation']
+      semantic_checks: [python_rust_json_equivalence]
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid, scope_pass, semantic_pass]
+      soft_metrics: [functional_correctness, test_quality, contract_compliance]
+    failure_tags: [behavior_not_equivalent, wrong_edge_case, golden_output_mismatch, hidden_verifier_failed]

@@ -1264,3 +1264,303 @@ cases:
       hard_gates: [patch_applies, tests_pass, schema_valid]
       soft_metrics: [functional_correctness, minimality, maintainability]
     failure_tags: [wrong_edge_case, missing_requirement, response_schema_break]
+  - id: py-tool-135
+    track: python_tool_engineering
+    language: python
+    difficulty: medium
+    task_type: cron_next_run
+    fixture: fixtures/python/cron_next_run
+    user_request: >
+      Compute the next scheduled run time for a minute/hour cron field pair, strictly after the given timestamp.
+    constraints:
+      - Support '*', explicit values, comma lists, and '*/step' fields.
+      - The result must be strictly after the input timestamp, not equal to it.
+      - Return a machine-readable error for an unparseable field.
+    allowed_paths: [src/cron_tool/**, tests/test_cron_next_run.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_cron_next_run.py]
+    solution_paths: [src/cron_tool/schedule.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_cron_next_run]
+      hidden_commands: [python3 -m unittest hidden.test_cron_next_run_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_cron_next_run_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement, response_schema_break]
+  - id: py-tool-136
+    track: python_tool_engineering
+    language: python
+    difficulty: medium
+    task_type: glob_to_regex
+    fixture: fixtures/python/glob_to_regex
+    user_request: >
+      Translate a shell glob pattern into an anchored regex matcher without leaking regex metacharacters.
+    constraints:
+      - The '*' and '?' wildcards must not match the path separator '/'.
+      - Literal regex metacharacters in the pattern must be escaped.
+      - Matching must be fully anchored (whole-string).
+    allowed_paths: [src/glob_tool/**, tests/test_glob_to_regex.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_glob_to_regex.py]
+    solution_paths: [src/glob_tool/translate.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_glob_to_regex]
+      hidden_commands: [python3 -m unittest hidden.test_glob_to_regex_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_glob_to_regex_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [wrong_edge_case, over_refactor, missing_requirement]
+  - id: py-tool-137
+    track: python_tool_engineering
+    language: python
+    difficulty: easy
+    task_type: frontmatter_split
+    fixture: fixtures/python/frontmatter_split
+    user_request: >
+      Split leading '---' fenced frontmatter from the document body, preserving the body exactly.
+    constraints:
+      - Only a leading fence delimits frontmatter; '---' inside the body is body text.
+      - Preserve body whitespace and trailing newlines exactly.
+      - Text without a leading fence returns empty frontmatter and the original body.
+    allowed_paths: [src/frontmatter_tool/**, tests/test_frontmatter_split.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_frontmatter_split.py]
+    solution_paths: [src/frontmatter_tool/split.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_frontmatter_split]
+      hidden_commands: [python3 -m unittest hidden.test_frontmatter_split_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_frontmatter_split_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, minimality, contract_compliance]
+    failure_tags: [wrong_edge_case, response_schema_break, missing_requirement]
+  - id: py-tool-138
+    track: python_tool_engineering
+    language: python
+    difficulty: medium
+    task_type: regex_redaction
+    fixture: fixtures/python/regex_redaction
+    user_request: >
+      Redact every regex match with a fixed placeholder and report the total number of redactions.
+    constraints:
+      - Count every individual match, not the number of patterns that matched.
+      - Apply patterns in order over the running result.
+      - Return a machine-readable error for an invalid regex.
+    allowed_paths: [src/redact_tool/**, tests/test_regex_redaction.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_regex_redaction.py]
+    solution_paths: [src/redact_tool/redact.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_regex_redaction]
+      hidden_commands: [python3 -m unittest hidden.test_regex_redaction_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_regex_redaction_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, contract_compliance, observability]
+    failure_tags: [unstructured_error, missing_requirement, response_schema_break]
+  - id: py-tool-139
+    track: python_tool_engineering
+    language: python
+    difficulty: easy
+    task_type: dotenv_parse
+    fixture: fixtures/python/dotenv_parse
+    user_request: >
+      Parse dotenv text into a mapping, handling comments, quotes, export prefixes, and values containing '='.
+    constraints:
+      - Split only on the first '=' so values may contain '='.
+      - Skip blank lines and '#' comments; strip surrounding quotes.
+      - Later assignments override earlier ones for the same key.
+    allowed_paths: [src/dotenv_tool/**, tests/test_dotenv_parse.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_dotenv_parse.py]
+    solution_paths: [src/dotenv_tool/parse.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_dotenv_parse]
+      hidden_commands: [python3 -m unittest hidden.test_dotenv_parse_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_dotenv_parse_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement, response_schema_break]
+  - id: py-tool-140
+    track: python_tool_engineering
+    language: python
+    difficulty: hard
+    task_type: circuit_breaker
+    fixture: fixtures/python/circuit_breaker
+    user_request: >
+      Implement a circuit breaker that opens after consecutive failures and half-opens once the reset timeout elapses.
+    constraints:
+      - Only consecutive failures count; a success resets the failure counter.
+      - The reset timeout boundary is inclusive (elapsed >= reset_timeout).
+      - A failure during half-open re-opens the circuit immediately.
+    allowed_paths: [src/breaker_tool/**, tests/test_circuit_breaker.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_circuit_breaker.py]
+    solution_paths: [src/breaker_tool/breaker.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_circuit_breaker]
+      hidden_commands: [python3 -m unittest hidden.test_circuit_breaker_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_circuit_breaker_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement, over_refactor]
+  - id: py-tool-141
+    track: python_tool_engineering
+    language: python
+    difficulty: medium
+    task_type: json_canonicalize
+    fixture: fixtures/python/json_canonicalize
+    user_request: >
+      Serialize an object to canonical JSON with sorted keys and no insignificant whitespace.
+    constraints:
+      - Keys must be sorted so equal content yields identical output.
+      - Use compact separators with no spaces.
+      - Return a machine-readable error for non-serializable input.
+    allowed_paths: [src/canon_tool/**, tests/test_json_canonicalize.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_json_canonicalize.py]
+    solution_paths: [src/canon_tool/canon.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_json_canonicalize]
+      hidden_commands: [python3 -m unittest hidden.test_json_canonicalize_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_json_canonicalize_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, contract_compliance, minimality]
+    failure_tags: [response_schema_break, missing_requirement, non_idempotent_tool]
+  - id: py-tool-142
+    track: python_tool_engineering
+    language: python
+    difficulty: medium
+    task_type: output_tee
+    fixture: fixtures/python/output_tee
+    user_request: >
+      Tee a stream of chunks to multiple sinks and report bytes and chunk counts accurately.
+    constraints:
+      - Every chunk must be written to all sinks, not just the first.
+      - Byte count is the total input size, not multiplied by sink count.
+      - Preserve chunk order across all sinks.
+    allowed_paths: [src/tee_tool/**, tests/test_output_tee.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_output_tee.py]
+    solution_paths: [src/tee_tool/tee.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_output_tee]
+      hidden_commands: [python3 -m unittest hidden.test_output_tee_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_output_tee_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, minimality, observability]
+    failure_tags: [missing_requirement, wrong_edge_case, response_schema_break]
+  - id: py-tool-143
+    track: python_tool_engineering
+    language: python
+    difficulty: easy
+    task_type: path_relativize
+    fixture: fixtures/python/path_relativize
+    user_request: >
+      Compute the relative POSIX path from a base directory to a target path, using '..' for ancestors.
+    constraints:
+      - Match whole path components, not string prefixes.
+      - Emit '..' segments for siblings and parents; identical paths yield '.'.
+      - Return a machine-readable error if either path is not absolute.
+    allowed_paths: [src/path_tool/**, tests/test_path_relativize.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_path_relativize.py]
+    solution_paths: [src/path_tool/relativize.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_path_relativize]
+      hidden_commands: [python3 -m unittest hidden.test_path_relativize_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_path_relativize_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement, response_schema_break]
+  - id: py-tool-144
+    track: python_tool_engineering
+    language: python
+    difficulty: medium
+    task_type: exponential_histogram
+    fixture: fixtures/python/exponential_histogram
+    user_request: >
+      Bucket positive values by exponent (floor of log base), with deterministic sorted buckets.
+    constraints:
+      - Exact powers of the base must land in the correct bucket without float rounding error.
+      - Buckets must be returned sorted ascending by exponent.
+      - Return a machine-readable error for non-positive values or an invalid base.
+    allowed_paths: [src/histo_tool/**, tests/test_exponential_histogram.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_exponential_histogram.py]
+    solution_paths: [src/histo_tool/histogram.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_exponential_histogram]
+      hidden_commands: [python3 -m unittest hidden.test_exponential_histogram_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_exponential_histogram_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, contract_compliance, minimality]
+    failure_tags: [wrong_edge_case, missing_requirement, response_schema_break]
+  - id: py-tool-145
+    track: python_tool_engineering
+    language: python
+    difficulty: easy
+    task_type: content_hash_dedup
+    fixture: fixtures/python/content_hash_dedup
+    user_request: >
+      Deduplicate records by a hash of their content, keeping the first occurrence and counting removals.
+    constraints:
+      - Deduplicate by content hash, not by record id.
+      - Treat equal str and bytes content as duplicates and preserve first-seen order.
+      - removed must equal the number of dropped records.
+    allowed_paths: [src/dedup_tool/**, tests/test_content_hash_dedup.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_content_hash_dedup.py]
+    solution_paths: [src/dedup_tool/dedup.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_content_hash_dedup]
+      hidden_commands: [python3 -m unittest hidden.test_content_hash_dedup_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_content_hash_dedup_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [non_idempotent_tool, wrong_edge_case, missing_requirement]
+  - id: py-tool-146
+    track: python_tool_engineering
+    language: python
+    difficulty: expert
+    task_type: semver_satisfy
+    fixture: fixtures/python/semver_satisfy
+    user_request: >
+      Decide whether a semantic version satisfies a range supporting comparators, caret, tilde, wildcards, and '||'.
+    constraints:
+      - Compare versions numerically per component, never lexically.
+      - Caret on 0.x must bound by the minor or patch, not the next major.
+      - Return a machine-readable error for an unparseable range.
+    allowed_paths: [src/semver_tool/**, tests/test_semver_satisfy.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_semver_satisfy.py]
+    solution_paths: [src/semver_tool/satisfy.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_semver_satisfy]
+      hidden_commands: [python3 -m unittest hidden.test_semver_satisfy_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_semver_satisfy_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement, over_refactor]
