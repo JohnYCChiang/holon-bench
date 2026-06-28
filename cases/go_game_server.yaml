@@ -600,3 +600,243 @@ cases:
       hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
       soft_metrics: [functional_correctness, test_quality, maintainability]
     failure_tags: [flaky_test, golden_output_mismatch, state_sync_corruption, hidden_verifier_failed]
+  - id: go-game-111
+    track: go_game_server
+    language: go
+    difficulty: easy
+    task_type: team_balance
+    fixture: fixtures/go_game/team_balance
+    user_request: Split players into two balanced teams deterministically, independent of input order.
+    constraints:
+      - Team assignment must not depend on the input slice order.
+      - Team sizes differ by at most one and every player is placed once.
+      - Each team's id list is returned sorted.
+    allowed_paths: [server/match/**, server/match/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/match/*_test.go, hidden/**]
+    solution_paths: [server/match/teams.go]
+    verifier:
+      commands: [go test ./server/match]
+      hidden_commands: [sh -c 'cp hidden/teams_hidden_test.go server/match/teams_hidden_test.go; trap "rm -f server/match/teams_hidden_test.go" EXIT; go test ./server/match -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/teams_mutation_test.go server/match/teams_mutation_test.go; trap "rm -f server/match/teams_mutation_test.go" EXIT; go test ./server/match -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [domain_rule_violation, wrong_edge_case]
+  - id: go-game-112
+    track: go_game_server
+    language: go
+    difficulty: easy
+    task_type: leaderboard_update
+    fixture: fixtures/go_game/leaderboard
+    user_request: Keep an authoritative top-N leaderboard sorted on each score update.
+    constraints:
+      - A player appears once; a new score replaces the old one.
+      - Ranking is sorted by score desc, ties broken by id asc, truncated to Cap.
+      - The returned slice must not alias internal state.
+    allowed_paths: [server/rank/**, server/rank/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/rank/*_test.go, hidden/**]
+    solution_paths: [server/rank/board.go]
+    verifier:
+      commands: [go test ./server/rank]
+      hidden_commands: [sh -c 'cp hidden/board_hidden_test.go server/rank/board_hidden_test.go; trap "rm -f server/rank/board_hidden_test.go" EXIT; go test ./server/rank -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/board_mutation_test.go server/rank/board_mutation_test.go; trap "rm -f server/rank/board_mutation_test.go" EXIT; go test ./server/rank -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, maintainability, observability]
+    failure_tags: [golden_output_mismatch, state_sync_corruption]
+  - id: go-game-113
+    track: go_game_server
+    language: go
+    difficulty: medium
+    task_type: chat_flood_control
+    fixture: fixtures/go_game/chat_flood
+    user_request: Drop chat messages that exceed a per-player sliding-window rate.
+    constraints:
+      - At most Max messages are accepted within any window of length Window.
+      - Dropped messages are not recorded and players are independent.
+      - A message counts only while its timestamp is greater than now minus Window.
+    allowed_paths: [server/chat/**, server/chat/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/chat/*_test.go, hidden/**]
+    solution_paths: [server/chat/flood.go]
+    verifier:
+      commands: [go test ./server/chat]
+      hidden_commands: [sh -c 'cp hidden/flood_hidden_test.go server/chat/flood_hidden_test.go; trap "rm -f server/chat/flood_hidden_test.go" EXIT; go test ./server/chat -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/flood_mutation_test.go server/chat/flood_mutation_test.go; trap "rm -f server/chat/flood_mutation_test.go" EXIT; go test ./server/chat -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, observability, test_quality]
+    failure_tags: [domain_rule_violation, missing_requirement, hidden_verifier_failed]
+  - id: go-game-114
+    track: go_game_server
+    language: go
+    difficulty: medium
+    task_type: currency_authority
+    fixture: fixtures/go_game/currency_ledger
+    user_request: Make the currency ledger authoritative so balances can never go negative.
+    constraints:
+      - A debit larger than the balance is rejected and leaves state unchanged.
+      - Non-positive credit or debit amounts are rejected.
+      - Accounts are independent and balances never go negative.
+    allowed_paths: [server/economy/**, server/economy/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/economy/*_test.go, hidden/**]
+    solution_paths: [server/economy/currency.go]
+    verifier:
+      commands: [go test ./server/economy]
+      hidden_commands: [sh -c 'cp hidden/currency_hidden_test.go server/economy/currency_hidden_test.go; trap "rm -f server/economy/currency_hidden_test.go" EXIT; go test ./server/economy -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/currency_mutation_test.go server/economy/currency_mutation_test.go; trap "rm -f server/economy/currency_mutation_test.go" EXIT; go test ./server/economy -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, maintainability, observability]
+    failure_tags: [domain_rule_violation, state_sync_corruption]
+  - id: go-game-115
+    track: go_game_server
+    language: go
+    difficulty: medium
+    task_type: spawn_rotation
+    fixture: fixtures/go_game/spawn_rotation
+    user_request: Assign deterministic, rotating spawn points without two players sharing one.
+    constraints:
+      - Players are processed in sorted id order; the result is input-order independent.
+      - When players fit, no two players in a wave share a spawn point.
+      - The rotator cursor advances so successive waves rotate.
+    allowed_paths: [server/spawn/**, server/spawn/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/spawn/*_test.go, hidden/**]
+    solution_paths: [server/spawn/rotation.go]
+    verifier:
+      commands: [go test ./server/spawn]
+      hidden_commands: [sh -c 'cp hidden/rotation_hidden_test.go server/spawn/rotation_hidden_test.go; trap "rm -f server/spawn/rotation_hidden_test.go" EXIT; go test ./server/spawn -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/rotation_mutation_test.go server/spawn/rotation_mutation_test.go; trap "rm -f server/spawn/rotation_mutation_test.go" EXIT; go test ./server/spawn -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [flaky_test, wrong_edge_case]
+  - id: go-game-116
+    track: go_game_server
+    language: go
+    difficulty: medium
+    task_type: interp_buffer
+    fixture: fixtures/go_game/interp_buffer
+    user_request: Keep a snapshot interpolation buffer ordered and return the bracketing pair.
+    constraints:
+      - The buffer stays ordered by tick and deduped regardless of arrival order.
+      - Pair returns the snapshots straddling the render tick.
+      - A render tick outside the buffered range is rejected.
+    allowed_paths: [server/netcode/**, server/netcode/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/netcode/*_test.go, hidden/**]
+    solution_paths: [server/netcode/interp.go]
+    verifier:
+      commands: [go test ./server/netcode]
+      hidden_commands: [sh -c 'cp hidden/interp_hidden_test.go server/netcode/interp_hidden_test.go; trap "rm -f server/netcode/interp_hidden_test.go" EXIT; go test ./server/netcode -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/interp_mutation_test.go server/netcode/interp_mutation_test.go; trap "rm -f server/netcode/interp_mutation_test.go" EXIT; go test ./server/netcode -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, observability, maintainability]
+    failure_tags: [state_sync_corruption, wrong_edge_case]
+  - id: go-game-117
+    track: go_game_server
+    language: go
+    difficulty: hard
+    task_type: lag_compensation
+    fixture: fixtures/go_game/lag_comp
+    user_request: Validate hits by rewinding to the target's authoritative position at the claimed tick.
+    constraints:
+      - A hit is accepted only if the rewound position is within radius of the shot.
+      - Ticks outside the retained history window are rejected; no extrapolation.
+      - The client's claimed position is never trusted.
+    allowed_paths: [server/hitreg/**, server/hitreg/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/hitreg/*_test.go, hidden/**]
+    solution_paths: [server/hitreg/lagcomp.go]
+    verifier:
+      commands: [go test ./server/hitreg]
+      hidden_commands: [sh -c 'cp hidden/lagcomp_hidden_test.go server/hitreg/lagcomp_hidden_test.go; trap "rm -f server/hitreg/lagcomp_hidden_test.go" EXIT; go test ./server/hitreg -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/lagcomp_mutation_test.go server/hitreg/lagcomp_mutation_test.go; trap "rm -f server/hitreg/lagcomp_mutation_test.go" EXIT; go test ./server/hitreg -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, test_quality, maintainability]
+    failure_tags: [domain_rule_violation, fake_success, hidden_verifier_failed]
+  - id: go-game-118
+    track: go_game_server
+    language: go
+    difficulty: hard
+    task_type: afk_timeout
+    fixture: fixtures/go_game/afk_timeout
+    user_request: Sweep idle players past the AFK timeout without dropping active ones.
+    constraints:
+      - A player is idle when now minus last activity is at least timeout (inclusive).
+      - Swept output is sorted and swept players are removed until they act again.
+      - Active players are never swept.
+    allowed_paths: [server/presence/**, server/presence/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/presence/*_test.go, hidden/**]
+    solution_paths: [server/presence/afk.go]
+    verifier:
+      commands: [go test ./server/presence]
+      hidden_commands: [sh -c 'cp hidden/afk_hidden_test.go server/presence/afk_hidden_test.go; trap "rm -f server/presence/afk_hidden_test.go" EXIT; go test ./server/presence -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/afk_mutation_test.go server/presence/afk_mutation_test.go; trap "rm -f server/presence/afk_mutation_test.go" EXIT; go test ./server/presence -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, observability, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement, mutation_verifier_failed]
+  - id: go-game-119
+    track: go_game_server
+    language: go
+    difficulty: hard
+    task_type: room_migration
+    fixture: fixtures/go_game/room_migration
+    user_request: Migrate a room's host to a healthy node when the host node drops.
+    constraints:
+      - Migration only happens when the current host node is dead.
+      - The new host is the highest-priority alive node, ties broken by id asc.
+      - The player set is never lost or reordered.
+    allowed_paths: [server/cluster/**, server/cluster/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/cluster/*_test.go, hidden/**]
+    solution_paths: [server/cluster/migrate.go]
+    verifier:
+      commands: [go test ./server/cluster]
+      hidden_commands: [sh -c 'cp hidden/migrate_hidden_test.go server/cluster/migrate_hidden_test.go; trap "rm -f server/cluster/migrate_hidden_test.go" EXIT; go test ./server/cluster -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/migrate_mutation_test.go server/cluster/migrate_mutation_test.go; trap "rm -f server/cluster/migrate_mutation_test.go" EXIT; go test ./server/cluster -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, maintainability, minimality]
+    failure_tags: [state_sync_corruption, domain_rule_violation, hidden_verifier_failed]
+  - id: go-game-120
+    track: go_game_server
+    language: go
+    difficulty: expert
+    task_type: rollback_resim
+    fixture: fixtures/go_game/rollback
+    user_request: Resimulate authoritative state from a rollback input buffer deterministically.
+    constraints:
+      - Resimulated state depends only on the set of accepted inputs, not arrival order.
+      - Inputs that rewrite confirmed history or exceed the rollback window are rejected.
+      - A (tick, player) input is applied at most once.
+    allowed_paths: [server/netcode/**, server/netcode/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/netcode/*_test.go, hidden/**]
+    solution_paths: [server/netcode/rollback.go]
+    verifier:
+      commands: [go test ./server/netcode -count=1]
+      hidden_commands: [sh -c 'cp hidden/rollback_hidden_test.go server/netcode/rollback_hidden_test.go; trap "rm -f server/netcode/rollback_hidden_test.go" EXIT; go test ./server/netcode -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/rollback_mutation_test.go server/netcode/rollback_mutation_test.go; trap "rm -f server/netcode/rollback_mutation_test.go" EXIT; go test ./server/netcode -run Mutation -count=1']
+      timeout_seconds: 90
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, test_quality, maintainability]
+    failure_tags: [flaky_test, golden_output_mismatch, state_sync_corruption, hidden_verifier_failed]

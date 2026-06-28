@@ -392,3 +392,263 @@ cases:
       hard_gates: [patch_applies, tests_pass, safety_pass, scope_pass]
       soft_metrics: [functional_correctness, maintainability, observability]
     failure_tags: [test_fail, fake_success, missing_requirement]
+  - id: py-tool-101
+    track: python_tool_engineering
+    language: python
+    difficulty: easy
+    task_type: command_argv_builder
+    fixture: fixtures/python/argv_builder
+    user_request: >
+      Build subprocess arguments as a safe argv list instead of a shell string,
+      rejecting control characters and non-string arguments.
+    constraints:
+      - Return argv as a list with the program as the first element.
+      - Never run through a shell; the shell flag must stay false.
+      - Reject null bytes, newlines, and non-string args with machine-readable errors.
+    allowed_paths: [src/argv_tool/**, tests/test_argv_builder.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_argv_builder.py, hidden/**]
+    solution_paths: [src/argv_tool/build.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_argv_builder]
+      hidden_commands: [python3 -m unittest hidden.test_argv_builder_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_argv_builder_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, safety_pass, schema_valid]
+      soft_metrics: [contract_compliance, observability, minimality]
+    failure_tags: [unsafe_path, unstructured_error, missing_requirement]
+  - id: py-tool-102
+    track: python_tool_engineering
+    language: python
+    difficulty: easy
+    task_type: process_exit_classification
+    fixture: fixtures/python/exit_classify
+    user_request: >
+      Classify a subprocess return code into a structured status that
+      distinguishes clean exit, error exit, and termination by signal.
+    constraints:
+      - Map negative return codes to signaled status with exit_code 128 + signum.
+      - Keep signal null for non-signal results.
+      - Return a machine-readable error for non-integer input.
+    allowed_paths: [src/exit_tool/**, tests/test_exit_classify.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_exit_classify.py]
+    solution_paths: [src/exit_tool/classify.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_exit_classify]
+      hidden_commands: [python3 -m unittest hidden.test_exit_classify_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_exit_classify_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid]
+      soft_metrics: [contract_compliance, observability, maintainability]
+    failure_tags: [unstructured_error, response_schema_break, wrong_edge_case]
+  - id: py-tool-103
+    track: python_tool_engineering
+    language: python
+    difficulty: medium
+    task_type: backoff_schedule
+    fixture: fixtures/python/backoff_schedule
+    user_request: >
+      Compute a deterministic capped exponential backoff delay for a retry
+      attempt and report whether the cap was applied.
+    constraints:
+      - Attempt is 1-based; the first attempt uses the base delay.
+      - Never exceed cap_ms and set capped accordingly.
+      - Return a machine-readable error for attempts below 1.
+    allowed_paths: [src/backoff_tool/**, tests/test_backoff_schedule.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_backoff_schedule.py]
+    solution_paths: [src/backoff_tool/schedule.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_backoff_schedule]
+      hidden_commands: [python3 -m unittest hidden.test_backoff_schedule_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_backoff_schedule_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, contract_compliance, minimality]
+    failure_tags: [wrong_edge_case, missing_requirement, response_schema_break]
+  - id: py-tool-104
+    track: python_tool_engineering
+    language: python
+    difficulty: medium
+    task_type: byte_budget_truncation
+    fixture: fixtures/python/byte_truncate
+    user_request: >
+      Truncate tool output to a UTF-8 byte budget without splitting a multibyte
+      codepoint, reporting truncation and omitted byte counts.
+    constraints:
+      - Never produce text whose encoded length exceeds the budget.
+      - Never split a multibyte character across the boundary.
+      - Return a machine-readable error for a negative budget.
+    allowed_paths: [src/truncate_tool/**, tests/test_byte_truncate.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_byte_truncate.py, hidden/**]
+    solution_paths: [src/truncate_tool/truncate.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_byte_truncate]
+      hidden_commands: [python3 -m unittest hidden.test_byte_truncate_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_byte_truncate_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, contract_compliance, observability]
+    failure_tags: [wrong_edge_case, response_schema_break, missing_requirement]
+  - id: py-tool-105
+    track: python_tool_engineering
+    language: python
+    difficulty: medium
+    task_type: token_bucket_rate_limit
+    fixture: fixtures/python/token_bucket
+    user_request: >
+      Implement a deterministic token-bucket rate limiter that refills based on
+      elapsed time and never exceeds capacity.
+    constraints:
+      - Refill tokens from elapsed time but cap at capacity.
+      - Do not consume tokens when a request is denied.
+      - Reject any cost greater than capacity.
+    allowed_paths: [src/ratelimit_tool/**, tests/test_token_bucket.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_token_bucket.py]
+    solution_paths: [src/ratelimit_tool/bucket.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_token_bucket]
+      hidden_commands: [python3 -m unittest hidden.test_token_bucket_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_token_bucket_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, observability, maintainability]
+    failure_tags: [wrong_edge_case, response_schema_break, fake_success]
+  - id: py-tool-106
+    track: python_tool_engineering
+    language: python
+    difficulty: medium
+    task_type: config_layer_merge
+    fixture: fixtures/python/config_merge
+    user_request: >
+      Deep-merge configuration layers so later layers override earlier ones while
+      nested dictionaries are merged recursively and inputs are never mutated.
+    constraints:
+      - Merge nested dicts recursively; replace lists and scalars wholesale.
+      - Do not mutate any input layer.
+      - Return a machine-readable error for non-dict layers.
+    allowed_paths: [src/config_tool/**, tests/test_config_merge.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_config_merge.py]
+    solution_paths: [src/config_tool/merge.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_config_merge]
+      hidden_commands: [python3 -m unittest hidden.test_config_merge_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_config_merge_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement, response_schema_break]
+  - id: py-tool-107
+    track: python_tool_engineering
+    language: python
+    difficulty: hard
+    task_type: idempotency_dedup
+    fixture: fixtures/python/idempotency_dedup
+    user_request: >
+      Make the tool runner idempotent by caching results per idempotency key so a
+      repeated call returns the cached result without re-executing the work.
+    constraints:
+      - Execute the work only once per key and cache its result.
+      - Mark repeated calls as cached without invoking the function again.
+      - Keep separate runner instances independent.
+    allowed_paths: [src/idempotency_tool/**, tests/test_idempotency_dedup.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_idempotency_dedup.py, hidden/**]
+    solution_paths: [src/idempotency_tool/dedup.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_idempotency_dedup]
+      hidden_commands: [python3 -m unittest hidden.test_idempotency_dedup_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_idempotency_dedup_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid, scope_pass]
+      soft_metrics: [functional_correctness, observability, minimality]
+    failure_tags: [non_idempotent_tool, fake_success, hidden_verifier_failed]
+  - id: py-tool-108
+    track: python_tool_engineering
+    language: python
+    difficulty: hard
+    task_type: pagination_cursor
+    fixture: fixtures/python/pagination_cursor
+    user_request: >
+      Encode pagination state into an opaque deterministic cursor token and
+      decode it back, returning a structured error for tampered tokens.
+    constraints:
+      - Tokens must be opaque (base64) and round-trip exactly.
+      - decode_cursor must never raise; return a machine-readable error instead.
+      - Encoding must be deterministic for identical inputs.
+    allowed_paths: [src/cursor_tool/**, tests/test_pagination_cursor.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_pagination_cursor.py, hidden/**]
+    solution_paths: [src/cursor_tool/cursor.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_pagination_cursor]
+      hidden_commands: [python3 -m unittest hidden.test_pagination_cursor_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_pagination_cursor_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid]
+      soft_metrics: [contract_compliance, observability, functional_correctness]
+    failure_tags: [response_schema_break, wrong_edge_case, fake_success, hidden_verifier_failed]
+  - id: py-tool-109
+    track: python_tool_engineering
+    language: python
+    difficulty: hard
+    task_type: lockfile_guard
+    fixture: fixtures/python/lockfile_guard
+    user_request: >
+      Guard a critical section with an exclusive lock file that is acquired
+      atomically and always released, even when the protected function raises.
+    constraints:
+      - Acquire the lock atomically and reject when already held.
+      - Always release the lock, including on exception.
+      - Never overwrite a foreign lock file.
+    allowed_paths: [src/lock_tool/**, tests/test_lockfile_guard.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_lockfile_guard.py, hidden/**]
+    solution_paths: [src/lock_tool/lock.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_lockfile_guard]
+      hidden_commands: [python3 hidden/verify_lockfile_guard.py]
+      mutation_commands: [python3 hidden/verify_lockfile_guard_mutation.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, safety_pass, scope_pass]
+      soft_metrics: [functional_correctness, observability, maintainability]
+    failure_tags: [resource_leak, unsafe_path, hidden_verifier_failed, mutation_verifier_failed]
+  - id: py-tool-110
+    track: python_tool_engineering
+    language: python
+    difficulty: expert
+    task_type: dependency_scheduler
+    fixture: fixtures/python/dep_scheduler
+    user_request: >
+      Resolve a deterministic execution order for tasks with dependencies,
+      detecting cycles and unknown dependencies with machine-readable errors.
+    constraints:
+      - Every dependency must appear before its dependents.
+      - Break ties by lexicographic id for a deterministic order.
+      - Report cycle and unknown_dependency as structured errors.
+    allowed_paths: [src/scheduler_tool/**, tests/test_dep_scheduler.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_dep_scheduler.py, hidden/**]
+    solution_paths: [src/scheduler_tool/scheduler.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_dep_scheduler]
+      hidden_commands: [python3 -m unittest hidden.test_dep_scheduler_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_dep_scheduler_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid, scope_pass]
+      soft_metrics: [functional_correctness, observability, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement, fake_success, hidden_verifier_failed, mutation_verifier_failed]

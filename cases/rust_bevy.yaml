@@ -602,3 +602,243 @@ cases:
       hard_gates: [patch_applies, compiles, tests_pass]
       soft_metrics: [functional_correctness, maintainability, minimality]
     failure_tags: [domain_rule_violation, wrong_edge_case]
+  - id: bevy-111
+    track: rust_bevy
+    language: rust
+    difficulty: easy
+    task_type: iframe_window
+    fixture: fixtures/bevy/iframe_window
+    user_request: Negate damage during dash i-frames and clamp the invulnerability window at zero.
+    constraints:
+      - Incoming damage is fully negated while invulnerable.
+      - The i-frame window must never bank below zero.
+      - Keep the i-frame logic pure and testable.
+    allowed_paths: [src/iframe.rs, tests/iframe_window.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/iframe_window.rs, hidden/**]
+    solution_paths: [src/iframe.rs]
+    verifier:
+      commands: [cargo test --test iframe_window]
+      hidden_commands: [sh -c 'cp hidden/iframe_window_hidden.rs tests/iframe_window_hidden.rs; trap "rm -f tests/iframe_window_hidden.rs" EXIT; cargo test --test iframe_window_hidden']
+      mutation_commands: [sh -c 'cp hidden/iframe_window_mutation.rs tests/iframe_window_mutation.rs; trap "rm -f tests/iframe_window_mutation.rs" EXIT; cargo test --test iframe_window_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [domain_rule_violation, wrong_edge_case]
+  - id: bevy-112
+    track: rust_bevy
+    language: rust
+    difficulty: medium
+    task_type: mana_shield
+    fixture: fixtures/bevy/mana_shield
+    user_request: Absorb damage with mana first and spill the overflow onto health without underflow.
+    constraints:
+      - Mana absorbs damage before health.
+      - Damage beyond available mana spills to health.
+      - Neither mana nor health may underflow below zero.
+    allowed_paths: [src/shield.rs, tests/mana_shield.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/mana_shield.rs, hidden/**]
+    solution_paths: [src/shield.rs]
+    verifier:
+      commands: [cargo test --test mana_shield]
+      hidden_commands: [sh -c 'cp hidden/mana_shield_hidden.rs tests/mana_shield_hidden.rs; trap "rm -f tests/mana_shield_hidden.rs" EXIT; cargo test --test mana_shield_hidden']
+      mutation_commands: [sh -c 'cp hidden/mana_shield_mutation.rs tests/mana_shield_mutation.rs; trap "rm -f tests/mana_shield_mutation.rs" EXIT; cargo test --test mana_shield_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, minimality]
+    failure_tags: [domain_rule_violation, wrong_edge_case]
+  - id: bevy-113
+    track: rust_bevy
+    language: rust
+    difficulty: medium
+    task_type: threat_decay
+    fixture: fixtures/bevy/threat_decay
+    user_request: Floor threat decay at zero and target the highest positive threat with a lowest-id tie-break.
+    constraints:
+      - Threat must never decay below zero.
+      - Target the highest positive threat, breaking ties toward the lowest id.
+      - Ignore entries whose threat is non-positive.
+    allowed_paths: [src/threat.rs, tests/threat_decay.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/threat_decay.rs, hidden/**]
+    solution_paths: [src/threat.rs]
+    verifier:
+      commands: [cargo test --test threat_decay]
+      hidden_commands: [sh -c 'cp hidden/threat_decay_hidden.rs tests/threat_decay_hidden.rs; trap "rm -f tests/threat_decay_hidden.rs" EXIT; cargo test --test threat_decay_hidden']
+      mutation_commands: [sh -c 'cp hidden/threat_decay_mutation.rs tests/threat_decay_mutation.rs; trap "rm -f tests/threat_decay_mutation.rs" EXIT; cargo test --test threat_decay_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, test_quality, maintainability]
+    failure_tags: [domain_rule_violation, wrong_edge_case]
+  - id: bevy-114
+    track: rust_bevy
+    language: rust
+    difficulty: expert
+    task_type: object_pool
+    fixture: fixtures/bevy/projectile_pool
+    user_request: Bump the slot generation on release so recycled projectile slots cannot revive stale handles.
+    constraints:
+      - Releasing must invalidate every existing handle to that slot.
+      - Recycled slots reuse the index with a fresh generation.
+      - Respect pool capacity and do not use unsafe.
+    allowed_paths: [src/pool.rs, tests/projectile_pool.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/projectile_pool.rs, hidden/**]
+    solution_paths: [src/pool.rs]
+    verifier:
+      commands: [cargo test --test projectile_pool]
+      hidden_commands: [sh -c 'cp hidden/projectile_pool_hidden.rs tests/projectile_pool_hidden.rs; trap "rm -f tests/projectile_pool_hidden.rs" EXIT; cargo test --test projectile_pool_hidden']
+      mutation_commands: [sh -c 'cp hidden/projectile_pool_mutation.rs tests/projectile_pool_mutation.rs; trap "rm -f tests/projectile_pool_mutation.rs" EXIT; cargo test --test projectile_pool_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, test_quality, maintainability]
+    failure_tags: [state_sync_corruption, domain_rule_violation, mutation_verifier_failed]
+  - id: bevy-115
+    track: rust_bevy
+    language: rust
+    difficulty: medium
+    task_type: fog_reveal
+    fixture: fixtures/bevy/fog_reveal
+    user_request: Reveal fog tiles within an inclusive radius and keep previously explored tiles explored.
+    constraints:
+      - The reveal radius is inclusive Chebyshev distance.
+      - Revealing is cumulative and must never un-explore a tile.
+      - Only in-bounds tiles are revealed.
+    allowed_paths: [src/fog.rs, tests/fog_reveal.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/fog_reveal.rs, hidden/**]
+    solution_paths: [src/fog.rs]
+    verifier:
+      commands: [cargo test --test fog_reveal]
+      hidden_commands: [sh -c 'cp hidden/fog_reveal_hidden.rs tests/fog_reveal_hidden.rs; trap "rm -f tests/fog_reveal_hidden.rs" EXIT; cargo test --test fog_reveal_hidden']
+      mutation_commands: [sh -c 'cp hidden/fog_reveal_mutation.rs tests/fog_reveal_mutation.rs; trap "rm -f tests/fog_reveal_mutation.rs" EXIT; cargo test --test fog_reveal_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement]
+  - id: bevy-116
+    track: rust_bevy
+    language: rust
+    difficulty: medium
+    task_type: buff_stacking
+    fixture: fixtures/bevy/buff_stacking
+    user_request: Refresh refreshable buffs and stack stackable buffs up to their cap without duplicating entries.
+    constraints:
+      - Each buff id keeps at most one active entry.
+      - Refresh buffs extend to the longer duration; stack buffs increment up to max_stacks.
+      - Distinct buff ids are tracked independently.
+    allowed_paths: [src/buffs.rs, tests/buff_stacking.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/buff_stacking.rs, hidden/**]
+    solution_paths: [src/buffs.rs]
+    verifier:
+      commands: [cargo test --test buff_stacking]
+      hidden_commands: [sh -c 'cp hidden/buff_stacking_hidden.rs tests/buff_stacking_hidden.rs; trap "rm -f tests/buff_stacking_hidden.rs" EXIT; cargo test --test buff_stacking_hidden']
+      mutation_commands: [sh -c 'cp hidden/buff_stacking_mutation.rs tests/buff_stacking_mutation.rs; trap "rm -f tests/buff_stacking_mutation.rs" EXIT; cargo test --test buff_stacking_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [domain_rule_violation, wrong_edge_case]
+  - id: bevy-117
+    track: rust_bevy
+    language: rust
+    difficulty: easy
+    task_type: grid_neighbors
+    fixture: fixtures/bevy/grid_neighbors
+    user_request: Drop out-of-bounds candidates from the 4-neighbour query while preserving neighbour order.
+    constraints:
+      - Only in-bounds neighbours are returned.
+      - Preserve the fixed up, down, left, right order.
+      - Never return the cell itself or duplicates.
+    allowed_paths: [src/neighbors.rs, tests/grid_neighbors.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/grid_neighbors.rs, hidden/**]
+    solution_paths: [src/neighbors.rs]
+    verifier:
+      commands: [cargo test --test grid_neighbors]
+      hidden_commands: [sh -c 'cp hidden/grid_neighbors_hidden.rs tests/grid_neighbors_hidden.rs; trap "rm -f tests/grid_neighbors_hidden.rs" EXIT; cargo test --test grid_neighbors_hidden']
+      mutation_commands: [sh -c 'cp hidden/grid_neighbors_mutation.rs tests/grid_neighbors_mutation.rs; trap "rm -f tests/grid_neighbors_mutation.rs" EXIT; cargo test --test grid_neighbors_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [wrong_edge_case, domain_rule_violation]
+  - id: bevy-118
+    track: rust_bevy
+    language: rust
+    difficulty: medium
+    task_type: knockback_friction
+    fixture: fixtures/bevy/knockback_friction
+    user_request: Apply knockback friction by speed magnitude so velocity decays to zero without reversing direction.
+    constraints:
+      - Speed must never increase under friction.
+      - Friction must not reverse a velocity component past zero.
+      - Overshoot snaps the velocity to exactly zero.
+    allowed_paths: [src/knockback.rs, tests/knockback_friction.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/knockback_friction.rs, hidden/**]
+    solution_paths: [src/knockback.rs]
+    verifier:
+      commands: [cargo test --test knockback_friction]
+      hidden_commands: [sh -c 'cp hidden/knockback_friction_hidden.rs tests/knockback_friction_hidden.rs; trap "rm -f tests/knockback_friction_hidden.rs" EXIT; cargo test --test knockback_friction_hidden']
+      mutation_commands: [sh -c 'cp hidden/knockback_friction_mutation.rs tests/knockback_friction_mutation.rs; trap "rm -f tests/knockback_friction_mutation.rs" EXIT; cargo test --test knockback_friction_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [wrong_edge_case, domain_rule_violation]
+  - id: bevy-119
+    track: rust_bevy
+    language: rust
+    difficulty: hard
+    task_type: loot_weighting
+    fixture: fixtures/bevy/loot_weighting
+    user_request: Fix weighted loot selection so rolls map to half-open bands and zero-weight entries are never selected.
+    constraints:
+      - Each entry owns the half-open band from its previous cumulative weight to its cumulative weight.
+      - Zero-weight entries can never be selected.
+      - Selection is deterministic for a given roll.
+    allowed_paths: [src/loot.rs, tests/loot_weighting.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/loot_weighting.rs, hidden/**]
+    solution_paths: [src/loot.rs]
+    verifier:
+      commands: [cargo test --test loot_weighting]
+      hidden_commands: [sh -c 'cp hidden/loot_weighting_hidden.rs tests/loot_weighting_hidden.rs; trap "rm -f tests/loot_weighting_hidden.rs" EXIT; cargo test --test loot_weighting_hidden']
+      mutation_commands: [sh -c 'cp hidden/loot_weighting_mutation.rs tests/loot_weighting_mutation.rs; trap "rm -f tests/loot_weighting_mutation.rs" EXIT; cargo test --test loot_weighting_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, test_quality, maintainability]
+    failure_tags: [wrong_edge_case, domain_rule_violation, hidden_verifier_failed]
+  - id: bevy-120
+    track: rust_bevy
+    language: rust
+    difficulty: medium
+    task_type: combo_counter
+    fixture: fixtures/bevy/combo_counter
+    user_request: Reset the combo when its window lapses and restart at one on the next hit without banking negative time.
+    constraints:
+      - A lapsed window drops the combo to zero and clamps the timer at zero.
+      - A hit after a lapse restarts the combo at one.
+      - Consecutive in-window hits increment the combo.
+    allowed_paths: [src/combo.rs, tests/combo_counter.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/combo_counter.rs, hidden/**]
+    solution_paths: [src/combo.rs]
+    verifier:
+      commands: [cargo test --test combo_counter]
+      hidden_commands: [sh -c 'cp hidden/combo_counter_hidden.rs tests/combo_counter_hidden.rs; trap "rm -f tests/combo_counter_hidden.rs" EXIT; cargo test --test combo_counter_hidden']
+      mutation_commands: [sh -c 'cp hidden/combo_counter_mutation.rs tests/combo_counter_mutation.rs; trap "rm -f tests/combo_counter_mutation.rs" EXIT; cargo test --test combo_counter_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass]
+      soft_metrics: [functional_correctness, maintainability, minimality]
+    failure_tags: [domain_rule_violation, wrong_edge_case]
