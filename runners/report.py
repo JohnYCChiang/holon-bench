@@ -6,7 +6,95 @@ import collections
 import json
 import pathlib
 
-from common import bench_root, load_yaml, write_json
+from common import bench_root, load_cases, load_yaml, write_json
+
+
+ROLE_NAMES = [
+    "contract_worker",
+    "patch_worker",
+    "reviewer",
+    "planner",
+    "tool_maker",
+    "porting_worker",
+    "game_system_worker",
+    "cross_platform_app_worker",
+]
+
+
+def role_signal_means(model_scores: list[dict]) -> dict[str, float]:
+    """Average each role_signal across a model's cases (these are computed per
+    case in score_case.py but were never aggregated)."""
+    totals: dict[str, float] = collections.defaultdict(float)
+    counts: dict[str, int] = collections.defaultdict(int)
+    for item in model_scores:
+        for role, value in (item.get("role_signals") or {}).items():
+            totals[role] += float(value)
+            counts[role] += 1
+    return {role: round(totals[role] / counts[role], 4) for role in ROLE_NAMES if counts.get(role)}
+
+
+def categorize_failures(failures: collections.Counter, tag_to_category: dict[str, str]) -> dict[str, int]:
+    """Roll up flat failure-tag counts into taxonomy categories."""
+    rollup: collections.Counter[str] = collections.Counter()
+    for tag, count in failures.items():
+        rollup[tag_to_category.get(tag, "uncategorized")] += count
+    return dict(rollup)
+
+
+def token_stats(model_scores: list[dict]) -> dict:
+    tokens = sorted(int(item["completion_tokens"]) for item in model_scores if item.get("completion_tokens") is not None)
+    truncated = sum(1 for item in model_scores if item.get("truncated"))
+    stats = {"truncation_rate": round(truncated / len(model_scores), 4) if model_scores else 0.0, "samples": len(tokens)}
+    if tokens:
+        stats["completion_tokens_mean"] = round(sum(tokens) / len(tokens), 1)
+        stats["completion_tokens_p50"] = tokens[len(tokens) // 2]
+        stats["completion_tokens_p95"] = tokens[min(len(tokens) - 1, int(len(tokens) * 0.95))]
+    return stats
+
+
+def pass_rate_breakdown(model_scores: list[dict], key_fn) -> dict[str, dict]:
+    """Group cases by key_fn(item) and report hard-pass rate + count per group."""
+    groups: dict[str, list[dict]] = collections.defaultdict(list)
+    for item in model_scores:
+        key = key_fn(item)
+        if key is not None:
+            groups[str(key)].append(item)
+    out = {}
+    for key, items in groups.items():
+        out[key] = {
+            "cases": len(items),
+            "hard_pass_rate": round(sum(1 for i in items if i.get("hard_pass")) / len(items), 4),
+        }
+    return dict(sorted(out.items()))
+
+
+def best_model_cost_aware(candidates: dict[str, dict]) -> str | None:
+    """Like best_model but, among high-pass models, prefers the one with the
+    lower repair tax (cheaper to operate) before falling back to soft score."""
+    if not candidates:
+        return None
+    return max(
+        candidates.items(),
+        key=lambda kv: (kv[1]["hard_pass_rate"], -kv[1].get("repair_tax_rate", 0.0), kv[1]["soft_score_avg"]),
+    )[0]
+
+
+def role_specialists(insights: dict, machine: dict, minimum_cases: int) -> dict:
+    """Best model per role, from the aggregated role_signal means."""
+    out: dict[str, dict] = {}
+    for role in ROLE_NAMES:
+        best_model_name = None
+        best_value = -1.0
+        for model, ins in insights.items():
+            if machine.get(model, {}).get("case_count", 0) < minimum_cases:
+                continue
+            value = ins.get("role_signal_means", {}).get(role)
+            if value is not None and value > best_value:
+                best_value = value
+                best_model_name = model
+        if best_model_name is not None:
+            out[role] = {"model": best_model_name, "score": round(best_value, 4)}
+    return out
 
 
 def main() -> int:
@@ -19,6 +107,10 @@ def main() -> int:
     benchmark = load_yaml(root / "manifest/benchmark.yaml")
     minimum_cases = benchmark.get("reporting", {}).get("minimum_cases_for_routing", 5)
     minimum_pass_rate = benchmark.get("reporting", {}).get("minimum_hard_pass_rate_for_routing", 0.6)
+    taxonomy = load_yaml(root / "manifest/failure_taxonomy.yaml")["failure_types"]
+    tag_to_category = {tag: category for category, tags in taxonomy.items() for tag in tags}
+    case_difficulty = {case["id"]: case.get("difficulty") for case in load_cases(root)}
+    insights: dict[str, dict] = {}
     scores = select_final_scores(
         [json.loads(pathlib.Path(path).read_text(encoding="utf-8")) for path in args.scores]
     )
@@ -107,6 +199,18 @@ def main() -> int:
             "first_failure_distribution": dict(first_failures),
             "final_failure_distribution": dict(final_failures),
             "tao_truth_chains": tao_truth_chains,
+        }
+        insights[model] = {
+            "role_signal_means": role_signal_means(model_scores),
+            "failure_categories": categorize_failures(model_failures, tag_to_category),
+            "token_stats": token_stats(model_scores),
+            "gates_passed_avg": round(
+                sum(int(i.get("gates_passed_count", 0) or 0) for i in model_scores)
+                / max(1, sum(1 for i in model_scores if i.get("gates_total")))
+                , 3
+            ),
+            "by_difficulty": pass_rate_breakdown(model_scores, lambda i: case_difficulty.get(i.get("case_id"))),
+            "by_task_type": pass_rate_breakdown(model_scores, lambda i: i.get("task_type")),
         }
         risk_summary = summarize_risks(
             model_scores=model_scores,
@@ -237,7 +341,13 @@ def main() -> int:
             "flutter_review": "needs flutter-specific benchmark scores",
             "scope_guard": "needs scope-guard-specific benchmark scores",
         },
+        "enriched": {
+            "patch_generation_cost_aware": best_model_cost_aware(patch_candidates),
+            "python_tool_artifact_cost_aware": best_model_cost_aware(python_artifact_candidates),
+            "role_specialists": role_specialists(insights, machine, minimum_cases),
+        },
         "failure_distribution": dict(failures),
+        "failure_categories": categorize_failures(failures, tag_to_category),
         "note": "golden/oracle runs validate the benchmark pipeline and are not model routing candidates",
         "minimum_cases_for_routing": minimum_cases,
         "minimum_hard_pass_rate_for_routing": minimum_pass_rate,
@@ -251,6 +361,7 @@ def main() -> int:
     (root / "reports/model_matrix.md").write_text("\n".join(lines), encoding="utf-8")
     write_json(root / "reports/per_track.json", per_track)
     write_json(root / "reports/routing_recommendation.json", routing)
+    write_json(root / "reports/insights.json", insights)
     if governance_comparison is not None:
         write_json(root / "reports/governance_comparison.json", governance_comparison)
     return 0

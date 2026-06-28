@@ -21,6 +21,7 @@ def main() -> int:
     hard_gates = result["hard_gates"]
     diff = result.get("diff_analysis", {})
     strength = result.get("verifier_strength", {})
+    generation = result.get("generation_trace", {}) or {}
     hard_pass = all(hard_gates.values())
     attempt_count = int(result.get("attempt_count", 1) or 1)
     repair_used = bool(result.get("repair_used", False))
@@ -114,6 +115,10 @@ def main() -> int:
         "has_mutation_verifier": bool(strength.get("has_mutation_verifier")),
         "hidden_pass": bool(hard_gates.get("hidden_pass", True)),
         "mutation_pass": bool(hard_gates.get("mutation_pass", True)),
+        "gates_passed_count": sum(1 for value in hard_gates.values() if value),
+        "gates_total": len(hard_gates),
+        "completion_tokens": generation.get("completion_tokens"),
+        "truncated": bool(generation.get("truncated", False)),
         "soft_score": min(100, soft),
         "regression_test_signal": bool(diff.get("has_regression_test_signal")),
         "added_test_count": int(diff.get("added_test_count", 0) or 0),
