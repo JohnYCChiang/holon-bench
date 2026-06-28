@@ -22,6 +22,7 @@ Usage: python3 runners/mutation_test.py . [--track T | --case ID] [--max-mutants
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import os
 import pathlib
@@ -133,6 +134,85 @@ def gen_mutants(files: list[tuple[str, list[str]]], cap: int) -> list[tuple[str,
     return mutants
 
 
+def _json_sites(obj: object, path: tuple = ()) -> list[tuple[tuple, str, object]]:
+    """Enumerate structural mutation sites over a parsed JSON value.
+
+    Operator mutation (``gen_mutants``) finds nothing in pure-config solutions
+    (JSON/YAML have no relational/arithmetic operators), so those cases would
+    report 0 mutants and prove nothing about their structural verifiers. These
+    sites give config solutions real potency coverage: drop a list element
+    (e.g. a pipeline stage or a gate), drop a dict key, rename an identifier
+    string (e.g. a gate name), or flip a boolean — each should be caught by a
+    verifier that actually reads the config."""
+    sites: list[tuple[tuple, str, object]] = []
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            sites.append((path, "drop_key", k))
+            sites.extend(_json_sites(v, path + (k,)))
+    elif isinstance(obj, list):
+        for i, v in enumerate(obj):
+            sites.append((path, "drop_index", i))
+            sites.extend(_json_sites(v, path + (i,)))
+    elif isinstance(obj, bool):  # before str/int; bool is an int subclass
+        sites.append((path, "flip_bool", obj))
+    elif isinstance(obj, str):
+        sites.append((path, "rename", obj))
+    return sites
+
+
+def _apply_json_site(obj: object, path: tuple, kind: str, detail: object) -> object:
+    """Return a deep copy of `obj` with one structural mutation applied."""
+    obj = copy.deepcopy(obj)
+    if kind == "drop_key":  # path → the containing dict
+        container = obj
+        for step in path:
+            container = container[step]
+        del container[detail]
+    elif kind == "drop_index":  # path → the containing list
+        container = obj
+        for step in path:
+            container = container[step]
+        container.pop(detail)
+    else:  # rename / flip_bool: path → the leaf itself
+        parent = obj
+        for step in path[:-1]:
+            parent = parent[step]
+        last = path[-1]
+        parent[last] = (detail + "_MUT") if kind == "rename" else (not detail)
+    return obj
+
+
+def gen_config_mutants(files: list[tuple[str, list[str]]], cap: int) -> list[tuple[str, str]]:
+    """Structural mutants for JSON config solutions, sampled evenly to `cap`.
+
+    Used only when operator mutation yields nothing (pure-config cases), so it
+    is purely additive and never changes a code track's mutant set."""
+    sites = []  # (fi, path, kind, detail)
+    parsed: dict[int, object] = {}
+    for fi, (path, lines) in enumerate(files):
+        if _is_test_file(path) or not path.endswith(".json"):
+            continue
+        try:
+            obj = json.loads("\n".join(lines))
+        except json.JSONDecodeError:
+            continue
+        parsed[fi] = obj
+        for site in _json_sites(obj):
+            sites.append((fi, *site))
+    if cap and len(sites) > cap:
+        step = len(sites) / cap
+        sites = [sites[int(i * step)] for i in range(cap)]
+    mutants = []
+    for fi, jpath, kind, detail in sites:
+        mutated = _apply_json_site(parsed[fi], jpath, kind, detail)
+        new_files = [(p, list(ls)) for p, ls in files]
+        new_files[fi] = (files[fi][0], json.dumps(mutated, indent=2).splitlines())
+        loc = "/".join(str(s) for s in jpath) or "."
+        desc = f"{files[fi][0]}:{loc} {kind} [{detail}]"
+        mutants.append((desc, render_artifact(new_files)))
+    return mutants
+
+
 def run_mutant(root: pathlib.Path, case_id: str, artifact_text: str, work: pathlib.Path, timeout: int = 25) -> dict:
     """Run one mutant through run_case. The work dir is ALWAYS removed before
     returning (immediate cleanup) so temp never accumulates across the sweep —
@@ -232,6 +312,9 @@ def main() -> int:
                 continue
             files = parse_artifact(sol.read_text(encoding="utf-8"))
             mutants = gen_mutants(files, args.max_mutants)
+            if not mutants:
+                # pure-config solution (no code operators) → structural mutation
+                mutants = gen_config_mutants(files, args.max_mutants)
             killed = comp = 0
             case_survivors = []
             for desc, text in mutants:
