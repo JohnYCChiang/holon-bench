@@ -840,3 +840,243 @@ cases:
       hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
       soft_metrics: [functional_correctness, test_quality, maintainability]
     failure_tags: [flaky_test, golden_output_mismatch, state_sync_corruption, hidden_verifier_failed]
+  - id: go-game-121
+    track: go_game_server
+    language: go
+    difficulty: easy
+    task_type: ban_enforcement
+    fixture: fixtures/go_game/ban_enforcement
+    user_request: Enforce timed bans so a banned player cannot act until the ban expires.
+    constraints:
+      - A banned player cannot act while now is before the until tick.
+      - The ban lifts exactly at the until tick.
+      - Bans on one player never affect another.
+    allowed_paths: [server/moderation/**, server/moderation/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/moderation/*_test.go, hidden/**]
+    solution_paths: [server/moderation/ban.go]
+    verifier:
+      commands: [go test ./server/moderation]
+      hidden_commands: [sh -c 'cp hidden/ban_hidden_test.go server/moderation/ban_hidden_test.go; trap "rm -f server/moderation/ban_hidden_test.go" EXIT; go test ./server/moderation -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/ban_mutation_test.go server/moderation/ban_mutation_test.go; trap "rm -f server/moderation/ban_mutation_test.go" EXIT; go test ./server/moderation -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, observability, maintainability]
+    failure_tags: [domain_rule_violation, wrong_edge_case]
+  - id: go-game-122
+    track: go_game_server
+    language: go
+    difficulty: easy
+    task_type: ready_check_gate
+    fixture: fixtures/go_game/ready_check_gate
+    user_request: Start a match only when every joined player is ready.
+    constraints:
+      - AllReady is false unless at least one player has joined.
+      - Any joined player that is not ready blocks the start.
+      - Marking an unknown player ready has no effect.
+    allowed_paths: [server/ready/**, server/ready/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/ready/*_test.go, hidden/**]
+    solution_paths: [server/ready/ready.go]
+    verifier:
+      commands: [go test ./server/ready]
+      hidden_commands: [sh -c 'cp hidden/ready_hidden_test.go server/ready/ready_hidden_test.go; trap "rm -f server/ready/ready_hidden_test.go" EXIT; go test ./server/ready -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/ready_mutation_test.go server/ready/ready_mutation_test.go; trap "rm -f server/ready/ready_mutation_test.go" EXIT; go test ./server/ready -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [domain_rule_violation, wrong_edge_case]
+  - id: go-game-123
+    track: go_game_server
+    language: go
+    difficulty: medium
+    task_type: seed_map_vote
+    fixture: fixtures/go_game/map_vote
+    user_request: Tally a map vote deterministically with a stable tie-break.
+    constraints:
+      - Each player has one vote; a later vote replaces the earlier one.
+      - Votes for unregistered maps and empty player ids are rejected.
+      - The winner is the most-voted map, ties broken by the smallest map id.
+    allowed_paths: [server/mapvote/**, server/mapvote/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/mapvote/*_test.go, hidden/**]
+    solution_paths: [server/mapvote/mapvote.go]
+    verifier:
+      commands: [go test ./server/mapvote]
+      hidden_commands: [sh -c 'cp hidden/mapvote_hidden_test.go server/mapvote/mapvote_hidden_test.go; trap "rm -f server/mapvote/mapvote_hidden_test.go" EXIT; go test ./server/mapvote -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/mapvote_mutation_test.go server/mapvote/mapvote_mutation_test.go; trap "rm -f server/mapvote/mapvote_mutation_test.go" EXIT; go test ./server/mapvote -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, test_quality, maintainability]
+    failure_tags: [golden_output_mismatch, flaky_test]
+  - id: go-game-124
+    track: go_game_server
+    language: go
+    difficulty: medium
+    task_type: kill_streak
+    fixture: fixtures/go_game/kill_streak
+    user_request: Track per-player kill streaks and reset the current streak on death.
+    constraints:
+      - A death resets the current streak to zero.
+      - The best streak never decreases.
+      - Players' streaks are independent.
+    allowed_paths: [server/combat/**, server/combat/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/combat/*_test.go, hidden/**]
+    solution_paths: [server/combat/streak.go]
+    verifier:
+      commands: [go test ./server/combat]
+      hidden_commands: [sh -c 'cp hidden/streak_hidden_test.go server/combat/streak_hidden_test.go; trap "rm -f server/combat/streak_hidden_test.go" EXIT; go test ./server/combat -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/streak_mutation_test.go server/combat/streak_mutation_test.go; trap "rm -f server/combat/streak_mutation_test.go" EXIT; go test ./server/combat -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, observability]
+    failure_tags: [domain_rule_violation, wrong_edge_case]
+  - id: go-game-125
+    track: go_game_server
+    language: go
+    difficulty: medium
+    task_type: objective_score
+    fixture: fixtures/go_game/objective_score
+    user_request: Score control-point ownership authoritatively, rejecting invalid captures.
+    constraints:
+      - Only registered points can be captured; empty teams are rejected.
+      - Each tick grants one point to the owner of every controlled point.
+      - A rejected capture never mutates ownership or score.
+    allowed_paths: [server/objective/**, server/objective/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/objective/*_test.go, hidden/**]
+    solution_paths: [server/objective/score.go]
+    verifier:
+      commands: [go test ./server/objective]
+      hidden_commands: [sh -c 'cp hidden/objective_hidden_test.go server/objective/objective_hidden_test.go; trap "rm -f server/objective/objective_hidden_test.go" EXIT; go test ./server/objective -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/objective_mutation_test.go server/objective/objective_mutation_test.go; trap "rm -f server/objective/objective_mutation_test.go" EXIT; go test ./server/objective -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, observability, maintainability]
+    failure_tags: [state_sync_corruption, domain_rule_violation, hidden_verifier_failed]
+  - id: go-game-126
+    track: go_game_server
+    language: go
+    difficulty: medium
+    task_type: queue_priority
+    fixture: fixtures/go_game/queue_priority
+    user_request: Serve a matchmaking queue by priority with FIFO tie-breaking.
+    constraints:
+      - Pop returns the highest-priority player.
+      - Equal priorities are served in insertion order.
+      - A player id may be queued at most once; empty ids are rejected.
+    allowed_paths: [server/queue/**, server/queue/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/queue/*_test.go, hidden/**]
+    solution_paths: [server/queue/priority.go]
+    verifier:
+      commands: [go test ./server/queue]
+      hidden_commands: [sh -c 'cp hidden/priority_hidden_test.go server/queue/priority_hidden_test.go; trap "rm -f server/queue/priority_hidden_test.go" EXIT; go test ./server/queue -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/priority_mutation_test.go server/queue/priority_mutation_test.go; trap "rm -f server/queue/priority_mutation_test.go" EXIT; go test ./server/queue -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [golden_output_mismatch, wrong_edge_case]
+  - id: go-game-127
+    track: go_game_server
+    language: go
+    difficulty: medium
+    task_type: turn_timer
+    fixture: fixtures/go_game/turn_timer
+    user_request: Run a deterministic turn timer where only the current player may act in time.
+    constraints:
+      - Only the current player may act, and only before the deadline.
+      - An expired turn auto-advances on tick.
+      - Rejected actions never advance the turn.
+    allowed_paths: [server/turn/**, server/turn/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/turn/*_test.go, hidden/**]
+    solution_paths: [server/turn/timer.go]
+    verifier:
+      commands: [go test ./server/turn]
+      hidden_commands: [sh -c 'cp hidden/timer_hidden_test.go server/turn/timer_hidden_test.go; trap "rm -f server/turn/timer_hidden_test.go" EXIT; go test ./server/turn -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/timer_mutation_test.go server/turn/timer_mutation_test.go; trap "rm -f server/turn/timer_mutation_test.go" EXIT; go test ./server/turn -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, test_quality, maintainability]
+    failure_tags: [domain_rule_violation, fake_success]
+  - id: go-game-128
+    track: go_game_server
+    language: go
+    difficulty: hard
+    task_type: anticheat_speed
+    fixture: fixtures/go_game/anticheat_speed
+    user_request: Reject movement updates that exceed the authoritative speed limit.
+    constraints:
+      - A move is accepted only if it stays within maxSpeed per elapsed tick.
+      - Rejected updates leave the last authoritative position unchanged.
+      - Unknown players and non-advancing ticks are rejected.
+    allowed_paths: [server/anticheat/**, server/anticheat/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/anticheat/*_test.go, hidden/**]
+    solution_paths: [server/anticheat/speed.go]
+    verifier:
+      commands: [go test ./server/anticheat]
+      hidden_commands: [sh -c 'cp hidden/speed_hidden_test.go server/anticheat/speed_hidden_test.go; trap "rm -f server/anticheat/speed_hidden_test.go" EXIT; go test ./server/anticheat -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/speed_mutation_test.go server/anticheat/speed_mutation_test.go; trap "rm -f server/anticheat/speed_mutation_test.go" EXIT; go test ./server/anticheat -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, test_quality, observability]
+    failure_tags: [domain_rule_violation, fake_success, hidden_verifier_failed]
+  - id: go-game-129
+    track: go_game_server
+    language: go
+    difficulty: hard
+    task_type: shard_assignment
+    fixture: fixtures/go_game/shard_assignment
+    user_request: Assign players to shards deterministically without exceeding capacity.
+    constraints:
+      - No shard is ever filled beyond its capacity.
+      - A player's shard is stable across repeated assignment.
+      - The same players in the same order always produce the same placement.
+    allowed_paths: [server/shard/**, server/shard/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/shard/*_test.go, hidden/**]
+    solution_paths: [server/shard/assign.go]
+    verifier:
+      commands: [go test ./server/shard]
+      hidden_commands: [sh -c 'cp hidden/assign_hidden_test.go server/shard/assign_hidden_test.go; trap "rm -f server/shard/assign_hidden_test.go" EXIT; go test ./server/shard -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/assign_mutation_test.go server/shard/assign_mutation_test.go; trap "rm -f server/shard/assign_mutation_test.go" EXIT; go test ./server/shard -run Mutation -count=1']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, maintainability, minimality]
+    failure_tags: [state_sync_corruption, domain_rule_violation, hidden_verifier_failed]
+  - id: go-game-130
+    track: go_game_server
+    language: go
+    difficulty: expert
+    task_type: auction_escrow
+    fixture: fixtures/go_game/auction_bid
+    user_request: Run an authoritative auction with escrow so funds are conserved and outbids are refunded.
+    constraints:
+      - A bid must beat the high bid by at least the minimum increment and be covered by balance.
+      - Outbidding refunds the previous leader; total currency is conserved.
+      - Balances never go negative and bids after close are rejected.
+    allowed_paths: [server/auction/**, server/auction/*_test.go]
+    forbidden_paths: [go.mod]
+    protected_paths: [server/auction/*_test.go, hidden/**]
+    solution_paths: [server/auction/auction.go]
+    verifier:
+      commands: [go test ./server/auction -count=1]
+      hidden_commands: [sh -c 'cp hidden/auction_hidden_test.go server/auction/auction_hidden_test.go; trap "rm -f server/auction/auction_hidden_test.go" EXIT; go test ./server/auction -run Hidden -count=1']
+      mutation_commands: [sh -c 'cp hidden/auction_mutation_test.go server/auction/auction_mutation_test.go; trap "rm -f server/auction/auction_mutation_test.go" EXIT; go test ./server/auction -run Mutation -count=1']
+      timeout_seconds: 90
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, test_quality, maintainability]
+    failure_tags: [state_sync_corruption, fake_success, hidden_verifier_failed]

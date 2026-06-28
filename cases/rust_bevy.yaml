@@ -842,3 +842,243 @@ cases:
       hard_gates: [patch_applies, compiles, tests_pass]
       soft_metrics: [functional_correctness, maintainability, minimality]
     failure_tags: [domain_rule_violation, wrong_edge_case]
+  - id: bevy-121
+    track: rust_bevy
+    language: rust
+    difficulty: easy
+    task_type: parry_window
+    fixture: fixtures/bevy/parry_window
+    user_request: Open the parry window only after the startup delay and keep it half-open.
+    constraints:
+      - An attack before the startup delay must never be parried.
+      - The active window is the half-open interval [startup, startup + active).
+      - Keep the parry timing logic pure and testable.
+    allowed_paths: [src/parry.rs, tests/parry_window.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/parry_window.rs, hidden/**]
+    solution_paths: [src/parry.rs]
+    verifier:
+      commands: [cargo test --test parry_window]
+      hidden_commands: [sh -c 'cp hidden/parry_window_hidden.rs tests/parry_window_hidden.rs; trap "rm -f tests/parry_window_hidden.rs" EXIT; cargo test --test parry_window_hidden']
+      mutation_commands: [sh -c 'cp hidden/parry_window_mutation.rs tests/parry_window_mutation.rs; trap "rm -f tests/parry_window_mutation.rs" EXIT; cargo test --test parry_window_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, maintainability]
+    failure_tags: [wrong_edge_case, domain_rule_violation]
+  - id: bevy-122
+    track: rust_bevy
+    language: rust
+    difficulty: medium
+    task_type: lifesteal_cap
+    fixture: fixtures/bevy/lifesteal_cap
+    user_request: Cap lifesteal healing at max health and never heal on a non-positive hit.
+    constraints:
+      - Healing must never push hp above max_hp.
+      - A non-positive hit heals nothing.
+      - Healing is integer-floored.
+    allowed_paths: [src/lifesteal.rs, tests/lifesteal_cap.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/lifesteal_cap.rs, hidden/**]
+    solution_paths: [src/lifesteal.rs]
+    verifier:
+      commands: [cargo test --test lifesteal_cap]
+      hidden_commands: [sh -c 'cp hidden/lifesteal_cap_hidden.rs tests/lifesteal_cap_hidden.rs; trap "rm -f tests/lifesteal_cap_hidden.rs" EXIT; cargo test --test lifesteal_cap_hidden']
+      mutation_commands: [sh -c 'cp hidden/lifesteal_cap_mutation.rs tests/lifesteal_cap_mutation.rs; trap "rm -f tests/lifesteal_cap_mutation.rs" EXIT; cargo test --test lifesteal_cap_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, minimality]
+    failure_tags: [domain_rule_violation, wrong_edge_case]
+  - id: bevy-123
+    track: rust_bevy
+    language: rust
+    difficulty: hard
+    task_type: status_tick_order
+    fixture: fixtures/bevy/status_tick_order
+    user_request: Resolve status effects in a deterministic order so a tick is independent of input ordering.
+    constraints:
+      - Poisons resolve before heals, with ties broken by ascending id.
+      - The tick result must not depend on input ordering.
+      - Clamp hp at zero after every step.
+    allowed_paths: [src/status.rs, tests/status_tick_order.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/status_tick_order.rs, hidden/**]
+    solution_paths: [src/status.rs]
+    verifier:
+      commands: [cargo test --test status_tick_order]
+      hidden_commands: [sh -c 'cp hidden/status_tick_order_hidden.rs tests/status_tick_order_hidden.rs; trap "rm -f tests/status_tick_order_hidden.rs" EXIT; cargo test --test status_tick_order_hidden']
+      mutation_commands: [sh -c 'cp hidden/status_tick_order_mutation.rs tests/status_tick_order_mutation.rs; trap "rm -f tests/status_tick_order_mutation.rs" EXIT; cargo test --test status_tick_order_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, test_quality, maintainability]
+    failure_tags: [domain_rule_violation, wrong_edge_case, mutation_verifier_failed]
+  - id: bevy-124
+    track: rust_bevy
+    language: rust
+    difficulty: easy
+    task_type: formation_spacing
+    fixture: fixtures/bevy/formation_spacing
+    user_request: Center formation slot offsets around the anchor instead of starting at zero.
+    constraints:
+      - Offsets must be symmetric about the origin.
+      - Consecutive slots stay exactly one spacing apart.
+      - An empty formation yields no offsets.
+    allowed_paths: [src/formation.rs, tests/formation_spacing.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/formation_spacing.rs, hidden/**]
+    solution_paths: [src/formation.rs]
+    verifier:
+      commands: [cargo test --test formation_spacing]
+      hidden_commands: [sh -c 'cp hidden/formation_spacing_hidden.rs tests/formation_spacing_hidden.rs; trap "rm -f tests/formation_spacing_hidden.rs" EXIT; cargo test --test formation_spacing_hidden']
+      mutation_commands: [sh -c 'cp hidden/formation_spacing_mutation.rs tests/formation_spacing_mutation.rs; trap "rm -f tests/formation_spacing_mutation.rs" EXIT; cargo test --test formation_spacing_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, minimality, test_quality]
+    failure_tags: [wrong_edge_case, missing_requirement]
+  - id: bevy-125
+    track: rust_bevy
+    language: rust
+    difficulty: medium
+    task_type: aggro_leash
+    fixture: fixtures/bevy/aggro_leash
+    user_request: Measure the aggro leash from the home anchor so strayed enemies disengage.
+    constraints:
+      - The leash distance is measured from home, not from the target.
+      - The leash boundary is inclusive; an enemy exactly at leash still chases.
+      - A strayed enemy returns to home regardless of target position.
+    allowed_paths: [src/leash.rs, tests/aggro_leash.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/aggro_leash.rs, hidden/**]
+    solution_paths: [src/leash.rs]
+    verifier:
+      commands: [cargo test --test aggro_leash]
+      hidden_commands: [sh -c 'cp hidden/aggro_leash_hidden.rs tests/aggro_leash_hidden.rs; trap "rm -f tests/aggro_leash_hidden.rs" EXIT; cargo test --test aggro_leash_hidden']
+      mutation_commands: [sh -c 'cp hidden/aggro_leash_mutation.rs tests/aggro_leash_mutation.rs; trap "rm -f tests/aggro_leash_mutation.rs" EXIT; cargo test --test aggro_leash_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability, minimality]
+    failure_tags: [domain_rule_violation, wrong_edge_case]
+  - id: bevy-126
+    track: rust_bevy
+    language: rust
+    difficulty: medium
+    task_type: resource_regen
+    fixture: fixtures/bevy/resource_regen
+    user_request: Cap resource regeneration at max and discard the accumulator once the pool is full.
+    constraints:
+      - current must never exceed max.
+      - Fractional progress carries over only while below max.
+      - A full pool keeps the accumulator cleared.
+    allowed_paths: [src/regen.rs, tests/resource_regen.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/resource_regen.rs, hidden/**]
+    solution_paths: [src/regen.rs]
+    verifier:
+      commands: [cargo test --test resource_regen]
+      hidden_commands: [sh -c 'cp hidden/resource_regen_hidden.rs tests/resource_regen_hidden.rs; trap "rm -f tests/resource_regen_hidden.rs" EXIT; cargo test --test resource_regen_hidden']
+      mutation_commands: [sh -c 'cp hidden/resource_regen_mutation.rs tests/resource_regen_mutation.rs; trap "rm -f tests/resource_regen_mutation.rs" EXIT; cargo test --test resource_regen_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass]
+      soft_metrics: [functional_correctness, maintainability, minimality]
+    failure_tags: [domain_rule_violation, wrong_edge_case]
+  - id: bevy-127
+    track: rust_bevy
+    language: rust
+    difficulty: medium
+    task_type: crit_roll
+    fixture: fixtures/bevy/crit_roll
+    user_request: Make crit rolls half-open so the boundary roll and a zero chance never crit.
+    constraints:
+      - A crit requires roll strictly below chance.
+      - A chance of zero can never crit.
+      - Crit selection is deterministic for a given roll.
+    allowed_paths: [src/crit.rs, tests/crit_roll.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/crit_roll.rs, hidden/**]
+    solution_paths: [src/crit.rs]
+    verifier:
+      commands: [cargo test --test crit_roll]
+      hidden_commands: [sh -c 'cp hidden/crit_roll_hidden.rs tests/crit_roll_hidden.rs; trap "rm -f tests/crit_roll_hidden.rs" EXIT; cargo test --test crit_roll_hidden']
+      mutation_commands: [sh -c 'cp hidden/crit_roll_mutation.rs tests/crit_roll_mutation.rs; trap "rm -f tests/crit_roll_mutation.rs" EXIT; cargo test --test crit_roll_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, test_quality, minimality]
+    failure_tags: [wrong_edge_case, domain_rule_violation]
+  - id: bevy-128
+    track: rust_bevy
+    language: rust
+    difficulty: medium
+    task_type: shield_break
+    fixture: fixtures/bevy/shield_break
+    user_request: Flag the shield as broken when its hp is depleted and keep a broken shield permeable.
+    constraints:
+      - The shield becomes broken exactly when its hp reaches zero.
+      - A broken shield absorbs nothing and stays broken.
+      - Overflow damage conserves the total damage applied.
+    allowed_paths: [src/shield.rs, tests/shield_break.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/shield_break.rs, hidden/**]
+    solution_paths: [src/shield.rs]
+    verifier:
+      commands: [cargo test --test shield_break]
+      hidden_commands: [sh -c 'cp hidden/shield_break_hidden.rs tests/shield_break_hidden.rs; trap "rm -f tests/shield_break_hidden.rs" EXIT; cargo test --test shield_break_hidden']
+      mutation_commands: [sh -c 'cp hidden/shield_break_mutation.rs tests/shield_break_mutation.rs; trap "rm -f tests/shield_break_mutation.rs" EXIT; cargo test --test shield_break_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, maintainability, minimality]
+    failure_tags: [domain_rule_violation, wrong_edge_case]
+  - id: bevy-129
+    track: rust_bevy
+    language: rust
+    difficulty: hard
+    task_type: terrain_cost
+    fixture: fixtures/bevy/terrain_cost
+    user_request: Stop the movement budget before entering a tile that would exceed it.
+    constraints:
+      - A step is only taken if the cumulative cost stays within budget.
+      - Spending exactly the budget is allowed.
+      - More budget must never yield fewer reachable steps.
+    allowed_paths: [src/terrain.rs, tests/terrain_cost.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/terrain_cost.rs, hidden/**]
+    solution_paths: [src/terrain.rs]
+    verifier:
+      commands: [cargo test --test terrain_cost]
+      hidden_commands: [sh -c 'cp hidden/terrain_cost_hidden.rs tests/terrain_cost_hidden.rs; trap "rm -f tests/terrain_cost_hidden.rs" EXIT; cargo test --test terrain_cost_hidden']
+      mutation_commands: [sh -c 'cp hidden/terrain_cost_mutation.rs tests/terrain_cost_mutation.rs; trap "rm -f tests/terrain_cost_mutation.rs" EXIT; cargo test --test terrain_cost_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, test_quality, maintainability]
+    failure_tags: [wrong_edge_case, domain_rule_violation, hidden_verifier_failed]
+  - id: bevy-130
+    track: rust_bevy
+    language: rust
+    difficulty: expert
+    task_type: deterministic_shuffle
+    fixture: fixtures/bevy/deterministic_shuffle
+    user_request: Fix the Fisher-Yates partner range so the shuffle is unbiased and matches the authoritative sequence.
+    constraints:
+      - Each partner index is drawn from the inclusive range 0..=i.
+      - The result stays a permutation and is deterministic per seed.
+      - Do not use unsafe or external randomness.
+    allowed_paths: [src/shuffle.rs, tests/deterministic_shuffle.rs]
+    forbidden_paths: [Cargo.toml]
+    protected_paths: [tests/deterministic_shuffle.rs, hidden/**]
+    solution_paths: [src/shuffle.rs]
+    verifier:
+      commands: [cargo test --test deterministic_shuffle]
+      hidden_commands: [sh -c 'cp hidden/deterministic_shuffle_hidden.rs tests/deterministic_shuffle_hidden.rs; trap "rm -f tests/deterministic_shuffle_hidden.rs" EXIT; cargo test --test deterministic_shuffle_hidden']
+      mutation_commands: [sh -c 'cp hidden/deterministic_shuffle_mutation.rs tests/deterministic_shuffle_mutation.rs; trap "rm -f tests/deterministic_shuffle_mutation.rs" EXIT; cargo test --test deterministic_shuffle_mutation']
+      timeout_seconds: 60
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass]
+      soft_metrics: [functional_correctness, test_quality, maintainability]
+    failure_tags: [state_sync_corruption, domain_rule_violation, mutation_verifier_failed]

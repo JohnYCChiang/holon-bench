@@ -652,3 +652,315 @@ cases:
       hard_gates: [patch_applies, tests_pass, schema_valid, scope_pass]
       soft_metrics: [functional_correctness, observability, maintainability]
     failure_tags: [wrong_edge_case, missing_requirement, fake_success, hidden_verifier_failed, mutation_verifier_failed]
+  - id: py-tool-111
+    track: python_tool_engineering
+    language: python
+    difficulty: easy
+    task_type: env_var_interpolation
+    fixture: fixtures/python/env_interpolate
+    user_request: >
+      Interpolate ${VAR} references in a template from a variables map, returning
+      a structured error for any unresolved variable.
+    constraints:
+      - Only substitute variables actually referenced in the template.
+      - Report unresolved references as a machine-readable error.
+      - Return resolved variable names sorted and de-duplicated.
+    allowed_paths: [src/interp_tool/**, tests/test_env_interp.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_env_interp.py]
+    solution_paths: [src/interp_tool/interpolate.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_env_interp]
+      hidden_commands: [python3 -m unittest hidden.test_env_interp_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_env_interp_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid]
+      soft_metrics: [contract_compliance, observability, minimality]
+    failure_tags: [response_schema_break, missing_requirement, wrong_edge_case]
+  - id: py-tool-112
+    track: python_tool_engineering
+    language: python
+    difficulty: easy
+    task_type: ansi_escape_strip
+    fixture: fixtures/python/ansi_strip
+    user_request: >
+      Strip ANSI escape sequences from tool output, reporting how many sequences
+      were removed and the cleaned text length.
+    constraints:
+      - Remove CSI escape sequences without touching printable text.
+      - Preserve newlines and unicode codepoints.
+      - Return the count of removed sequences and the cleaned length.
+    allowed_paths: [src/ansi_tool/**, tests/test_ansi_strip.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_ansi_strip.py]
+    solution_paths: [src/ansi_tool/strip.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_ansi_strip]
+      hidden_commands: [python3 -m unittest hidden.test_ansi_strip_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_ansi_strip_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, observability, minimality]
+    failure_tags: [response_schema_break, missing_requirement, wrong_edge_case]
+  - id: py-tool-113
+    track: python_tool_engineering
+    language: python
+    difficulty: medium
+    task_type: retry_after_parser
+    fixture: fixtures/python/retry_after_parse
+    user_request: >
+      Parse an HTTP Retry-After value that may be either delta-seconds or an
+      HTTP-date into a non-negative delay relative to a supplied epoch.
+    constraints:
+      - Support both integer seconds and HTTP-date forms.
+      - Clamp past dates to a zero delay; never return a negative delay.
+      - Return a machine-readable error for unparseable or non-string input.
+    allowed_paths: [src/retryafter_tool/**, tests/test_retry_after.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_retry_after.py]
+    solution_paths: [src/retryafter_tool/parse.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_retry_after]
+      hidden_commands: [python3 -m unittest hidden.test_retry_after_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_retry_after_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, contract_compliance, observability]
+    failure_tags: [wrong_edge_case, response_schema_break, missing_requirement]
+  - id: py-tool-114
+    track: python_tool_engineering
+    language: python
+    difficulty: medium
+    task_type: jsonlines_stream
+    fixture: fixtures/python/jsonl_stream
+    user_request: >
+      Parse newline-delimited JSON into ordered records, skipping blank lines and
+      reporting the 1-based line number of the first malformed record.
+    constraints:
+      - Preserve record order and skip blank or whitespace-only lines.
+      - Return a machine-readable error with the offending line number.
+      - Handle empty input as zero records without error.
+    allowed_paths: [src/jsonl_tool/**, tests/test_jsonl_stream.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_jsonl_stream.py]
+    solution_paths: [src/jsonl_tool/stream.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_jsonl_stream]
+      hidden_commands: [python3 -m unittest hidden.test_jsonl_stream_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_jsonl_stream_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, contract_compliance, observability]
+    failure_tags: [invalid_json, response_schema_break, wrong_edge_case]
+  - id: py-tool-115
+    track: python_tool_engineering
+    language: python
+    difficulty: medium
+    task_type: deterministic_id_gen
+    fixture: fixtures/python/deterministic_id
+    user_request: >
+      Generate a deterministic id from a namespace and a fields map so identical
+      field content yields the same id regardless of key insertion order.
+    constraints:
+      - Produce identical ids for dicts that differ only in key order.
+      - Use canonical serialization, not Python repr or built-in hash.
+      - Return a machine-readable error for non-dict fields.
+    allowed_paths: [src/idgen_tool/**, tests/test_det_idgen.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_det_idgen.py]
+    solution_paths: [src/idgen_tool/gen.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_det_idgen]
+      hidden_commands: [python3 -m unittest hidden.test_det_idgen_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_det_idgen_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, observability, minimality]
+    failure_tags: [non_idempotent_tool, fake_success, response_schema_break]
+  - id: py-tool-116
+    track: python_tool_engineering
+    language: python
+    difficulty: medium
+    task_type: checksum_manifest
+    fixture: fixtures/python/checksum_manifest
+    user_request: >
+      Build a deterministic checksum manifest for a directory tree with relative
+      posix paths, sha256 digests, and sizes sorted by path.
+    constraints:
+      - Walk nested directories, not just the top level.
+      - Emit relative posix paths, never absolute paths.
+      - Sort entries deterministically by path.
+    allowed_paths: [src/checksum_tool/**, tests/test_checksum_manifest.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_checksum_manifest.py, hidden/**]
+    solution_paths: [src/checksum_tool/manifest.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_checksum_manifest]
+      hidden_commands: [python3 hidden/verify_checksum_manifest.py]
+      mutation_commands: [python3 hidden/verify_checksum_manifest_mutation.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid, scope_pass]
+      soft_metrics: [functional_correctness, observability, maintainability]
+    failure_tags: [wrong_edge_case, response_schema_break, missing_requirement, hidden_verifier_failed, mutation_verifier_failed]
+  - id: py-tool-117
+    track: python_tool_engineering
+    language: python
+    difficulty: medium
+    task_type: log_rotation
+    fixture: fixtures/python/log_rotation
+    user_request: >
+      Rotate a log file when it reaches a byte threshold, cascading numbered
+      backups, dropping the oldest beyond the limit, and leaving a fresh file.
+    constraints:
+      - Cascade existing backups instead of overwriting them.
+      - Never keep more than the configured number of backups.
+      - Leave a fresh empty primary file after rotation.
+    allowed_paths: [src/logrotate_tool/**, tests/test_log_rotation.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_log_rotation.py, hidden/**]
+    solution_paths: [src/logrotate_tool/rotate.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_log_rotation]
+      hidden_commands: [python3 hidden/verify_log_rotation.py]
+      mutation_commands: [python3 hidden/verify_log_rotation_mutation.py]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, safety_pass, scope_pass]
+      soft_metrics: [functional_correctness, observability, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement, fake_success, hidden_verifier_failed, mutation_verifier_failed]
+  - id: py-tool-118
+    track: python_tool_engineering
+    language: python
+    difficulty: medium
+    task_type: table_formatter
+    fixture: fixtures/python/table_format
+    user_request: >
+      Render rows as an aligned text table with a header separator, padding each
+      column to the width of its widest cell and tolerating missing keys.
+    constraints:
+      - Compute column widths from header and cell contents.
+      - Treat a missing key as an empty cell, never raising.
+      - Return a machine-readable error for non-list rows.
+    allowed_paths: [src/table_tool/**, tests/test_table_format.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_table_format.py]
+    solution_paths: [src/table_tool/format.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_table_format]
+      hidden_commands: [python3 -m unittest hidden.test_table_format_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_table_format_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, contract_compliance, maintainability]
+    failure_tags: [response_schema_break, wrong_edge_case, missing_requirement]
+  - id: py-tool-119
+    track: python_tool_engineering
+    language: python
+    difficulty: hard
+    task_type: diff_summary
+    fixture: fixtures/python/diff_summary
+    user_request: >
+      Summarize a line-based diff into added, removed, and unchanged counts using
+      a real sequence alignment rather than set arithmetic.
+    constraints:
+      - Count duplicate lines correctly, not via set differences.
+      - Treat reordered lines as changes, not as unchanged.
+      - Report a deterministic changed flag.
+    allowed_paths: [src/diff_tool/**, tests/test_diff_summary.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_diff_summary.py, hidden/**]
+    solution_paths: [src/diff_tool/summarize.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_diff_summary]
+      hidden_commands: [python3 -m unittest hidden.test_diff_summary_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_diff_summary_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, observability, maintainability]
+    failure_tags: [wrong_edge_case, fake_success, response_schema_break]
+  - id: py-tool-120
+    track: python_tool_engineering
+    language: python
+    difficulty: hard
+    task_type: stream_interleave
+    fixture: fixtures/python/stream_interleave
+    user_request: >
+      Merge captured stdout and stderr events into a single transcript ordered by
+      sequence number with stable tie-breaking and per-stream byte counts.
+    constraints:
+      - Order events by sequence, breaking ties by original index.
+      - Count bytes per stream using utf-8 encoding.
+      - Return a machine-readable error for an unknown stream name.
+    allowed_paths: [src/streammux_tool/**, tests/test_stream_interleave.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_stream_interleave.py, hidden/**]
+    solution_paths: [src/streammux_tool/interleave.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_stream_interleave]
+      hidden_commands: [python3 -m unittest hidden.test_stream_interleave_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_stream_interleave_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid]
+      soft_metrics: [functional_correctness, observability, contract_compliance]
+    failure_tags: [wrong_edge_case, response_schema_break, missing_requirement]
+  - id: py-tool-121
+    track: python_tool_engineering
+    language: python
+    difficulty: hard
+    task_type: glob_include_exclude
+    fixture: fixtures/python/glob_select
+    user_request: >
+      Select paths by glob include and exclude patterns where an empty include
+      means all, exclude takes precedence, and output is sorted and de-duplicated.
+    constraints:
+      - Match with glob semantics, not substring containment.
+      - Empty include selects all; exclude always wins over include.
+      - Return sorted, de-duplicated selected and excluded lists.
+    allowed_paths: [src/globsel_tool/**, tests/test_glob_select.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_glob_select.py, hidden/**]
+    solution_paths: [src/globsel_tool/select.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_glob_select]
+      hidden_commands: [python3 -m unittest hidden.test_glob_select_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_glob_select_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, scope_pass, safety_pass]
+      soft_metrics: [functional_correctness, observability, minimality]
+    failure_tags: [ignores_exclude_globs, wrong_edge_case, missing_requirement]
+  - id: py-tool-122
+    track: python_tool_engineering
+    language: python
+    difficulty: expert
+    task_type: schema_migration
+    fixture: fixtures/python/schema_migration
+    user_request: >
+      Apply an ordered chain of schema migrations to upgrade a versioned record to
+      a target version without mutating the input and detecting missing steps.
+    constraints:
+      - Apply every intermediate migration step in order exactly once.
+      - Do not mutate the input record.
+      - Report missing_migration, invalid_target, and invalid_record errors.
+    allowed_paths: [src/migrate_tool/**, tests/test_schema_migration.py]
+    forbidden_paths: [pyproject.toml]
+    protected_paths: [tests/test_schema_migration.py, hidden/**]
+    solution_paths: [src/migrate_tool/migrate.py]
+    verifier:
+      commands: [python3 -m unittest tests.test_schema_migration]
+      hidden_commands: [python3 -m unittest hidden.test_schema_migration_hidden]
+      mutation_commands: [python3 -m unittest hidden.test_schema_migration_mutation]
+      timeout_seconds: 30
+    scoring:
+      hard_gates: [patch_applies, tests_pass, schema_valid, scope_pass]
+      soft_metrics: [functional_correctness, observability, maintainability]
+    failure_tags: [backward_incompatibility, wrong_edge_case, missing_requirement, fake_success, hidden_verifier_failed]

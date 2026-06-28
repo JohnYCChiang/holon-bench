@@ -363,3 +363,244 @@ cases:
       hard_gates: [patch_applies, compiles, tests_pass]
       soft_metrics: [functional_correctness, maintainability]
     failure_tags: [wrong_edge_case, missing_requirement]
+  - id: flutter-101
+    track: flutter_cross_platform
+    language: dart
+    difficulty: easy
+    task_type: locale_formatting
+    fixture: fixtures/flutter/locale_number_format
+    user_request: Format integers with locale-style thousands grouping.
+    constraints:
+      - Group digits from the right in threes.
+      - Preserve the sign on negative values.
+      - Honor a custom separator argument.
+    allowed_paths: [lib/format/**, test/format/**]
+    forbidden_paths: [pubspec.yaml]
+    protected_paths: [test/format/**, hidden/**]
+    solution_paths: [lib/format/number_formatter.dart]
+    verifier:
+      commands: [flutter test test/format]
+      hidden_commands: [sh -c 'cp hidden/number_formatter_hidden_test.dart test/format/number_formatter_hidden_test.dart; trap "rm -f test/format/number_formatter_hidden_test.dart" EXIT; flutter test test/format/number_formatter_hidden_test.dart']
+      mutation_commands: [sh -c 'cp hidden/number_formatter_mutation_test.dart test/format/number_formatter_mutation_test.dart; trap "rm -f test/format/number_formatter_mutation_test.dart" EXIT; flutter test test/format/number_formatter_mutation_test.dart']
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [wrong_edge_case, missing_requirement]
+  - id: flutter-102
+    track: flutter_cross_platform
+    language: dart
+    difficulty: medium
+    task_type: pagination_state
+    fixture: fixtures/flutter/pagination_controller
+    user_request: Load list pages in order and stop when the data is exhausted.
+    constraints:
+      - Advance the page cursor and accumulate items.
+      - Mark the end when a short page arrives.
+      - Do not double-fetch under concurrent loads.
+    allowed_paths: [lib/state/**, test/state/**]
+    forbidden_paths: [pubspec.yaml]
+    protected_paths: [test/state/**, hidden/**]
+    solution_paths: [lib/state/pagination_controller.dart]
+    verifier:
+      commands: [flutter test test/state]
+      hidden_commands: [sh -c 'cp hidden/pagination_controller_hidden_test.dart test/state/pagination_controller_hidden_test.dart; trap "rm -f test/state/pagination_controller_hidden_test.dart" EXIT; flutter test test/state/pagination_controller_hidden_test.dart']
+      mutation_commands: [sh -c 'cp hidden/pagination_controller_mutation_test.dart test/state/pagination_controller_mutation_test.dart; trap "rm -f test/state/pagination_controller_mutation_test.dart" EXIT; flutter test test/state/pagination_controller_mutation_test.dart']
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [race_condition, wrong_edge_case]
+  - id: flutter-103
+    track: flutter_cross_platform
+    language: dart
+    difficulty: medium
+    task_type: settings_persistence
+    fixture: fixtures/flutter/theme_mode_store
+    user_request: Persist the chosen theme and restore it through the injected store.
+    constraints:
+      - Cycle order is light then dark then system.
+      - Persist each change to the key-value store.
+      - Load restores the saved choice, defaulting to system.
+    allowed_paths: [lib/settings/**, test/settings/**]
+    forbidden_paths: [pubspec.yaml]
+    protected_paths: [test/settings/**, hidden/**]
+    solution_paths: [lib/settings/theme_store.dart]
+    verifier:
+      commands: [flutter test test/settings]
+      hidden_commands: [sh -c 'cp hidden/theme_store_hidden_test.dart test/settings/theme_store_hidden_test.dart; trap "rm -f test/settings/theme_store_hidden_test.dart" EXIT; flutter test test/settings/theme_store_hidden_test.dart']
+      mutation_commands: [sh -c 'cp hidden/theme_store_mutation_test.dart test/settings/theme_store_mutation_test.dart; trap "rm -f test/settings/theme_store_mutation_test.dart" EXIT; flutter test test/settings/theme_store_mutation_test.dart']
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass]
+      soft_metrics: [functional_correctness, maintainability, test_quality]
+    failure_tags: [missing_requirement, state_sync_corruption]
+  - id: flutter-104
+    track: flutter_cross_platform
+    language: dart
+    difficulty: medium
+    task_type: list_reordering
+    fixture: fixtures/flutter/reorderable_list
+    user_request: Apply ReorderableListView index semantics when reordering a list.
+    constraints:
+      - Adjust the target index when moving an item downward.
+      - Never lose or duplicate elements.
+      - Do not mutate the source list in place.
+    allowed_paths: [lib/list/**, test/list/**]
+    forbidden_paths: [pubspec.yaml]
+    protected_paths: [test/list/**, hidden/**]
+    solution_paths: [lib/list/reorder.dart]
+    verifier:
+      commands: [flutter test test/list]
+      hidden_commands: [sh -c 'cp hidden/reorder_hidden_test.dart test/list/reorder_hidden_test.dart; trap "rm -f test/list/reorder_hidden_test.dart" EXIT; flutter test test/list/reorder_hidden_test.dart']
+      mutation_commands: [sh -c 'cp hidden/reorder_mutation_test.dart test/list/reorder_mutation_test.dart; trap "rm -f test/list/reorder_mutation_test.dart" EXIT; flutter test test/list/reorder_mutation_test.dart']
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass]
+      soft_metrics: [functional_correctness, contract_compliance]
+    failure_tags: [wrong_edge_case, over_refactor]
+  - id: flutter-105
+    track: flutter_cross_platform
+    language: dart
+    difficulty: medium
+    task_type: notification_dedupe
+    fixture: fixtures/flutter/snackbar_dedupe
+    user_request: Suppress a repeated identical snackbar shown within the dedupe window.
+    constraints:
+      - A different message is never suppressed.
+      - The window is anchored to the last actual show.
+      - Clock must be injectable for deterministic tests.
+    allowed_paths: [lib/ui/**, test/ui/**]
+    forbidden_paths: [pubspec.yaml]
+    protected_paths: [test/ui/**, hidden/**]
+    solution_paths: [lib/ui/snackbar_dispatcher.dart]
+    verifier:
+      commands: [flutter test test/ui]
+      hidden_commands: [sh -c 'cp hidden/snackbar_dispatcher_hidden_test.dart test/ui/snackbar_dispatcher_hidden_test.dart; trap "rm -f test/ui/snackbar_dispatcher_hidden_test.dart" EXIT; flutter test test/ui/snackbar_dispatcher_hidden_test.dart']
+      mutation_commands: [sh -c 'cp hidden/snackbar_dispatcher_mutation_test.dart test/ui/snackbar_dispatcher_mutation_test.dart; trap "rm -f test/ui/snackbar_dispatcher_mutation_test.dart" EXIT; flutter test test/ui/snackbar_dispatcher_mutation_test.dart']
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass]
+      soft_metrics: [functional_correctness, test_quality]
+    failure_tags: [wrong_edge_case, fake_success]
+  - id: flutter-106
+    track: flutter_cross_platform
+    language: dart
+    difficulty: hard
+    task_type: retry_backoff
+    fixture: fixtures/flutter/connectivity_retry
+    user_request: Retry a failing async action with exponential backoff and a capped attempt count.
+    constraints:
+      - Backoff doubles from the base delay between attempts.
+      - No sleep follows the final failed attempt.
+      - Rethrow the last error after max attempts.
+    allowed_paths: [lib/net/**, test/net/**]
+    forbidden_paths: [pubspec.yaml]
+    protected_paths: [test/net/**, hidden/**]
+    solution_paths: [lib/net/retry_runner.dart]
+    verifier:
+      commands: [flutter test test/net]
+      hidden_commands: [sh -c 'cp hidden/retry_runner_hidden_test.dart test/net/retry_runner_hidden_test.dart; trap "rm -f test/net/retry_runner_hidden_test.dart" EXIT; flutter test test/net/retry_runner_hidden_test.dart']
+      mutation_commands: [sh -c 'cp hidden/retry_runner_mutation_test.dart test/net/retry_runner_mutation_test.dart; trap "rm -f test/net/retry_runner_mutation_test.dart" EXIT; flutter test test/net/retry_runner_mutation_test.dart']
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [missing_requirement, wrong_edge_case]
+  - id: flutter-107
+    track: flutter_cross_platform
+    language: dart
+    difficulty: hard
+    task_type: derived_state
+    fixture: fixtures/flutter/derived_selector
+    user_request: Notify listeners only when the derived bucket actually changes.
+    constraints:
+      - Skip notification for in-bucket updates.
+      - Pass the derived bucket to listeners, not the raw value.
+      - Notify every registered listener once per change.
+    allowed_paths: [lib/state/**, test/state/**]
+    forbidden_paths: [pubspec.yaml]
+    protected_paths: [test/state/**, hidden/**]
+    solution_paths: [lib/state/derived_store.dart]
+    verifier:
+      commands: [flutter test test/state]
+      hidden_commands: [sh -c 'cp hidden/derived_store_hidden_test.dart test/state/derived_store_hidden_test.dart; trap "rm -f test/state/derived_store_hidden_test.dart" EXIT; flutter test test/state/derived_store_hidden_test.dart']
+      mutation_commands: [sh -c 'cp hidden/derived_store_mutation_test.dart test/state/derived_store_mutation_test.dart; trap "rm -f test/state/derived_store_mutation_test.dart" EXIT; flutter test test/state/derived_store_mutation_test.dart']
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, scope_pass]
+      soft_metrics: [functional_correctness, maintainability]
+    failure_tags: [state_sync_corruption, over_refactor]
+  - id: flutter-108
+    track: flutter_cross_platform
+    language: dart
+    difficulty: medium
+    task_type: deep_link_routing
+    fixture: fixtures/flutter/deep_link_parser
+    user_request: Parse custom-scheme deep links into typed routes and reject malformed ones.
+    constraints:
+      - Reject links whose scheme is not the app scheme.
+      - A product or profile host without a segment is unknown.
+      - Keep parsing pure Dart.
+    allowed_paths: [lib/links/**, test/links/**]
+    forbidden_paths: [pubspec.yaml]
+    protected_paths: [test/links/**, hidden/**]
+    solution_paths: [lib/links/deep_link.dart]
+    verifier:
+      commands: [flutter test test/links]
+      hidden_commands: [sh -c 'cp hidden/deep_link_hidden_test.dart test/links/deep_link_hidden_test.dart; trap "rm -f test/links/deep_link_hidden_test.dart" EXIT; flutter test test/links/deep_link_hidden_test.dart']
+      mutation_commands: [sh -c 'cp hidden/deep_link_mutation_test.dart test/links/deep_link_mutation_test.dart; trap "rm -f test/links/deep_link_mutation_test.dart" EXIT; flutter test test/links/deep_link_mutation_test.dart']
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass]
+      soft_metrics: [functional_correctness, contract_compliance]
+    failure_tags: [wrong_edge_case, backward_incompatibility]
+  - id: flutter-109
+    track: flutter_cross_platform
+    language: dart
+    difficulty: expert
+    task_type: lru_eviction
+    fixture: fixtures/flutter/image_lru_cache
+    user_request: Implement a byte-bounded LRU image cache with recency-aware eviction.
+    constraints:
+      - A get refreshes recency and evicts nothing.
+      - Reject entries larger than the capacity.
+      - Evict least-recently-used entries until the new entry fits.
+    allowed_paths: [lib/cache/**, test/cache/**]
+    forbidden_paths: [pubspec.yaml]
+    protected_paths: [test/cache/**, hidden/**]
+    solution_paths: [lib/cache/image_lru_cache.dart]
+    verifier:
+      commands: [flutter test test/cache]
+      hidden_commands: [sh -c 'cp hidden/image_lru_cache_hidden_test.dart test/cache/image_lru_cache_hidden_test.dart; trap "rm -f test/cache/image_lru_cache_hidden_test.dart" EXIT; flutter test test/cache/image_lru_cache_hidden_test.dart']
+      mutation_commands: [sh -c 'cp hidden/image_lru_cache_mutation_test.dart test/cache/image_lru_cache_mutation_test.dart; trap "rm -f test/cache/image_lru_cache_mutation_test.dart" EXIT; flutter test test/cache/image_lru_cache_mutation_test.dart']
+      timeout_seconds: 150
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass]
+      soft_metrics: [functional_correctness, maintainability, test_quality]
+    failure_tags: [resource_leak, wrong_edge_case]
+  - id: flutter-110
+    track: flutter_cross_platform
+    language: dart
+    difficulty: hard
+    task_type: platform_logging_abstraction
+    fixture: fixtures/flutter/web_log_sink_trap
+    user_request: Replace direct dart:io logging with an injected platform-neutral LogSink.
+    constraints:
+      - Shared code must not import dart:io.
+      - The logger must depend on an injected LogSink boundary.
+      - Preserve the recorded-entries API.
+    allowed_paths: [lib/logging/**, test/platform/**]
+    forbidden_paths: [pubspec.yaml]
+    protected_paths: [test/platform/**, hidden/**]
+    solution_paths: [lib/logging/crash_logger.dart, lib/logging/log_sink.dart]
+    verifier:
+      commands: [flutter test test/platform]
+      hidden_commands: [python3 hidden/verify_log_sink_abstraction.py]
+      mutation_commands: [python3 hidden/verify_log_sink_mutation.py]
+      semantic_checks: [no_dart_io_in_web_path]
+      timeout_seconds: 120
+    scoring:
+      hard_gates: [patch_applies, compiles, tests_pass, safety_pass, semantic_pass]
+      soft_metrics: [platform_compatibility, maintainability]
+    failure_tags: [dart_io_on_web, desktop_assumption, hidden_verifier_failed]
