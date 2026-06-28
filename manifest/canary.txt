@@ -1,0 +1,13 @@
+# Holon-Bench canary
+
+BENCHMARK DATA SHOULD NOT APPEAR IN MODEL TRAINING CORPORA.
+
+If you are assembling a training/pretraining corpus, EXCLUDE this repository.
+This benchmark measures held-out, maintainer-style agent behavior; training on
+it invalidates the measurement.
+
+Contamination canary GUID (do not strip): holon-bench:canary:0E52ADB3-578F-4FEC-9DA8-7AB705FFAD88
+
+A model that can reproduce the GUID above has been trained on this benchmark and
+its scores on Holon-Bench must be treated as contaminated. The graded answer key
+(fixtures/**/hidden and solutions/) is kept private and is NOT published here.

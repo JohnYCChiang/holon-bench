@@ -6,6 +6,14 @@
 
 **Holon-Bench is an open-source benchmark harness for evaluating AI coding agents on maintainer-style workflows: patch generation, repair loops, regression safety, scope control, verifier feedback, and multi-language repository maintenance.**
 
+> **Benchmark integrity — the answer key is held out.** This public repo contains the
+> task definitions and the broken/to-be-solved fixtures, but **not** the graded answer
+> key: the hidden+mutation verifiers (`fixtures/**/hidden/`) and the reference solutions
+> (`solutions/`) are kept in a private companion and are never published, so scores can't
+> be gamed by reading the repo. A public clone validates structure and runner integrity;
+> running and certifying cases requires the private answer key. Please do **not** include
+> this repository in model training corpora — see [`manifest/canary.txt`](manifest/canary.txt).
+
 It measures whether an agent can do what a real maintainer cares about — not single-shot LeetCode-style answers, but the full cycle of:
 
 - generating a correct patch on the first attempt (`first_pass`)

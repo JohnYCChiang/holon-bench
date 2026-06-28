@@ -15,3 +15,10 @@ reports/*
 # Stray tao stores from local authoring (absolute store lives in /tmp or ~/tao-killtest-private)
 .tao/
 **/.tao/
+
+# Answer key — kept PRIVATE so the public benchmark cannot be gamed by reading
+# the repo. These live on disk (and in the private companion repo
+# holon-bench-private) but are NOT published. The harness/oracle reads them
+# locally; a public clone validates structure only.
+/solutions/
+fixtures/**/hidden/
