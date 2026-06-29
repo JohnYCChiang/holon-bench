@@ -1076,8 +1076,10 @@ PROTECTED PATHS (read-only verifier assets; do not modify):
             "id": "design_critique",
             "description": "Plan-phase design critique before implementation.",
             "role": "Reviewer",
-            "model": args.model,
-            "base_url_override": args.endpoint,
+            # planner/executor split: the design state may run on a different model+endpoint
+            # than the implement state (--planner-model/--planner-endpoint); else same model.
+            "model": getattr(args, "planner_model", None) or args.model,
+            "base_url_override": getattr(args, "planner_endpoint", None) or args.endpoint,
             "permission_mode": "read-only",
             "allowed_tools": [],
             "max_iterations": 1,
@@ -1598,6 +1600,15 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="Prepend a plan-phase design-critique state (M1) to the artifact workflow: "
         "the model commits a design to reports/design_critique.md, which the implement "
         "state then reads. Default off keeps the workflow byte-identical.",
+    )
+    parser.add_argument(
+        "--planner-model",
+        help="With --plan-critique: run the design-critique state on this model instead of "
+        "--model (planner/executor split). Defaults to --model.",
+    )
+    parser.add_argument(
+        "--planner-endpoint",
+        help="Endpoint for --planner-model (defaults to --endpoint).",
     )
     return parser
 

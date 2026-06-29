@@ -106,6 +106,10 @@ def build_generation_command(
         command += ["--thinking-budget", str(args.thinking_budget)]
     if getattr(args, "plan_critique", False):
         command += ["--plan-critique"]
+    if getattr(args, "planner_model", None):
+        command += ["--planner-model", args.planner_model]
+    if getattr(args, "planner_endpoint", None):
+        command += ["--planner-endpoint", args.planner_endpoint]
     if previous_artifact is not None:
         command += ["--previous-artifact", str(previous_artifact)]
     if feedback_error is not None:
@@ -173,6 +177,8 @@ def main() -> int:
         help="Forward --plan-critique to run_model_case: prepend an M1 design-critique "
         "state to the artifact workflow (opt-in; default off keeps the workflow unchanged).",
     )
+    parser.add_argument("--planner-model", help="Planner/executor split: design-critique model.")
+    parser.add_argument("--planner-endpoint", help="Endpoint for --planner-model.")
     args = parser.parse_args()
     if any(arg == "--repair-budget" or arg.startswith("--repair-budget=") for arg in sys.argv):
         print(
