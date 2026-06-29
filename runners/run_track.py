@@ -21,6 +21,19 @@ def run(args: list[str], allowed_returncodes: set[int] | None = None) -> None:
         raise SystemExit(completed.returncode)
 
 
+def _has_valid_score(score_path: pathlib.Path) -> bool:
+    """True if a prior score json exists and looks complete (used by --resume).
+
+    A score is complete when it parses and carries the gate summary score_case.py
+    emits (``hard_pass`` plus a non-empty ``role_signals``). Partial/garbled files
+    are treated as missing so the case re-runs."""
+    try:
+        data = json.loads(score_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    return isinstance(data, dict) and "hard_pass" in data and bool(data.get("role_signals"))
+
+
 def run_capture_process_group(args: list[str], timeout: float) -> subprocess.CompletedProcess[str]:
     proc = subprocess.Popen(
         args,
@@ -146,6 +159,12 @@ def main() -> int:
         default="",
         help="Comma-separated case ids to run. Defaults to every case in the track.",
     )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Skip cases that already have a valid score json (opt-in; default behaviour "
+        "re-runs every case). Lets a long multi-model sweep survive interruption.",
+    )
     args = parser.parse_args()
     if any(arg == "--repair-budget" or arg.startswith("--repair-budget=") for arg in sys.argv):
         print(
@@ -175,6 +194,10 @@ def main() -> int:
         patch_path = root / "reports" / f"{run_prefix}_{suffix}"
         result_path = root / "reports" / f"{run_prefix}_result.json"
         score_path = root / "reports" / f"{run_prefix}_score.json"
+        if args.resume and _has_valid_score(score_path):
+            print(f"[{case_id}] resume: existing score found, skipping")
+            score_paths.append(score_path)
+            continue
         work_root = pathlib.Path(args.work_root) / case_id
         repair_seed_artifact = case.get("repair_seed_artifact")
         if repair_seed_artifact:
