@@ -88,6 +88,27 @@ holds — and strengthens on the full read: the 26B is the best *planner* for th
    prompt's safety/idiomaticity steer lands on all of them; the real signal is requirement
    capture, decisiveness, and not hallucinating.
 
+## 3a. Plan-best ≠ code-best (planner/executor split)
+
+Raw implementation skill (G_off, no plan — the model writes code directly) inverts the
+planning ranking, on the **same 130 cases**:
+
+| model | plan quality (design text) | code quality (G_off pass) |
+|---|---|---|
+| 35B (qwen-deep) | ★★★★ (over-engineers) | **65%** ← best implementer |
+| 12B (gemma-12b) | ★★★½ | 61% |
+| 26B-A4B (gemma-review) | ★★★★½ ← best planner | 58% ← weakest of the strong |
+
+**Best planner ≠ best coder.** Suggestive (not clean) corroboration: the design-critique
+moved 26B-A4B 58%→64% but 35B 65%→54% (its over-engineered plan appears to mislead its
+strong implementation) — confounded by the 39-case subset + default sampling, so only the
+"35B best raw coder" half is firm.
+
+**Implication — planner/executor split:** 26B-A4B plans → 35B implements, matching holon's
+model-policy roles (qwen=architect, gemma=executor). Owed experiment: feed 26B's committed
+design into 35B's implement state and check it beats either alone. Hardware blocker first
+(see below): both Q8 models (~26 GB + ~37 GB) exceed this APU's 62 GB GPU-addressable UMA.
+
 ## 4. Takeaways for the M1 default-on question
 - Plan quality tracks outcome quality (26B/35B/12B plan well and pass more; 9B plans poorly
   and passes least), supporting M1's premise that a committed design helps.
