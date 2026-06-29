@@ -1135,9 +1135,15 @@ def run_holon_cli_driver(
         env["LLAMACPP_BASE_URL"] = args.endpoint
         env["LLAMACPP_API_KEY"] = "dummy"
         env["OLLAMA_BASE_URL"] = args.endpoint
+        env["OPENAI_BASE_URL"] = args.endpoint
         env["KLAW_MODEL"] = args.model
-        env.setdefault("ANTHROPIC_API_KEY", "dummy")
-        env.setdefault("OPENAI_API_KEY", "dummy")
+        env["OPENAI_API_KEY"] = "dummy"
+        # Pin the local OpenAI-compatible endpoint and remove any Anthropic key:
+        # holon's provider detection falls back to Anthropic for model names it does
+        # not recognise as local (e.g. "qwythos" has no qwen/gemma substring), which
+        # 404s. Routing every holon-cli run at the launched server avoids that.
+        env.pop("ANTHROPIC_API_KEY", None)
+        env.pop("ANTHROPIC_BASE_URL", None)
 
         # HOME is set to a fresh temp dir to isolate holon's .holon state between runs.
         # Preserve RUSTUP_HOME/CARGO_HOME so rustup can still find its toolchain config
