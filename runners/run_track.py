@@ -104,6 +104,8 @@ def build_generation_command(
         command += ["--max-output-tokens", str(args.max_output_tokens)]
     if args.thinking_budget is not None:
         command += ["--thinking-budget", str(args.thinking_budget)]
+    if getattr(args, "plan_critique", False):
+        command += ["--plan-critique"]
     if previous_artifact is not None:
         command += ["--previous-artifact", str(previous_artifact)]
     if feedback_error is not None:
@@ -164,6 +166,12 @@ def main() -> int:
         action="store_true",
         help="Skip cases that already have a valid score json (opt-in; default behaviour "
         "re-runs every case). Lets a long multi-model sweep survive interruption.",
+    )
+    parser.add_argument(
+        "--plan-critique",
+        action="store_true",
+        help="Forward --plan-critique to run_model_case: prepend an M1 design-critique "
+        "state to the artifact workflow (opt-in; default off keeps the workflow unchanged).",
     )
     args = parser.parse_args()
     if any(arg == "--repair-budget" or arg.startswith("--repair-budget=") for arg in sys.argv):

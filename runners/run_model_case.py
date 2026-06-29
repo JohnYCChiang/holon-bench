@@ -663,6 +663,7 @@ def collect_holon_trace(
             continue
         for rel in [
             "reports/graph_recall.md",
+            "reports/design_critique.md",
             "reports/implement_artifact_rejection.md",
             "reports/repair_artifact_rejection.md",
             "src/router.py",
@@ -1065,6 +1066,45 @@ PROTECTED PATHS (read-only verifier assets; do not modify):
             }
         ],
     }
+    if getattr(args, "plan_critique", False):
+        # M1-equivalent (holon "policy in YAML/workflow units" doctrine): a plan-phase
+        # design-critique state runs first using holon's official critic prompt, commits a
+        # design to reports/design_critique.md, which the implement state reads via
+        # artifact_inputs. Default off -> states list is byte-identical to above.
+        workflow["states"][0]["artifact_inputs"] = ["reports/design_critique.md"]
+        workflow["states"].insert(0, {
+            "id": "design_critique",
+            "description": "Plan-phase design critique before implementation.",
+            "role": "Reviewer",
+            "model": args.model,
+            "base_url_override": args.endpoint,
+            "permission_mode": "read-only",
+            "allowed_tools": [],
+            "max_iterations": 1,
+            "thinking_budget": 768,
+            "max_output_tokens": 4096,
+            "artifact_output_path": "reports/design_critique.md",
+            "next_states": ["implement"],
+            "instructions_override": f"""You are a senior software design reviewer operating in the PLAN phase, BEFORE any code is written.
+Given a programming task, do the following in one pass:
+1. Enumerate the candidate internal designs / data structures.
+2. For each, weigh the trade-offs explicitly — especially memory-safety, how much `unsafe` (or equivalent footguns) it requires, idiomaticity, and complexity.
+3. COMMIT to the single safest viable design that still meets the requirements; prefer safe, idiomatic constructs over unsafe/raw approaches unless the task truly demands otherwise.
+Output ONLY the committed design decision: the chosen data structures, safe-vs-unsafe stance, and a one-line justification. Do NOT write the implementation.
+
+CASE ID: {case['id']}
+TASK:
+{case['user_request'].strip()}
+
+CONSTRAINTS:
+{constraints}
+
+ALLOWED PATHS:
+{allowed}
+
+Produce the committed design decision now (no implementation code).""",
+        })
+
     workflow_path = workspace / ".holon" / "bench_artifact_workflow.json"
     workflow_path.write_text(json.dumps(workflow, indent=2), encoding="utf-8")
     return workflow_path
@@ -1552,6 +1592,13 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--holon-skip-auto", action="store_true")
     parser.add_argument("--previous-artifact")
     parser.add_argument("--feedback-error")
+    parser.add_argument(
+        "--plan-critique",
+        action="store_true",
+        help="Prepend a plan-phase design-critique state (M1) to the artifact workflow: "
+        "the model commits a design to reports/design_critique.md, which the implement "
+        "state then reads. Default off keeps the workflow byte-identical.",
+    )
     return parser
 
 
