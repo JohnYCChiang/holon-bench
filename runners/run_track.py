@@ -369,6 +369,9 @@ def main() -> int:
         )
         run_score(runners, result_path, root, score_path)
         score_paths.append(score_path)
+        # Remove this case's workspace immediately so /tmp (tmpfs/RAM-backed) does
+        # not accumulate one fixture copy per case across a long multi-model sweep.
+        shutil.rmtree(work_root, ignore_errors=True)
 
     run(
         [

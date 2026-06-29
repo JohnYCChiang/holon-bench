@@ -67,6 +67,10 @@ def materialize_fixture(root: pathlib.Path, fixture: str, work_root: pathlib.Pat
     if not source.exists():
         raise SystemExit(f"fixture does not exist yet: {source}")
     workspace = work_root / source.name
+    # Idempotent: a leftover workspace from a prior run (different model, a crash,
+    # or a resumed sweep reusing the same --work-root) must not make copytree fail.
+    if workspace.exists():
+        shutil.rmtree(workspace, ignore_errors=True)
     shutil.copytree(source, workspace)
     ensure_git_repo(workspace)
     return workspace
