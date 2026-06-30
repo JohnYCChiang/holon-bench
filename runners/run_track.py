@@ -110,6 +110,30 @@ def build_generation_command(
         command += ["--planner-model", args.planner_model]
     if getattr(args, "planner_endpoint", None):
         command += ["--planner-endpoint", args.planner_endpoint]
+    if getattr(args, "planner_prompt_file", None):
+        command += ["--planner-prompt-file", args.planner_prompt_file]
+    if getattr(args, "pm_hld_pipeline", False):
+        command += ["--pm-hld-pipeline"]
+    if getattr(args, "no_hld", False):
+        command += ["--no-hld"]
+    if getattr(args, "solo_fullprompt", False):
+        command += ["--solo-fullprompt"]
+    if getattr(args, "pm_prompt_file", None):
+        command += ["--pm-prompt-file", args.pm_prompt_file]
+    if getattr(args, "hld_prompt_file", None):
+        command += ["--hld-prompt-file", args.hld_prompt_file]
+    if getattr(args, "executor_prompt_file", None):
+        command += ["--executor-prompt-file", args.executor_prompt_file]
+    if getattr(args, "hld_model", None):
+        command += ["--hld-model", args.hld_model]
+    if getattr(args, "hld_endpoint", None):
+        command += ["--hld-endpoint", args.hld_endpoint]
+    if getattr(args, "executor_thinking_budget", None) is not None:
+        command += ["--executor-thinking-budget", str(args.executor_thinking_budget)]
+    if getattr(args, "pm_thinking_budget", None) is not None:
+        command += ["--pm-thinking-budget", str(args.pm_thinking_budget)]
+    if getattr(args, "hld_thinking_budget", None) is not None:
+        command += ["--hld-thinking-budget", str(args.hld_thinking_budget)]
     if previous_artifact is not None:
         command += ["--previous-artifact", str(previous_artifact)]
     if feedback_error is not None:
@@ -179,6 +203,23 @@ def main() -> int:
     )
     parser.add_argument("--planner-model", help="Planner/executor split: design-critique model.")
     parser.add_argument("--planner-endpoint", help="Endpoint for --planner-model.")
+    parser.add_argument("--planner-prompt-file", help="File replacing the design-critique prompt header.")
+    parser.add_argument(
+        "--pm-hld-pipeline",
+        action="store_true",
+        help="Forward --pm-hld-pipeline: 3-role workflow pm -> hld -> implement (opt-in; "
+        "default off keeps the workflow unchanged). Mutually exclusive with --plan-critique.",
+    )
+    parser.add_argument("--solo-fullprompt", action="store_true", help="Single state + full PM+Architect+Engineer methodology in one prompt.")
+    parser.add_argument("--no-hld", action="store_true", help="Drop the HLD stage (pm -> implement direct).")
+    parser.add_argument("--pm-prompt-file", help="PM role prompt header for --pm-hld-pipeline.")
+    parser.add_argument("--hld-prompt-file", help="HLD/architect role prompt header for --pm-hld-pipeline.")
+    parser.add_argument("--executor-prompt-file", help="Derive-before preamble for the implement state (--pm-hld-pipeline).")
+    parser.add_argument("--hld-model", help="Model for the hld state (--pm-hld-pipeline).")
+    parser.add_argument("--hld-endpoint", help="Endpoint for --hld-model.")
+    parser.add_argument("--executor-thinking-budget", type=int, default=None, help="thinking_budget for the implement state (engineer-thinking knob; 0=off).")
+    parser.add_argument("--pm-thinking-budget", type=int, default=None, help="thinking_budget for the pm state (0=off).")
+    parser.add_argument("--hld-thinking-budget", type=int, default=None, help="thinking_budget for the hld state (0=off).")
     args = parser.parse_args()
     if any(arg == "--repair-budget" or arg.startswith("--repair-budget=") for arg in sys.argv):
         print(
