@@ -11,6 +11,7 @@ cases:
       - errors.Is must still match sentinel errors.
       - Add table-driven tests.
       - Do not change exported function names.
+      - Wrap every error return with the path as context — the read error AND the invalid-config sentinel; never return the bare sentinel, while errors.Is still matches it.
     allowed_paths: [internal/loader/**, internal/loader/*_test.go]
     forbidden_paths: [go.mod]
     protected_paths: [internal/loader/*_test.go, hidden/**]

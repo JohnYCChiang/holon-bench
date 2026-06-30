@@ -11,6 +11,7 @@ cases:
       - Components must be data-only.
       - Existing spawn systems must keep compiling.
       - Add pure tests for damage application.
+      - apply_damage clamps current to the range [0, max]; a negative amount must not heal (current never increases).
     allowed_paths: [src/components/**, src/systems/health.rs, tests/health_logic.rs]
     forbidden_paths: [Cargo.toml]
     protected_paths: [tests/health_logic.rs, hidden/**]

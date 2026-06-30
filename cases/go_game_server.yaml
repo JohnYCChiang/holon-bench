@@ -35,6 +35,7 @@ cases:
       - Preserve player id.
       - Do not duplicate lobby membership.
       - Expired sessions must still be rejected.
+      - Reconnecting refreshes the session expiry — the reused session's deadline is renewed so it outlives its original TTL.
     allowed_paths: [server/session/**, server/session/*_test.go]
     forbidden_paths: [go.mod]
     protected_paths: [server/session/*_test.go, hidden/**]
@@ -59,6 +60,7 @@ cases:
       - No flaky sleep-based tests.
       - Preserve tick rate in production.
       - Shutdown must stop the loop.
+      - Closing the tick source also stops the loop (the loop returns when the tick channel is closed), the same as shutdown.
     allowed_paths: [server/tick/**, server/tick/*_test.go]
     forbidden_paths: [go.mod]
     protected_paths: [server/tick/*_test.go, hidden/**]
@@ -203,6 +205,7 @@ cases:
       - New entities are included.
       - Removed entities are reported separately.
       - Unchanged entities are omitted.
+      - Removed entity ids are reported in a deterministic (sorted) order.
     allowed_paths: [server/sync/**, server/sync/*_test.go]
     forbidden_paths: [go.mod]
     protected_paths: [server/sync/*_test.go]
@@ -587,6 +590,7 @@ cases:
       - The roller must advance state so the seed reproduces the sequence.
       - Players are processed in sorted id order; output is sorted by id.
       - Same seed and player set always yield identical drops within range.
+      - Advance the roller each call with the 64-bit LCG state = state*6364136223846793005 + 1442695040888963407, mix the high bits (x = state; x ^= x >> 33), and return x mod n; Next(n <= 0) returns 0.
     allowed_paths: [server/loot/**, server/loot/*_test.go]
     forbidden_paths: [go.mod]
     protected_paths: [server/loot/*_test.go, hidden/**]
