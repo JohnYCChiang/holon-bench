@@ -405,6 +405,7 @@ cases:
       - Return argv as a list with the program as the first element.
       - Never run through a shell; the shell flag must stay false.
       - Reject null bytes, newlines, and non-string args with machine-readable errors.
+      - "Use these error codes: unsafe_arg for null bytes or newlines, invalid_arg_type for a non-string element, invalid_args when args is not a list."
     allowed_paths: [src/argv_tool/**, tests/test_argv_builder.py]
     forbidden_paths: [pyproject.toml]
     protected_paths: [tests/test_argv_builder.py, hidden/**]
@@ -431,6 +432,7 @@ cases:
       - Map negative return codes to signaled status with exit_code 128 + signum.
       - Keep signal null for non-signal results.
       - Return a machine-readable error for non-integer input.
+      - 'For non-integer input return a structured error with ok false and error as a nested object: error = {"code": "invalid_returncode"} (accessed as error["code"]).'
     allowed_paths: [src/exit_tool/**, tests/test_exit_classify.py]
     forbidden_paths: [pyproject.toml]
     protected_paths: [tests/test_exit_classify.py]

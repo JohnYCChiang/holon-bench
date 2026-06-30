@@ -664,6 +664,8 @@ def collect_holon_trace(
         for rel in [
             "reports/graph_recall.md",
             "reports/design_critique.md",
+            "reports/pm_brief.md",
+            "reports/hld.md",
             "reports/implement_artifact_rejection.md",
             "reports/repair_artifact_rejection.md",
             "src/router.py",
@@ -808,7 +810,7 @@ TASK:
                 "thinking_budget": 768,
                 "max_output_tokens": 16384,
                 "artifact_inputs": ["reports/graph_recall.md"],
-                "context_globs": ["README.md", "src/**/*.py", "tests/**/*.py"],
+                "context_globs": ["README.md", "DOMAIN.md", "src/**/*.py", "tests/**/*.py"],
                 "artifact_output_paths": solution_paths,
                 "next_states": ["verify"],
                 "instructions_override": f"""Clean-context benchmark implementation state.
@@ -886,7 +888,7 @@ PROTECTED PATHS (read-only verifier assets; do not modify):
                 "thinking_budget": 768,
                 "max_output_tokens": 16384,
                 "artifact_inputs": ["reports/graph_recall.md"],
-                "context_globs": ["README.md", "src/**/*.py", "tests/**/*.py"],
+                "context_globs": ["README.md", "DOMAIN.md", "src/**/*.py", "tests/**/*.py"],
                 "artifact_output_paths": solution_paths,
                 "next_states": ["verify"],
                 "instructions_override": f"""Clean-context benchmark repair state.
@@ -966,6 +968,10 @@ def benchmark_context_globs_for_case(case: dict) -> list[str]:
     language = case.get("language", "")
     common = [
         "README.md",
+        # Domain spec doc: tasks say "Follow DOMAIN.md" and forbid editing it, so it must be
+        # readable context. It is a forbidden (do-not-edit) reference, not a protected/hidden
+        # answer file — withholding it starved the model of the spec it is told to follow.
+        "DOMAIN.md",
         "pyproject.toml",
         "Cargo.toml",
         "go.mod",
@@ -1066,12 +1072,163 @@ PROTECTED PATHS (read-only verifier assets; do not modify):
             }
         ],
     }
-    if getattr(args, "plan_critique", False):
+    if getattr(args, "solo_fullprompt", False):
+        # Collapse the whole PM->Architect->Engineer methodology into ONE prompt for a SINGLE
+        # generation (no extra states, no handoffs): does the value live in the *methodology*
+        # or in the multi-stage *decomposition*? If solo+full-prompt matches the 3-role
+        # pipeline, the stage separation was pure overhead.
+        _solo_header = (
+            "Work through this in one pass, reasoning fully before you write code:\n"
+            "1. As a product manager, restate the task as concrete BDD scenarios (Given/When/"
+            "Then), including every error condition (the exact error and what triggers it) and "
+            "the state after an invalid or failed operation.\n"
+            "2. As an architect, name the domain model the change touches — the entities/types "
+            "and the precise invariants that must always hold — reusing the existing code and "
+            "types as they are; introduce no new abstraction the task does not require.\n"
+            "3. As the engineer, turn every scenario and invariant into a concrete test "
+            "assertion (exact input, call, expected result/error, plus boundaries: empty, "
+            "single, duplicates, invalid input, ordering, repeated execution); implement the "
+            "smallest change that makes them all hold, reusing existing code unchanged and "
+            "restyling nothing; then adversarially self-review — for each scenario find the "
+            "input most likely to break it, trace it through your code, and fix the code.\n"
+            "Do all of the above in your reasoning, then output only the file artifact(s)."
+        )
+        workflow["states"][0]["instructions_override"] = (
+            _solo_header + "\n\n" + workflow["states"][0]["instructions_override"]
+        )
+    if getattr(args, "pm_hld_pipeline", False):
+        # 3-role pipeline, pure holon workflow composition (zero holon changes):
+        #   pm (35B, WHAT) -> hld (26B, high-level design) -> implement (35B, detail + code).
+        # Each role is placed at its evidenced strength (docs/m1-plan-critique-eval.md):
+        # 35B = best requirement-capture AND best implementer; 26B = best design decisiveness.
+        # The engineer owns DETAIL design (derives edge cases before coding), so 26B's HLD
+        # stays high-level -> no off-idiom impedance mismatch on the detail layer. Per-state
+        # thinking is the native WorkflowState.thinking_budget field. Default off (flag absent)
+        # -> states list is byte-identical to the single-state workflow above.
+        _task_ctx = (
+            f"CASE ID: {case['id']}\nTASK:\n{case['user_request'].strip()}\n\n"
+            f"CONSTRAINTS:\n{constraints}\n\nALLOWED PATHS:\n{allowed}\n"
+        )
+        _default_pm = (
+            "You are a senior product manager doing BDD. Turn the task into concrete behavioral "
+            "scenarios in Given/When/Then form — one scenario per stated behavior, including "
+            "every error condition (the exact error and what triggers it) and the state after "
+            "an invalid or failed operation. Make each scenario concrete and checkable, e.g. "
+            "'Given a negative reading, When record is called, Then it raises ValueError, And "
+            "the state is unchanged'; or 'Given a player queued twice, When they cancel, Then "
+            "the queue contains none of that player'. Use the task's exact terms and cover "
+            "every behavior it states; invent no behavior it does not, and do not design the "
+            "implementation. Output only the Given/When/Then scenarios."
+        )
+        _default_hld = (
+            "You are a senior architect doing domain modeling on an existing codebase. From the "
+            "BDD scenarios, produce the domain model: the entities and value objects, and the "
+            "invariants and rules that must always hold — state each precisely (e.g. 'a reading "
+            "is a non-negative integer, otherwise ValueError'; 'cancelling removes every "
+            "occurrence so no stale entry remains'). Name where in the existing code each lives, "
+            "reusing existing types and conventions; introduce no abstraction the scenarios do "
+            "not require, and preserve the existing observable behavior exactly. No code — the "
+            "domain model and its invariants only."
+        )
+        _default_exec = (
+            "You implement test-first. There is no test runner, so the tests live in your "
+            "reasoning. First, turn every BDD scenario and domain invariant into a concrete "
+            "test assertion — write out the exact input, the call, and the expected result or "
+            "error for each, and add the boundary cases the scenarios imply (empty, single, "
+            "duplicates, invalid input, ordering, repeated execution). Treat those assertions "
+            "as the spec. Then implement the smallest change that makes EVERY assertion hold, "
+            "reusing existing code, types, and conventions unchanged — add no new abstraction or "
+            "scaffolding, and do not restyle code that already works. "
+            "Finally, before finalizing, adversarially review your own code: for each scenario "
+            "and invariant, hunt for the single input most likely to break it — a boundary, a "
+            "duplicate, an empty or repeated case, an unusual value the obvious tests would miss "
+            "— and trace that input through your code by hand. If your code diverges from the "
+            "spec on any, fix the code. Finalize only when this self-review finds nothing. Fix "
+            "the code, never the assertion; add no validation no assertion covers."
+        )
+
+        def _read_or(default, attr):
+            _f = getattr(args, attr, None)
+            return pathlib.Path(_f).read_text(encoding="utf-8").strip() if _f else default
+
+        _pm_header = _read_or(_default_pm, "pm_prompt_file")
+        _hld_header = _read_or(_default_hld, "hld_prompt_file")
+        _exec_header = _read_or(_default_exec, "executor_prompt_file")
+        _no_hld = getattr(args, "no_hld", False)
+        # implement state (states[0]): prepend the derive-before preamble, thread the upstream
+        # artifacts in, and apply the engineer-thinking knob. With --no-hld the implement state
+        # reads only the (faithful) PM brief — the architect stage is dropped entirely.
+        workflow["states"][0]["artifact_inputs"] = (
+            ["reports/pm_brief.md"] if _no_hld else ["reports/pm_brief.md", "reports/hld.md"]
+        )
+        workflow["states"][0]["instructions_override"] = (
+            _exec_header + "\n\n" + workflow["states"][0]["instructions_override"]
+        )
+        _etb = getattr(args, "executor_thinking_budget", None)
+        if _etb is not None:
+            workflow["states"][0]["thinking_budget"] = _etb
+        _ptb = getattr(args, "pm_thinking_budget", None)
+        _htb = getattr(args, "hld_thinking_budget", None)
+        # hld state (26B architect): reads the PM brief, commits a high-level design. Skipped
+        # when --no-hld is set (PM -> implement direct).
+        if not _no_hld:
+            workflow["states"].insert(0, {
+                "id": "hld",
+                "description": "High-level design from the PM ticket (architect role).",
+                "role": "Reviewer",
+                "model": getattr(args, "hld_model", None) or getattr(args, "planner_model", None) or args.model,
+                "base_url_override": getattr(args, "hld_endpoint", None) or getattr(args, "planner_endpoint", None) or args.endpoint,
+                "permission_mode": "read-only",
+                "allowed_tools": [],
+                # See the actual code so "reuse existing types" is grounded, not a tool-seeking
+                # guess (an emitted tool-use in a no-tools state trips the iteration cap). max_iter
+                # 3 is a safety net so a stray tool-use degrades to text instead of crashing.
+                "context_globs": benchmark_context_globs_for_case(case),
+                "max_iterations": 3,
+                "thinking_budget": _htb if _htb is not None else 768,
+                "max_output_tokens": 4096,
+                "artifact_inputs": ["reports/pm_brief.md"],
+                "artifact_output_path": "reports/hld.md",
+                "next_states": ["implement"],
+                "instructions_override": f"{_hld_header}\n\n{_task_ctx}",
+            })
+        # pm state (35B PM): captures WHAT + acceptance criteria (no design, no edge cases).
+        workflow["states"].insert(0, {
+            "id": "pm",
+            "description": "Product-manager ticket: requirements + acceptance criteria.",
+            "role": "Reviewer",
+            "model": args.model,
+            "base_url_override": args.endpoint,
+            "permission_mode": "read-only",
+            "allowed_tools": [],
+            "context_globs": benchmark_context_globs_for_case(case),
+            "max_iterations": 3,
+            "thinking_budget": _ptb if _ptb is not None else 768,
+            "max_output_tokens": 4096,
+            "artifact_output_path": "reports/pm_brief.md",
+            "next_states": ["implement"] if _no_hld else ["hld"],
+            "instructions_override": f"{_pm_header}\n\n{_task_ctx}",
+        })
+    elif getattr(args, "plan_critique", False):
         # M1-equivalent (holon "policy in YAML/workflow units" doctrine): a plan-phase
         # design-critique state runs first using holon's official critic prompt, commits a
         # design to reports/design_critique.md, which the implement state reads via
         # artifact_inputs. Default off -> states list is byte-identical to above.
         workflow["states"][0]["artifact_inputs"] = ["reports/design_critique.md"]
+        _default_plan_header = (
+            "You are a senior software design reviewer operating in the PLAN phase, BEFORE any code is written.\n"
+            "Given a programming task, do the following in one pass:\n"
+            "1. Enumerate the candidate internal designs / data structures.\n"
+            "2. For each, weigh the trade-offs explicitly — especially memory-safety, how much `unsafe` (or equivalent footguns) it requires, idiomaticity, and complexity.\n"
+            "3. COMMIT to the single safest viable design that still meets the requirements; prefer safe, idiomatic constructs over unsafe/raw approaches unless the task truly demands otherwise.\n"
+            "Output ONLY the committed design decision: the chosen data structures, safe-vs-unsafe stance, and a one-line justification. Do NOT write the implementation."
+        )
+        _ppf = getattr(args, "planner_prompt_file", None)
+        _plan_header = pathlib.Path(_ppf).read_text(encoding="utf-8").strip() if _ppf else _default_plan_header
+        _design_instructions = (
+            f"{_plan_header}\n\nCASE ID: {case['id']}\nTASK:\n{case['user_request'].strip()}\n\n"
+            f"CONSTRAINTS:\n{constraints}\n\nALLOWED PATHS:\n{allowed}\n"
+        )
         workflow["states"].insert(0, {
             "id": "design_critique",
             "description": "Plan-phase design critique before implementation.",
@@ -1087,24 +1244,7 @@ PROTECTED PATHS (read-only verifier assets; do not modify):
             "max_output_tokens": 4096,
             "artifact_output_path": "reports/design_critique.md",
             "next_states": ["implement"],
-            "instructions_override": f"""You are a senior software design reviewer operating in the PLAN phase, BEFORE any code is written.
-Given a programming task, do the following in one pass:
-1. Enumerate the candidate internal designs / data structures.
-2. For each, weigh the trade-offs explicitly — especially memory-safety, how much `unsafe` (or equivalent footguns) it requires, idiomaticity, and complexity.
-3. COMMIT to the single safest viable design that still meets the requirements; prefer safe, idiomatic constructs over unsafe/raw approaches unless the task truly demands otherwise.
-Output ONLY the committed design decision: the chosen data structures, safe-vs-unsafe stance, and a one-line justification. Do NOT write the implementation.
-
-CASE ID: {case['id']}
-TASK:
-{case['user_request'].strip()}
-
-CONSTRAINTS:
-{constraints}
-
-ALLOWED PATHS:
-{allowed}
-
-Produce the committed design decision now (no implementation code).""",
+            "instructions_override": _design_instructions,
         })
 
     workflow_path = workspace / ".holon" / "bench_artifact_workflow.json"
@@ -1610,6 +1750,38 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "--planner-endpoint",
         help="Endpoint for --planner-model (defaults to --endpoint).",
     )
+    parser.add_argument(
+        "--planner-prompt-file",
+        help="With --plan-critique: file whose contents replace the design-critique "
+        "instruction header (the task block is still appended). Defaults to the built-in "
+        "design-reviewer prompt.",
+    )
+    parser.add_argument(
+        "--pm-hld-pipeline",
+        action="store_true",
+        help="Replace the single implement state with a 3-role holon-workflow pipeline: "
+        "pm (requirements+acceptance) -> hld (high-level design) -> implement (detail design "
+        "+ code). Each role can route to its own model/endpoint/thinking. Default off keeps "
+        "the workflow byte-identical. Mutually exclusive with --plan-critique.",
+    )
+    parser.add_argument("--solo-fullprompt", action="store_true", help="Single state, one generation, with the full PM+Architect+Engineer methodology in one prompt.")
+    parser.add_argument("--no-hld", action="store_true", help="With --pm-hld-pipeline: drop the HLD/architect stage (pm -> implement direct).")
+    parser.add_argument("--pm-prompt-file", help="With --pm-hld-pipeline: PM role prompt header (defaults built-in).")
+    parser.add_argument("--hld-prompt-file", help="With --pm-hld-pipeline: HLD/architect role prompt header (defaults built-in).")
+    parser.add_argument("--executor-prompt-file", help="With --pm-hld-pipeline: derive-before preamble prepended to the implement state (defaults built-in).")
+    parser.add_argument("--hld-model", help="With --pm-hld-pipeline: model for the hld state (defaults --planner-model, then --model).")
+    parser.add_argument("--hld-endpoint", help="Endpoint for --hld-model (defaults --planner-endpoint, then --endpoint).")
+    parser.add_argument(
+        "--executor-thinking-budget",
+        type=int,
+        default=None,
+        help="With --pm-hld-pipeline: thinking_budget for the implement state (the engineer-"
+        "thinking knob; 0 = off). Defaults to the implement state's existing budget.",
+    )
+    parser.add_argument("--pm-thinking-budget", type=int, default=None,
+                        help="With --pm-hld-pipeline: thinking_budget for the pm state (0 = off). Default 768.")
+    parser.add_argument("--hld-thinking-budget", type=int, default=None,
+                        help="With --pm-hld-pipeline: thinking_budget for the hld state (0 = off). Default 768.")
     return parser
 
 

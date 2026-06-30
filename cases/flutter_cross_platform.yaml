@@ -60,6 +60,7 @@ cases:
       - Preserve manual refresh behavior.
       - Avoid global mutable singleton state.
       - Add tests proving one request per logical refresh.
+      - "Coalescing is per in-flight request: a failed refresh clears the slot so the next refresh issues a fresh request (failures are not cached)."
     allowed_paths: [lib/state/**, lib/services/**, test/state/**]
     forbidden_paths: [pubspec.yaml]
     protected_paths: [test/state/**, hidden/**]
