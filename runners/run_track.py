@@ -83,8 +83,6 @@ def build_generation_command(
         args.driver,
         "--generation-timeout-seconds",
         str(args.generation_timeout_seconds),
-        "--temperature",
-        str(args.temperature),
         "--top-p",
         str(args.top_p),
         "--holon-max-iterations",
@@ -94,6 +92,8 @@ def build_generation_command(
         "--holon-auto-timeout-seconds",
         str(args.holon_auto_timeout_seconds),
     ]
+    if args.temperature is not None:
+        command += ["--temperature", str(args.temperature)]
     if args.min_p is not None:
         command += ["--min-p", str(args.min_p)]
     if args.reasoning_budget is not None:
@@ -168,7 +168,9 @@ def main() -> int:
         help="Holon workflow field thinking_budget, forwarded to run_model_case.py.",
     )
     # Sampling-profile controls forwarded to run_model_case.py.
-    parser.add_argument("--temperature", type=float, default=0.1)
+    # Omitted -> run_model_case.py applies a per-model default (qwen*/qwythos 0.6,
+    # gemma* 0.7, else 0.1). Pass explicitly to override for every case in the track.
+    parser.add_argument("--temperature", type=float, default=None)
     parser.add_argument("--top-p", type=float, default=0.9)
     parser.add_argument("--min-p", type=float, default=None)
     parser.add_argument("--reasoning-budget", type=int, default=None)

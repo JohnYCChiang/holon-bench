@@ -779,6 +779,7 @@ def write_graph_recall_workflow(
                 "max_iterations": 3,
                 "thinking_budget": 768,
                 "max_output_tokens": 16384,
+                "temperature": args.temperature,
                 "artifact_output_path": "reports/graph_recall.md",
                 "graph_recall": {
                     "required": True,
@@ -809,6 +810,7 @@ TASK:
                 "max_iterations": 1,
                 "thinking_budget": 768,
                 "max_output_tokens": 16384,
+                "temperature": args.temperature,
                 "artifact_inputs": ["reports/graph_recall.md"],
                 "context_globs": ["README.md", "DOMAIN.md", "src/**/*.py", "tests/**/*.py"],
                 "artifact_output_paths": solution_paths,
@@ -887,6 +889,7 @@ PROTECTED PATHS (read-only verifier assets; do not modify):
                 "max_iterations": 1,
                 "thinking_budget": 768,
                 "max_output_tokens": 16384,
+                "temperature": args.temperature,
                 "artifact_inputs": ["reports/graph_recall.md"],
                 "context_globs": ["README.md", "DOMAIN.md", "src/**/*.py", "tests/**/*.py"],
                 "artifact_output_paths": solution_paths,
@@ -1035,6 +1038,7 @@ Repair rules:
                 "max_iterations": 1,
                 "thinking_budget": 768,
                 "max_output_tokens": 16384,
+                "temperature": args.temperature,
                 "context_globs": benchmark_context_globs_for_case(case),
                 "artifact_output_paths": solution_paths,
                 "next_states": [],
@@ -1187,6 +1191,7 @@ PROTECTED PATHS (read-only verifier assets; do not modify):
                 "max_iterations": 3,
                 "thinking_budget": _htb if _htb is not None else 768,
                 "max_output_tokens": 4096,
+                "temperature": args.temperature,
                 "artifact_inputs": ["reports/pm_brief.md"],
                 "artifact_output_path": "reports/hld.md",
                 "next_states": ["implement"],
@@ -1205,6 +1210,7 @@ PROTECTED PATHS (read-only verifier assets; do not modify):
             "max_iterations": 3,
             "thinking_budget": _ptb if _ptb is not None else 768,
             "max_output_tokens": 4096,
+            "temperature": args.temperature,
             "artifact_output_path": "reports/pm_brief.md",
             "next_states": ["implement"] if _no_hld else ["hld"],
             "instructions_override": f"{_pm_header}\n\n{_task_ctx}",
@@ -1242,6 +1248,7 @@ PROTECTED PATHS (read-only verifier assets; do not modify):
             "max_iterations": 1,
             "thinking_budget": 768,
             "max_output_tokens": 4096,
+            "temperature": args.temperature,
             "artifact_output_path": "reports/design_critique.md",
             "next_states": ["implement"],
             "instructions_override": _design_instructions,
@@ -1335,7 +1342,9 @@ def run_holon_cli_driver(
         env.setdefault("RUSTUP_HOME", os.path.join(real_home, ".rustup"))
         env.setdefault("CARGO_HOME", os.path.join(real_home, ".cargo"))
 
-        holon_bin = os.environ.get("HOLON_BIN", "/home/taichi/Migration/holon/target/debug/holon")
+        holon_bin = os.environ.get(
+            "HOLON_BIN", "/home/taichi/holon-world/holon/target/release/holon"
+        )
         if not pathlib.Path(holon_bin).exists():
             raise SystemExit(f"compiled holon binary not found at: {holon_bin}. Run cargo build first.")
 
@@ -1691,8 +1700,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--temperature",
         type=float,
-        default=0.1,
-        help="Sampling temperature sent on direct requests. 0 = greedy.",
+        default=None,
+        help="Sampling temperature. Sent on direct requests and pinned into every "
+        "holon-cli workflow generation state. 0 = greedy. When omitted, a per-model "
+        "default is used (qwen* -> 0.6, gemma* -> 0.7, otherwise 0.1); pass explicitly "
+        "to override.",
     )
     parser.add_argument(
         "--top-p",
@@ -1785,9 +1797,26 @@ def build_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def default_temperature_for_model(model: str) -> float:
+    """Per-model default sampling temperature used when --temperature is omitted.
+
+    Keeps the bench's holon-cli workflow and direct requests reproducible without
+    relying on holon's internal persona defaults: qwen (incl. MTP) and qwythos run
+    at 0.6, the gemma-26B/12B family at 0.7, everything else keeps the prior 0.1.
+    """
+    lower = model.lower()
+    if "qwen" in lower or "qwythos" in lower:
+        return 0.6
+    if "gemma" in lower:
+        return 0.7
+    return 0.1
+
+
 def main() -> int:
     parser = build_arg_parser()
     args = parser.parse_args()
+    if args.temperature is None:
+        args.temperature = default_temperature_for_model(args.model)
     if any(arg == "--generation-max-tokens" or arg.startswith("--generation-max-tokens=") for arg in sys.argv):
         print(
             "warning: --generation-max-tokens is deprecated; use --max-output-tokens",
